@@ -10,8 +10,8 @@ const io = socketIO(server);
 
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
-const port = 3000;
-//name change could be formar one
+const port = 3000
+//add event listeners for socket.io on for listening to (refer to image)
 
 app.get('/', (req, res) => {
   res.render('index.ejs')

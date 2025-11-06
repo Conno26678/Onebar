@@ -36,9 +36,19 @@ function initGame(gameId = 'default') {
     discardPile: [],
     turnIndex: 0,
     direction: 1, // 1 for clockwise, -1 for counter-clockwise
-    started: false
+    started: false,
+    onePending: null
   };
   return games[gameId];
+}
+
+//ONE timer
+function clearOnePending(game) {
+  if (!game || !game.onePending) return;
+  try {
+    clearTimeout(game.onePending.timeoutId);
+  } catch (e) {}
+  game.onePending = null;
 }
 
 // Draw cards from the deck, refilling from discard pile if needed
@@ -269,17 +279,45 @@ io.on('connection', (socket) => {
     const step = game.direction;
     let nextIndex = ((playerIndex + step ) % playerCount + playerCount ) % playerCount;
 
+
     // Handle special cards
     const special = String(card.value).toLowerCase();
+
+    // skip
     if (special === 'skip' || special === 'skip_2') {
       nextIndex = ((nextIndex + step ) % playerCount + playerCount ) % playerCount;
-    } else if ( special === 'draw two' || special === 'draw_two' || special.includes('draw')) {
+
+
+    // WILD DRAW FOUR
+    } else if (
+      special === 'wild draw four' ||
+      special === 'wild_draw_four' ||
+      special.includes('draw four') ||
+      special.includes('draw_four') ||
+      special.includes('wild draw')
+    ) {
+      const victim = game.players[nextIndex];
+      const drawn = drawFromDeck(game, 4);
+      victim.hand.push(...drawn);
+      io.to(victim.socketId).emit('deal', victim.hand);
+      io.to(gameId).emit('playerDrew', { playerId: victim.id, count: drawn.length });
+      nextIndex = ((nextIndex + step ) % playerCount + playerCount ) % playerCount;
+
+    // DRAW TWO (make this check specific so it doesn't catch all "draw..." strings)
+    } else if (
+      special === 'draw two' ||
+      special === 'draw_two' ||
+      special.includes('draw two') ||
+      special.includes('draw_two')
+    ) {
       const victim = game.players[nextIndex];
       const drawn = drawFromDeck(game, 2);
       victim.hand.push(...drawn);
       io.to(victim.socketId).emit('deal', victim.hand);
       io.to(gameId).emit('playerDrewCards', { playerId: victim.id, count: drawn.length });
       nextIndex = ((nextIndex + step ) % playerCount + playerCount ) % playerCount;
+
+    // reverse
     } else if (special === 'reverse') {
       game.direction = -game.direction;
       if (playerCount === 2) {
@@ -288,13 +326,6 @@ io.on('connection', (socket) => {
         //one step in new direction after reverse
         nextIndex = ((playerIndex + game.direction ) % playerCount + playerCount ) % playerCount;
       }
-    } else if (special === 'wild draw four' || special === 'wild_draw_four' || special.includes('draw four')) {
-      const victim = game.players[nextIndex];
-      const drawn = drawFromDeck(game, 4);
-      victim.hand.push(...drawn);
-      io.to(victim.socketId).emit('deal', victim.hand);
-      io.to(gameId).emit('playerDrew', { playerId: victim.id, count: drawn.length });
-      nextIndex = ((nextIndex + step ) % playerCount + playerCount ) % playerCount;
     }
 
     // Handles advancing turn
@@ -305,7 +336,99 @@ io.on('connection', (socket) => {
 
     // after any draw-from-deck call inside playCard, add:
     io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+
+      // If the player now has exactly 1 card, start a ONE timer
+    try {
+      // Clear any previous pending ONE
+      if (game.onePending && game.onePending.playerId !== player.id) {
+        // keep pending for other player until it expires or is cleared
+      }
+      // If this player has 1 card, start a timer that penalizes them if they don't call ONE
+      if (player.hand.length === 1) {
+        if (game.onePending && game.onePending.playerId === player.id) {
+          clearOnePending(game);
+        }
+        const penaltyDelayMs = 5000; 
+        const timeoutId = setTimeout(() => {
+          // ensure pending still refers to the same player
+          if (!game.onePending || game.onePending.playerId !== player.id) return;
+          // apply +2 penalty
+          const drawn = drawFromDeck(game, 2);
+          player.hand.push(...drawn);
+          io.to(player.socketId).emit('deal', player.hand);
+          io.to(gameId).emit('playerPenalized', { playerId: player.id, playerName: player.name, count: drawn.length });
+          io.to(gameId).emit('playerDrew', { playerId: player.id, count: drawn.length });
+          // update draw pile count
+          io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+          // clear the pending 
+          clearOnePending(game);
+        }, penaltyDelayMs);
+
+        game.onePending = {
+          playerId: player.id,
+          timeoutId,
+          expiresAt: Date.now() + penaltyDelayMs
+        };
+
+        // Notify that the server expects them to call ONE
+        io.to(player.socketId).emit('youHaveOne', { expiresAt: game.onePending.expiresAt });
+      } else {
+        // If the player does not have one, clear any pending timer for that player
+        if (game.onePending && game.onePending.playerId === player.id) {
+          clearOnePending(game);
+        }
+      }
+    } catch (e) {
+      console.error('error starting ONE timer', e);
+    }
+
+    //Win detection
+    if (player.hand.length === 0) {
+       if (game.onePending && game.onePending.playerId === player.id) clearOnePending(game);
+       
+      game.started = false;
+      game.winner = {id: player.id, name: player.name, timestamp: Date.now() };
+
+      //inform who won
+      io.to(gameId).emit('playerWon', { playerId: player.id, playerName: player.name  });
+      io.to(gameId).emit('gameEnded', { 
+        winner: { id: player.id, name: player.name },
+        players: game.players.map(p => ({ id: p.id, name: p.name, handCount: p.hand.length })),
+        discardTop: game.discardPile[game.discardPile.length -1] || null
+       });
+
+      console.log(`Player ${player.name} (${player.id}) won game ${gameId}`);
+      return;
+    }
   });
+
+    // Player calls ONE
+    socket.on('callOne', ({ gameId = 'default' } = {}) => {
+      const game = games[gameId];
+      if (!game) {
+        socket.emit('invalidOneCall', { reason: 'Game not found' });
+        return;
+      }
+      const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
+      if (playerIndex === -1) {
+        socket.emit('invalidOneCall', { reason: 'Not in game' });
+        return;
+      }
+      const player = game.players[playerIndex];
+      //must actually have one card
+      if (!player || player.hand.length !== 1) {
+        socket.emit('invalidOneCall', { reason: 'You do not have exactly one card' });
+        return;
+      }
+
+      // If there's a pending timer for this player, clear it
+      if (game.onePending && game.onePending.playerId === player.id) {
+        clearOnePending(game);
+      }
+
+      // Broadcast to everyone that this player called ONE
+      io.to(gameId).emit('playerCalledOne', { playerId: player.id, playerName: player.name });
+    });
 
     socket.on('disconnect', () => {
     console.log('user disconnected', socket.id);

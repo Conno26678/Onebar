@@ -21,20 +21,41 @@
         .current {
             font-weight: bold;
         }
-             #tableArea {
-            display: flex;
-            align-items: center;
-            gap: 20px; /* space between draw pile and discard */
-            margin-top: 8px;
+    #tableArea {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start; 
+      gap: 24px;
+      margin-top: 8px;
+      justify-content: flex-start; 
+      margin-left: 8px;
+      width: calc(100% - 16px);
+    }
+    #drawPile, #table {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 140px;
+    }
+
+        #table .wrapper {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         }
-        #drawPile {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+
+        #drawCount {
+          font-weight: 600;
+          margin-bottom: 6px;
         }
-        #table {
-            display: flex;
-            align-items: center;
+        #table .badge {
+          font-weight: 600;
+          margin-top: 6px;
+        }
+          @media (max-width: 600px) {
+          #hand img { width: 72px; }
+          #table img, #drawPile img { width: 96px; }
+          #tableArea { gap: 12px; }
         }
     </style>
 </head>
@@ -49,8 +70,7 @@
 
     <h3>Table</h3>
      <div id="tableArea"></div>
-      <div id="drawPilePlaceholder"></div>
-      
+    
     <div id="table"></div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -58,6 +78,8 @@
 </body>
 <script>
     const socket = io();
+    
+    let gameActive = true;
 
     const playerName = prompt('Enter your name', 'Player') || 'Player';
 
@@ -78,6 +100,7 @@
     });
     
     socket.on('gameStarted', ({currentPlayerId, players}) => {
+      gameActive = true;
         updateCurrentPlayer(currentPlayerId);
     });
 
@@ -107,6 +130,40 @@
         socket.emit('startColorChosen', { gameId: gid || 'default', color: chosen });
     });
 
+    socket.on('playerWon', ({ playerId, playerName }) => {
+        alert(`${playerName} has won the game!`);
+        disableGameUI();
+    });
+
+    socket.on('gameEnded', () => {
+      console.log('gameEnded', data)
+      disableGameUI();
+      const winner = data?.winner;
+      if (winner) {
+        const status = document.getElementById('status');
+        status.innerText = `Game over! Winner: ${winner.name || winner.id}`;
+      }
+    });
+
+    function disableGameUI() {
+      gameActive = false;
+      const drawmImg = document.getElementById('drawPileImg');
+      if (drawImg) {
+        drawImg.style.opacity = '0.5';
+        drawImg.style.pointerEvents = 'none';
+      }
+      //remove hand click events
+      document.querySelectorAll('#hand img').forEach(img => {
+        img.style.opacity = '0.5';
+        img.style.pointerEvents = 'none';
+      });
+        // optionally hide or disable Start Game button
+      const startBtn = document.querySelector('button');
+      if (startBtn) {
+        startBtn.disabled = false; // keep available to start a new game if server supports it
+      }
+    }
+
     function renderHand(hand) {
       const container = document.getElementById('hand');
       container.innerHTML = '';
@@ -117,6 +174,7 @@
         img.dataset.cardId = card.id;
         img.title = `${card.name} (value ${card.value})`;
         img.addEventListener('click', () => {
+          if (!gameActive) return;
           // play the card
           if (card.color === 'wild') {
             const chosen = prompt('Choose a color: red, blue, green, yellow');
@@ -185,14 +243,78 @@
     startBtn.addEventListener('click', () => socket.emit('startGame', { gameId: 'default', handSize: 7 }));
     document.body.appendChild(startBtn);
 
-    // ...existing code in <script>...
+    // ONE button: shows a "1" image and allows calling ONE
+    const oneBtn = document.createElement('button');
+    oneBtn.id = 'oneBtn';
+    oneBtn.style.marginLeft = '8px';
+    // If you don't have a "one" image, you can use text or a card image that represents "1".
+    const oneImg = document.createElement('img');
+    oneImg.src = '/img/ONElogo.png';
+    oneImg.alt = 'ONE';
+    oneImg.style.width = '48px';
+    oneImg.style.height = 'auto';
+    oneImg.style.verticalAlign = 'middle';
+    oneBtn.appendChild(oneImg);
+    oneBtn.title = 'Press when you have one card';
 
-// Create draw pile UI (card back image + count)
+    oneBtn.addEventListener('click', () => {
+      const handCount = document.querySelectorAll('#hand img').length;
+      if (handCount !== 1) {
+        // yell at them for clicking incorrectly
+        alert("You don't have exactly one card — don't press ONE!");
+        // socket.emit('falseOnePressed', { gameId: 'default' });
+        return;
+      }
+      // If they have one card locally, send to server to validate & broadcast
+      socket.emit('callOne', { gameId: 'default' });
+    });
+
+    document.body.appendChild(oneBtn);
+
+    // Listen for server confirmation / errors
+    socket.on('playerCalledOne', ({ playerId, playerName }) => {
+      alert(`${playerName || playerId} called ONE!`);
+    });
+
+    socket.on('invalidOneCall', ({ reason }) => {
+      alert(`Invalid ONE call: ${reason || ''}`);
+    });
+
+    socket.on('playerPenalized', ({ playerId, playerName, count }) => {
+      const name = playerName || document.getElementById('p_' + playerId)?.textContent || playerId;
+      alert(`${name} failed to call ONE in time and drew ${count} card${count !== 1 ? 's' : ''}`);
+    });
+
+    // notify the player locally when server expects them to call ONE
+    socket.on('youHaveOne', ({ expiresAt }) => {
+      const remainMs = Math.max(0, expiresAt - Date.now());
+      const secs = Math.ceil(remainMs / 1000);
+      // small hint to the player that they should press ONE
+      const s = document.getElementById('status');
+      s.innerText = `You have ONE! Call it within ${secs} sec${secs !== 1 ? 's' : ''}.`;
+      // clear this message after the timeout
+      setTimeout(() => {
+        if (s && s.innerText && s.innerText.startsWith('You have ONE')) {
+          s.innerText = '';
+        }
+      }, remainMs + 100);
+    });
+
+
+// Create draw pile UI 
 const drawContainer = document.createElement('div');
 drawContainer.id = 'drawPile';
 drawContainer.style.display = 'inline-block';
 drawContainer.style.textAlign = 'center';
 drawContainer.style.margin = '8px';
+
+// count badge (placed above the draw image)
+const drawCount = document.createElement('div');
+drawCount.id = 'drawCount';
+drawCount.style.marginBottom = '6px';
+drawCount.style.fontWeight = '600';
+drawCount.innerText = ''; 
+drawContainer.appendChild(drawCount);
 
 // draw pile image
 const drawImg = document.createElement('img');
@@ -203,17 +325,21 @@ drawImg.style.width = '120px';
 drawImg.style.cursor = 'pointer';
 drawContainer.appendChild(drawImg);
 
-// count badge
-const drawCount = document.createElement('div');
-drawCount.id = 'drawCount';
-drawCount.style.marginTop = '6px';
-drawCount.style.fontWeight = '600';
-drawCount.innerText = ''; 
-drawContainer.appendChild(drawCount);
-
-// Place the draw pile near the table
+// Place the draw pile and ensure the discard #table sit together inside #tableArea
+const tableArea = document.getElementById('tableArea');
 const tableEl = document.getElementById('table');
-tableEl.parentNode.insertBefore(drawContainer, tableEl);
+
+// Append draw pile first, then the table (discard). This keeps a consistent order.
+tableArea.appendChild(drawContainer);
+
+// If the #table element isn't already a child of #tableArea, move it in.
+if (tableEl.parentNode !== tableArea) {
+  tableArea.appendChild(tableEl);
+}
+
+// Force ordering  so draw pile is left and discard is right
+drawContainer.style.order = '1';
+tableEl.style.order = '2';
 
 // Clicking the draw pile
 drawImg.addEventListener('click', () => {
@@ -226,7 +352,7 @@ socket.on('drawPileCount', ({ count }) => {
   el.innerText = `Deck: ${count}`;
 });
 
-// Optionally show a notification when any player draws
+//  show a notification when any player draws
 socket.on('playerDrew', ({ playerId, count }) => {
   const name = document.getElementById('p_' + playerId)?.textContent || playerId;
   const s = document.getElementById('status');

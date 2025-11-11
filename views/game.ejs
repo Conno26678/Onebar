@@ -60,7 +60,9 @@
     </style>
 </head>
 <body>
-    <h1>Game</h1>
+  <!-- Logout button (upper-left) -->
+  <a href="/logout" class="btn logout-button">Logout</a>
+  <h1>Game</h1>
 
     <div id="playerList"></div>
     <div id="status"></div>
@@ -81,7 +83,7 @@
     
     let gameActive = true;
 
-    const playerName = prompt('Enter your name', 'Player') || 'Player';
+    const playerName = <%- JSON.stringify(user || 'Anonymous') %>;
 
     socket.emit('joinGame', { playerName, gameId: 'default' });
 
@@ -135,7 +137,7 @@
         disableGameUI();
     });
 
-    socket.on('gameEnded', () => {
+    socket.on('gameEnded', (data) => {
       console.log('gameEnded', data)
       disableGameUI();
       const winner = data?.winner;
@@ -147,7 +149,7 @@
 
     function disableGameUI() {
       gameActive = false;
-      const drawmImg = document.getElementById('drawPileImg');
+      const drawImg = document.getElementById('drawPileImg');
       if (drawImg) {
         drawImg.style.opacity = '0.5';
         drawImg.style.pointerEvents = 'none';
@@ -199,9 +201,9 @@
       wrapper.style.textAlign = 'center';
       wrapper.style.margin = '8px';
 
-      const displayName = playerName || (document.getElementById('p_' + playerId)?.textContent) || playerId;
+      
       const who = document.createElement('div');
-      who.innerText = displayName;
+      who.innerText = playerName || (document.getElementById('p_' + playerId)?.textContent) || playerId;
       who.style.marginBottom = '4px';
       wrapper.appendChild(who);
 

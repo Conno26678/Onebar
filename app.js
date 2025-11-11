@@ -7,22 +7,81 @@ const socketIO = require('socket.io');
 const http = require('http');
 const server = http.createServer(app);
 const io = socketIO(server);
-const port = 3000
-// 172.16.3.147:3000 is the url for others at the moment
+require('dotenv').config();
+const port = process.env.PORT || 3000;
+const AUTH_URL = process.env.AUTH_URL || 'https://formbeta.yorktechapps.com/';
+const THIS_URL = process.env.THIS_URL || `http://172.16.3.147${port}`;
+const jwt = require('jsonwebtoken');
+const session = require('express-session');
 
-const {createDeck, shuffle} = require('./cards');
+//modules
+const { createDeck, shuffle } = require('./cards');
 
 //Middleware
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
+app.use(session({
+  secret: 'Ich bin dein Gummibär, ich bin dein Gummibär',
+  resave: false,
+  saveUninitialized: false
+}))
 
-//Routes
-app.get('/', (req, res) => {
-  res.render('index.ejs')
+function isAuthenticated(req, res, next) {
+  if (req.session.user) {
+    const tokenData = req.session.token;
+
+    try {
+      // Check if the token has expired
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (tokenData.exp < currentTime) {
+        throw new Error('Token has expired');
+      }
+      next();
+    } catch (err) {
+      req.session.destroy();
+      res.redirect('/login');
+    }
+  } else {
+    res.redirect('/login');
+  }
+}
+
+app.get('/login', (req, res) => {
+  if (req.query.token) {
+    const rawToken = req.query.token;
+    const tokenData = jwt.decode(rawToken);
+
+    req.session.token = tokenData;
+    req.session.user = tokenData.displayName;
+    req.session.permission = tokenData.permissions;
+
+    const redirectTo = req.query.redirectURL || '/';
+    res.redirect(redirectTo);
+  } else {
+    res.redirect(`${AUTH_URL}/oauth?redirectURL=${THIS_URL}/login`);
+  }
 });
 
-app.get('/game', (req, res) => {
-  res.render('game.ejs')
+//Routes
+app.get('/', isAuthenticated, (req, res) => {
+  res.render('index.ejs', { user: req.session.user });
+});
+
+app.get('/game', isAuthenticated, (req, res) => {
+  res.render('game.ejs', { user: req.session.user });
+});
+
+app.get('/lobby', isAuthenticated, (req, res) => {
+  res.render('lobby.ejs', { user: req.session.user });
+});
+
+app.get('/about', (req, res) => {
+  res.render('about.ejs', { user: req.session.user });
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/login');
 });
 
 const games = {};// { [gameId]: { players: [{ socketId, id, name, hand: [] }], deck: [], turnIndex: 0 } }
@@ -47,7 +106,7 @@ function clearOnePending(game) {
   if (!game || !game.onePending) return;
   try {
     clearTimeout(game.onePending.timeoutId);
-  } catch (e) {}
+  } catch (e) { }
   game.onePending = null;
 }
 
@@ -92,7 +151,7 @@ io.on('connection', (socket) => {
     console.log(`${playerName} joined game ${gameId}`);
   });
 
-   socket.on('startGame', ({ gameId = 'default', handSize = 7 } = {}) => {
+  socket.on('startGame', ({ gameId = 'default', handSize = 7 } = {}) => {
     const game = games[gameId] || initGame(gameId);
     if (game.started) return;
     if (game.players.length === 0) return;
@@ -124,12 +183,12 @@ io.on('connection', (socket) => {
 
     if (game.discardPile.length > 0) {
       const top = game.discardPile[game.discardPile.length - 1];
-      
+
       io.to(gameId).emit('cardPlacedOnTable', top);
 
       if (top.color === 'wild') {
         const currentSocketId = game.players[game.turnIndex].socketId;
-        io.to(currentSocketId).emit('requestStartColor', { gameId, card: top});
+        io.to(currentSocketId).emit('requestStartColor', { gameId, card: top });
         io.to(gameId).emit('cardPlacedOnTable', top);
         console.log('requesting starting color', currentSocketId);
       } else {
@@ -142,7 +201,7 @@ io.on('connection', (socket) => {
     console.log('game started', gameId);
   });
 
-  socket.on('drawCard', ({gameId = 'default', count = 1} = {}) => {
+  socket.on('drawCard', ({ gameId = 'default', count = 1 } = {}) => {
     const game = games[gameId];
     if (!game || !game.started) {
       socket.emit('invalidMove', { reason: 'Game not started' });
@@ -179,14 +238,14 @@ io.on('connection', (socket) => {
     //advance turn
     const playerCount = game.players.length;
     const step = game.direction;
-    const nextIndex = ((game.turnIndex + step ) % playerCount + playerCount ) % playerCount;
+    const nextIndex = ((game.turnIndex + step) % playerCount + playerCount) % playerCount;
     game.turnIndex = nextIndex;
 
     const nextPlayerId = game.players[game.turnIndex].id;
     io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
   });
 
-    // Receive the chosen start color from the player who was asked
+  // Receive the chosen start color from the player who was asked
   socket.on('startColorChosen', ({ gameId = 'default', color } = {}) => {
     const game = games[gameId];
     if (!game) return;
@@ -273,11 +332,11 @@ io.on('connection', (socket) => {
     //discards and then plays
     game.discardPile.push(card);
     io.to(gameId).emit('cardPlayed', { playerId: player.id, playerName: player.name, card });
-    
+
     //determines direction
     const playerCount = game.players.length;
     const step = game.direction;
-    let nextIndex = ((playerIndex + step ) % playerCount + playerCount ) % playerCount;
+    let nextIndex = ((playerIndex + step) % playerCount + playerCount) % playerCount;
 
 
     // Handle special cards
@@ -285,10 +344,10 @@ io.on('connection', (socket) => {
 
     // skip
     if (special === 'skip' || special === 'skip_2') {
-      nextIndex = ((nextIndex + step ) % playerCount + playerCount ) % playerCount;
+      nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
 
 
-    // WILD DRAW FOUR
+      // WILD DRAW FOUR
     } else if (
       special === 'wild draw four' ||
       special === 'wild_draw_four' ||
@@ -301,9 +360,9 @@ io.on('connection', (socket) => {
       victim.hand.push(...drawn);
       io.to(victim.socketId).emit('deal', victim.hand);
       io.to(gameId).emit('playerDrew', { playerId: victim.id, count: drawn.length });
-      nextIndex = ((nextIndex + step ) % playerCount + playerCount ) % playerCount;
+      nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
 
-    // DRAW TWO (make this check specific so it doesn't catch all "draw..." strings)
+      // DRAW TWO (make this check specific so it doesn't catch all "draw..." strings)
     } else if (
       special === 'draw two' ||
       special === 'draw_two' ||
@@ -315,16 +374,16 @@ io.on('connection', (socket) => {
       victim.hand.push(...drawn);
       io.to(victim.socketId).emit('deal', victim.hand);
       io.to(gameId).emit('playerDrewCards', { playerId: victim.id, count: drawn.length });
-      nextIndex = ((nextIndex + step ) % playerCount + playerCount ) % playerCount;
+      nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
 
-    // reverse
+      // reverse
     } else if (special === 'reverse') {
       game.direction = -game.direction;
       if (playerCount === 2) {
         nextIndex = playerIndex; // in 2-player game, reverse acts like skip
       } else {
         //one step in new direction after reverse
-        nextIndex = ((playerIndex + game.direction ) % playerCount + playerCount ) % playerCount;
+        nextIndex = ((playerIndex + game.direction) % playerCount + playerCount) % playerCount;
       }
     }
 
@@ -337,7 +396,7 @@ io.on('connection', (socket) => {
     // after any draw-from-deck call inside playCard, add:
     io.to(gameId).emit('drawPileCount', { count: game.deck.length });
 
-      // If the player now has exactly 1 card, start a ONE timer
+    // If the player now has exactly 1 card, start a ONE timer
     try {
       // Clear any previous pending ONE
       if (game.onePending && game.onePending.playerId !== player.id) {
@@ -348,7 +407,7 @@ io.on('connection', (socket) => {
         if (game.onePending && game.onePending.playerId === player.id) {
           clearOnePending(game);
         }
-        const penaltyDelayMs = 5000; 
+        const penaltyDelayMs = 5000;
         const timeoutId = setTimeout(() => {
           // ensure pending still refers to the same player
           if (!game.onePending || game.onePending.playerId !== player.id) return;
@@ -384,53 +443,53 @@ io.on('connection', (socket) => {
 
     //Win detection
     if (player.hand.length === 0) {
-       if (game.onePending && game.onePending.playerId === player.id) clearOnePending(game);
-       
+      if (game.onePending && game.onePending.playerId === player.id) clearOnePending(game);
+
       game.started = false;
-      game.winner = {id: player.id, name: player.name, timestamp: Date.now() };
+      game.winner = { id: player.id, name: player.name, timestamp: Date.now() };
 
       //inform who won
-      io.to(gameId).emit('playerWon', { playerId: player.id, playerName: player.name  });
-      io.to(gameId).emit('gameEnded', { 
+      io.to(gameId).emit('playerWon', { playerId: player.id, playerName: player.name });
+      io.to(gameId).emit('gameEnded', {
         winner: { id: player.id, name: player.name },
         players: game.players.map(p => ({ id: p.id, name: p.name, handCount: p.hand.length })),
-        discardTop: game.discardPile[game.discardPile.length -1] || null
-       });
+        discardTop: game.discardPile[game.discardPile.length - 1] || null
+      });
 
       console.log(`Player ${player.name} (${player.id}) won game ${gameId}`);
       return;
     }
   });
 
-    // Player calls ONE
-    socket.on('callOne', ({ gameId = 'default' } = {}) => {
-      const game = games[gameId];
-      if (!game) {
-        socket.emit('invalidOneCall', { reason: 'Game not found' });
-        return;
-      }
-      const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
-      if (playerIndex === -1) {
-        socket.emit('invalidOneCall', { reason: 'Not in game' });
-        return;
-      }
-      const player = game.players[playerIndex];
-      //must actually have one card
-      if (!player || player.hand.length !== 1) {
-        socket.emit('invalidOneCall', { reason: 'You do not have exactly one card' });
-        return;
-      }
+  // Player calls ONE
+  socket.on('callOne', ({ gameId = 'default' } = {}) => {
+    const game = games[gameId];
+    if (!game) {
+      socket.emit('invalidOneCall', { reason: 'Game not found' });
+      return;
+    }
+    const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
+    if (playerIndex === -1) {
+      socket.emit('invalidOneCall', { reason: 'Not in game' });
+      return;
+    }
+    const player = game.players[playerIndex];
+    //must actually have one card
+    if (!player || player.hand.length !== 1) {
+      socket.emit('invalidOneCall', { reason: 'You do not have exactly one card' });
+      return;
+    }
 
-      // If there's a pending timer for this player, clear it
-      if (game.onePending && game.onePending.playerId === player.id) {
-        clearOnePending(game);
-      }
+    // If there's a pending timer for this player, clear it
+    if (game.onePending && game.onePending.playerId === player.id) {
+      clearOnePending(game);
+    }
 
-      // Broadcast to everyone that this player called ONE
-      io.to(gameId).emit('playerCalledOne', { playerId: player.id, playerName: player.name });
-    });
+    // Broadcast to everyone that this player called ONE
+    io.to(gameId).emit('playerCalledOne', { playerId: player.id, playerName: player.name });
+  });
 
-    socket.on('disconnect', () => {
+  socket.on('disconnect', () => {
     console.log('user disconnected', socket.id);
     // remove player from games
     for (const [gameId, game] of Object.entries(games)) {

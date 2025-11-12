@@ -160,20 +160,108 @@ function drawFromDeck(game, count = 1) {
 io.on('connection', (socket) => {
   console.log('a user connected:', socket.id);
 
-  socket.on('joinGame', ({ playerName = 'Anonymous', gameId = 'default' }) => {
-    const game = games[gameId] || initGame(gameId);
+  //Client current lobby list
+  socket.emit('lobbyList', Object.entries(games).map(([id, g]) => ({
+    gameId: id,
+    lobbyName: g.lobbyName || `Lobby ${id.slice(0, 6)}`,
+    ownerName: g.ownerName || 'Host',
+    playerCount: g.players.length,
+    maxplayers: g.maxplayers || 8,
+    status: g.started ? 'started' : (g.status || 'waiting'),
+  })));
+
+  //New lobby/auto join
+  socket.on('createLobby', ({ lobbyName = null, maxPlayers = 8, playerName = 'Host' } = {}) => {
+    const gameId = uuidv4();
+    const game = initGame(gameId);
+    game.ownerId = socket.id;
+    game.ownerName = playerName || 'Host';
+    game.lobbyName = lobbyName || `${game.ownerName}'s Lobby`;
+    game.maxPlayers = Math.max(2, Math.min(32, Number(maxPlayers) || 8));
+    game.createdAt = Date.now();
+    game.status = 'waiting';
+
+    //Creator auto-joins
     const player = {
       socketId: socket.id,
-      id: socket.id, // use socket id as player id for simplicity until formbar login is added
-      name: playerName,
+      id: socket.id,
+      name: playerName || 'Host',
       hand: []
     };
-    //Add players to the game
+    game.players.push(player);
+    socket.join(gameId);
+
+    //Notify creator
+    socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName });
+    //notify all clients of updated lobby list
+    io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name })));
+    broadcastLobbyList();
+
+    console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
+  });
+
+  //Join an existing lobby
+  socket.on('joinLobby', ({ gameId = 'default', playerName = 'Anonymous' } = {}) => {
+    const game = games[gameId];
+    if (!game) {
+      socket.emit('lobbyJoinError', { reason: 'Lobby not found' });
+      return;
+    }
+    if (game.started) {
+      socket.emit('lobbyJoinError', { reason: 'Game already started' });
+      return;
+    }
+    if (game.players.length >= game.maxPlayers || 8) {
+      socket.emit('lobbyJoinError', { reason: 'Lobby is full' });
+      return;
+    }
+    //add player
+    const existing = game.players.find(p => p.socketId === socket.id);
+    if (existing) {
+      socket.join(gameId);
+      socket.emit('joined', { playerId: existing.id, gameId });
+      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name })));
+      broadcastLobbyList();
+      return;
+    }
+
+    const player = {
+      socketId: socket.id,
+      id: socket.id,
+      name: playerName || 'Player',
+      hand: []
+    };
     game.players.push(player);
     socket.join(gameId);
     socket.emit('joined', { playerId: player.id, gameId });
     io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name })));
-    console.log(`${playerName} joined game ${gameId}`);
+    broadcastLobbyList();
+
+    console.log(`${player.name} joined lobby ${gameId} (${game.lobbyName})`);
+  });
+
+  //Leaving lobby
+  socket.on('leaveLobby', ({ gameId } = {}) => {
+    const game = games[gameId];
+    if (!game) return;
+    const real = game.players.findIndex(p => p.socketId === socket.id);
+    if (real === -1) return;
+    const [removed] = game.players.splice(real, 1);
+    socket.leave(gameId);
+    io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name })));
+
+    //if owner leaves, promote new owner
+    if (removed && removed.socketId === game.ownerId) {
+      if (game.players.length > 0) {
+        game.ownerId = game.players[0].socketId;
+        game.ownerName = game.players[0].name;
+        io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+      } else {
+        // kill lobby if no one exists
+        delete games[gameId];
+      }
+    }
+    broadcastLobbyList();
   });
 
   socket.on('startGame', ({ gameId = 'default', handSize = 7 } = {}) => {

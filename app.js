@@ -13,6 +13,7 @@ const AUTH_URL = process.env.AUTH_URL || 'https://formbeta.yorktechapps.com/';
 const THIS_URL = process.env.THIS_URL || `http://172.16.3.147${port}`;
 const jwt = require('jsonwebtoken');
 const session = require('express-session');
+const { v4: uuidv4 } = require('uuid');
 
 //modules
 const { createDeck, shuffle } = require('./cards');
@@ -96,9 +97,33 @@ function initGame(gameId = 'default') {
     turnIndex: 0,
     direction: 1, // 1 for clockwise, -1 for counter-clockwise
     started: false,
-    onePending: null
+    onePending: null,
+
+    //lobby data
+    ownerId: null,
+    ownerName: null,
+    lobbyName: null,
+    maxplayers: 8,
+    createdAt: Date.now(),
+    status: 'waiting' // If the game has enough people or has started yet
   };
   return games[gameId];
+}
+
+// Broadcasting lobby lists
+function broadcastLobbyList() {
+  const list = Object.entries(games)
+  .filter(([, g]) => g) // g = game, check that it exists
+  .map(([id, g]) => ({
+    gameId: id,
+    lobbyName: g.lobbyName || `Lobby ${id.slice(0, 6)}`,
+    ownerName: g.ownerName || 'Host',
+    playerCount: g.players.length,
+    maxplayers: g.maxplayers || 8,
+    status: g.started ? 'started' : (g.status || 'waiting'),
+    createdAt: g.createdAt || 0
+  }));
+  io.emit('lobbyList', list);
 }
 
 //ONE timer

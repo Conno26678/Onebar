@@ -10,7 +10,7 @@ const io = socketIO(server);
 require('dotenv').config();
 const port = process.env.PORT || 3000;
 const AUTH_URL = process.env.AUTH_URL || 'https://formbeta.yorktechapps.com/';
-const THIS_URL = process.env.THIS_URL || `http://172.16.3.147${port}`;
+const THIS_URL = process.env.THIS_URL || `http://localhost:${port}`;
 const jwt = require('jsonwebtoken');
 const session = require('express-session');
 const { v4: uuidv4 } = require('uuid');
@@ -39,15 +39,18 @@ function isAuthenticated(req, res, next) {
       }
       next();
     } catch (err) {
+      console.log('Authentication error:', err.message);
       req.session.destroy();
       res.redirect('/login');
     }
   } else {
+    console.log('User not authenticated, redirecting to login');
     res.redirect('/login');
   }
 }
 
 app.get('/login', (req, res) => {
+  console.log(req.query);
   if (req.query.token) {
     const rawToken = req.query.token;
     const tokenData = jwt.decode(rawToken);
@@ -58,8 +61,10 @@ app.get('/login', (req, res) => {
 
     const redirectTo = req.query.redirectURL || '/';
     res.redirect(redirectTo);
+    console.log(`User ${tokenData.displayName} logged in`);
   } else {
     res.redirect(`${AUTH_URL}/oauth?redirectURL=${THIS_URL}/login`);
+    console.log('Redirecting to auth server');
   }
 });
 
@@ -266,11 +271,24 @@ io.on('connection', (socket) => {
 
   socket.on('startGame', ({ gameId = 'default', handSize = 7 } = {}) => {
     const game = games[gameId] || initGame(gameId);
+    if (!game) return;
+    // Only owner can start
+    if (socket.id !== game.ownerId) {
+      socket.emit('invalidMove', { reason: 'Only the lobby owner can start the game' });
+      return;
+    }
     if (game.started) return;
     if (game.players.length === 0) return;
     // validate hand size
     handSize = Number(handSize) || 7;
     if (handSize < 1) handSize = 1;
+
+    // enforce maxPlayers (defensive)
+    if (game.players.length > (game.maxPlayers || 32)) {
+      socket.emit('invalidMove', { reason: 'Too many players to start' });
+      return;
+    }
+
     // ensure deck is shuffled
     shuffle(game.deck);
     // deal
@@ -604,23 +622,37 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('user disconnected', socket.id);
-    // remove player from games
     for (const [gameId, game] of Object.entries(games)) {
-      const idx = game.players.findIndex(p => p.socketId === socket.id);
-      if (idx !== -1) {
-        const [removed] = game.players.splice(idx, 1);
+      const real = game.players.findIndex(p => p.socketId === socket.id);
+      if (real !== -1) {
+        const [removed] = game.players.splice(real, 1);
         io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name })));
-        // if it was their turn, advance
+        // if owner left
+        if (removed && removed.socketId === game.ownerId) {
+          if (game.players.length > 0) {
+            game.ownerId = game.players[0].socketId;
+            game.ownerName = game.players[0].name;
+            io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+          } else {
+            // delete lobby entirely
+            delete games[gameId];
+            continue; 
+          }
+        }
+        // if it was their turn, adjust turnIndex 
         if (game.started && game.players.length > 0) {
           game.turnIndex = game.turnIndex % game.players.length;
           io.to(gameId).emit('turnChanged', { currentPlayerId: game.players[game.turnIndex].id });
-        } else {
-          game.started = false;
+        } else if (!game.started) {
+          game.status = 'waiting';
         }
+
+        broadcastLobbyList();
       }
     }
   });
 });
+
 //Start the server silly
 server.listen(port, () => {
   console.log(`app listening at http://localhost:${port}`);

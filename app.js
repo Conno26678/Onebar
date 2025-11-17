@@ -26,6 +26,12 @@ app.use(session({
   resave: false,
   saveUninitialized: false
 }))
+app.use(sessionMiddleware);
+
+// Attach session middleware to socket.io so we can read session in sockets
+io.use((socket, next) => {
+  sessionMiddleware(socket.request, socket.request.res || {}, next);
+});
 
 function isAuthenticated(req, res, next) {
   if (req.session.user) {
@@ -163,6 +169,9 @@ function drawFromDeck(game, count = 1) {
 }
 
 io.on('connection', (socket) => {
+  const sess = socket.request && socket.request.session;
+  const sessUser = sess && sess.user ? String(sess.user) : 'null';
+
   console.log('a user connected:', socket.id);
 
   //Client current lobby list
@@ -177,6 +186,7 @@ io.on('connection', (socket) => {
 
   //New lobby/auto join
   socket.on('createLobby', ({ lobbyName = null, maxPlayers = 8, playerName = 'Host' } = {}) => {
+    const playerName = sessUser;
     const gameId = uuidv4();
     const game = initGame(gameId);
     game.ownerId = socket.id;
@@ -230,6 +240,7 @@ io.on('connection', (socket) => {
       return;
     }
 
+    const playerName = sessUser || "player";
     const player = {
       socketId: socket.id,
       id: socket.id,

@@ -1,3 +1,4 @@
+// ...existing code...
 // Simple lobby UI client for socket.io (Thanks copilot)
 document.addEventListener('DOMContentLoaded', () => {
   const socket = io();
@@ -14,9 +15,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const roomControls = document.getElementById('roomControls');
   const leaveLobbyBtn = document.getElementById('leaveLobbyBtn');
 
+  const lobbiesContainer = document.getElementById('lobbiesContainer');
+  const createLobbySection = document.getElementById('createLobby');
+
   let currentGameId = null;
   let currentPlayerId = null;
   let currentOwnerId = null;
+
+  // When socket connects, record our socket id as our current player id
+  socket.on('connect', () => {
+    currentPlayerId = socket.id;
+  });
 
   function renderLobbyList(lobbies) {
     if (!Array.isArray(lobbies) || lobbies.length === 0) {
@@ -50,17 +59,37 @@ document.addEventListener('DOMContentLoaded', () => {
       pDiv.textContent = p.name + (p.id === currentOwnerId ? ' (Owner)' : '');
       roomPlayerList.appendChild(pDiv);
     });
+
+    // update room info (players count) when player list changes
+    if (currentGameId) {
+      const max = (createMax && createMax.value) ? createMax.value : '8';
+      currentRoomInfo.textContent = `Players: ${players.length}/${max}`;
+    }
   }
 
-  function showCurrentRoom(meta) {
+  function showCurrentRoom(meta = {}) {
+    // Hide lobby list and create UI to give the room full focus
+    if (lobbiesContainer) lobbiesContainer.style.display = 'none';
+    if (createLobbySection) createLobbySection.style.display = 'none';
+
     currentRoomEl.style.display = 'block';
-    currentRoomTitle.textContent = meta.lobbyName || 'Room';
-    currentRoomInfo.innerHTML = `Owner: ${meta.ownerName} | Players: ${meta.playerCount}/${meta.maxPlayers}`;
-    currentOwnerId = meta.ownerId;
+    currentGameId = meta.gameId || currentGameId;
+    currentRoomTitle.textContent = meta.lobbyName || `Room ${currentGameId ? currentGameId.slice(0,6) : ''}`;
+
+    // Update info display if available
+    if (typeof meta.playerCount !== 'undefined' || typeof meta.maxPlayers !== 'undefined') {
+      const pc = meta.playerCount != null ? meta.playerCount : '0';
+      const mp = meta.maxPlayers != null ? meta.maxPlayers : (createMax ? createMax.value : '8');
+      currentRoomInfo.innerHTML = `Owner: ${escapeHtml(meta.ownerName || 'Host')} | Players: ${pc}/${mp}`;
+    } else {
+      // leave previous info if we don't have new values
+    }
+
+    currentOwnerId = meta.ownerId || currentOwnerId;
     roomControls.innerHTML = '';
 
     // If I'm the owner, show start button
-    if (currentPlayerId && currentPlayerId === currentOwnerId) {
+    if (currentPlayerId && currentOwnerId && currentPlayerId === currentOwnerId) {
       const startBtn = document.createElement('button');
       startBtn.textContent = 'Start Game';
       startBtn.onclick = () => {
@@ -69,6 +98,11 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       roomControls.appendChild(startBtn);
     }
+
+    // Smooth scroll the room into view for a nicer UX
+    try {
+      currentRoomEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) { /* ignore if not supported */ }
   }
 
   // escape helper
@@ -85,21 +119,27 @@ document.addEventListener('DOMContentLoaded', () => {
   // success on create
   socket.on('lobbyCreated', ({ gameId, lobbyName }) => {
     currentGameId = gameId;
-    // we automatically join (server added us)
-    currentRoomTitle.textContent = lobbyName;
-    currentRoomInfo.textContent = 'Waiting for players...';
+    // show focused room UI for the creator and make them the owner
+    showCurrentRoom({
+      gameId,
+      lobbyName,
+      ownerId: socket.id,
+      ownerName: window.CURRENT_USER || 'Host',
+      playerCount: 1,
+      maxPlayers: parseInt(createMax.value, 10) || 8
+    });
+    // request updated lobbies and player list
+    socket.emit('getLobbies');
   });
 
   // joined a lobby (server responds after join)
   socket.on('joined', ({ playerId, gameId }) => {
-    currentPlayerId = playerId;
-    currentGameId = gameId;
+    currentPlayerId = playerId || currentPlayerId;
+    currentGameId = gameId || currentGameId;
     // request current lobby list to update UI
     socket.emit('getLobbies');
-    // request player list will come separately
-    // show current room area
-    currentRoomEl.style.display = 'block';
-    currentRoomTitle.textContent = 'Room ' + gameId.slice(0,6);
+    // show current room area 
+    showCurrentRoom({ gameId, lobbyName: `Room ${gameId.slice(0,6)}` });
   });
 
   // player list update for the room
@@ -109,19 +149,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   socket.on('ownerChanged', ({ ownerId, ownerName }) => {
     currentOwnerId = ownerId;
-    // update UI: re-request lobbies to refresh owner display
+    // show the room
+    showCurrentRoom({ ownerId, ownerName });
+    // update lobby list display for other viewers
     socket.emit('getLobbies');
   });
 
-  // join failed feedback
+  // server may emit different error names; handle both older and newer names
   socket.on('joinFailed', ({ reason }) => {
     alert('Unable to join: ' + reason);
   });
+  socket.on('lobbyJoinError', ({ reason }) => {
+    alert('Unable to join: ' + reason);
+  });
 
-  // when a game started for this room we navigate to /game (or display)
+  // when a game started for this room we navigate to /game
   socket.on('gameStarted', ({ currentPlayerId: cp, players }) => {
-    // navigate to /game and you can include gameId info via localStorage or query string
-    // for simplicity, just go to /game and client should rejoin the game with gameId
     window.location.href = '/game?gameId=' + encodeURIComponent(currentGameId);
   });
 
@@ -137,13 +180,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!currentGameId) return;
     socket.emit('leaveLobby', { gameId: currentGameId });
     currentGameId = null;
-    currentPlayerId = null;
+    currentPlayerId = socket.id || null;
     currentOwnerId = null;
     currentRoomEl.style.display = 'none';
+    // restore lobby UI
+    if (lobbiesContainer) lobbiesContainer.style.display = 'block';
+    if (createLobbySection) createLobbySection.style.display = 'block';
+    // refresh
+    socket.emit('getLobbies');
   });
 
-  // helpful utility: request lobby list periodically
+  // Request lobby list periodically (only when not currently in a room)
   setInterval(() => {
-    socket.emit('getLobbies');
+    if (!currentGameId) {
+      socket.emit('getLobbies');
+    }
   }, 5000);
 });

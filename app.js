@@ -21,11 +21,11 @@ const { createDeck, shuffle } = require('./cards');
 //Middleware
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
-app.use(session({
+const sessionMiddleware = session({
   secret: 'Ich bin dein Gummibär, ich bin dein Gummibär',
   resave: false,
   saveUninitialized: false
-}))
+});
 app.use(sessionMiddleware);
 
 // Attach session middleware to socket.io so we can read session in sockets
@@ -185,8 +185,8 @@ io.on('connection', (socket) => {
   })));
 
   //New lobby/auto join
-  socket.on('createLobby', ({ lobbyName = null, maxPlayers = 8, playerName = 'Host' } = {}) => {
-    const playerName = sessUser;
+  socket.on('createLobby', ({ lobbyName = null, maxPlayers = 8, playerName: clientName = 'Host' } = {}) => {
+    const playerName = sessUser || clientName || 'Player';
     const gameId = uuidv4();
     const game = initGame(gameId);
     game.ownerId = socket.id;
@@ -216,7 +216,7 @@ io.on('connection', (socket) => {
   });
 
   //Join an existing lobby
-  socket.on('joinLobby', ({ gameId = 'default', playerName = 'Anonymous' } = {}) => {
+  socket.on('joinLobby', ({ gameId = 'default', playerName: clientName = 'Anonymous' } = {}) => {
     const game = games[gameId];
     if (!game) {
       socket.emit('lobbyJoinError', { reason: 'Lobby not found' });
@@ -226,7 +226,7 @@ io.on('connection', (socket) => {
       socket.emit('lobbyJoinError', { reason: 'Game already started' });
       return;
     }
-    if (game.players.length >= game.maxPlayers || 8) {
+    if (game.players.length >= (game.maxPlayers || 8)) {
       socket.emit('lobbyJoinError', { reason: 'Lobby is full' });
       return;
     }
@@ -240,7 +240,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const playerName = sessUser || "player";
+    const playerName = sessUser || clientName || 'Player';
     const player = {
       socketId: socket.id,
       id: socket.id,

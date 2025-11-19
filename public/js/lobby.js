@@ -44,9 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
       const joinBtn = document.createElement('button');
       joinBtn.textContent = 'Join';
-      joinBtn.onclick = () => {
-        socket.emit('joinLobby', { gameId: l.gameId, playerName: window.CURRENT_USER || 'Guest' });
-      };
+      joinBtn.onclick = () => { window.location.href = '/room/' + encodeURIComponent(l.gameId);};
       div.appendChild(joinBtn);
       lobbyListEl.appendChild(div);
     });
@@ -117,20 +115,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // success on create
-  socket.on('lobbyCreated', ({ gameId, lobbyName }) => {
-    currentGameId = gameId;
-    // show focused room UI for the creator and make them the owner
-    showCurrentRoom({
-      gameId,
-      lobbyName,
-      ownerId: socket.id,
-      ownerName: window.CURRENT_USER || 'Host',
-      playerCount: 1,
-      maxPlayers: parseInt(createMax.value, 10) || 8
-    });
-    // request updated lobbies and player list
-    socket.emit('getLobbies');
-  });
+ socket.on('lobbyCreated', ({ gameId, lobbyName }) => {
+  currentGameId = gameId;
+  showCurrentRoom({});
+  socket.emit('getLobbies');
+});
 
   // joined a lobby (server responds after join)
   socket.on('joined', ({ playerId, gameId }) => {
@@ -166,6 +155,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // when a game started for this room we navigate to /game
   socket.on('gameStarted', ({ currentPlayerId: cp, players }) => {
     window.location.href = '/game?gameId=' + encodeURIComponent(currentGameId);
+  });
+
+    // redirect the creator to the room page when server confirms lobby created
+  socket.on('lobbyCreated', ({ gameId, lobbyName }) => {
+    window.location.href = '/room/' + encodeURIComponent(gameId);
   });
 
   // create lobby

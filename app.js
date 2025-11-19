@@ -56,7 +56,6 @@ function isAuthenticated(req, res, next) {
 }
 
 app.get('/login', (req, res) => {
-  console.log(req.query);
   if (req.query.token) {
     const rawToken = req.query.token;
     const tokenData = jwt.decode(rawToken);
@@ -85,6 +84,10 @@ app.get('/game', isAuthenticated, (req, res) => {
 
 app.get('/lobby', isAuthenticated, (req, res) => {
   res.render('lobby.ejs', { user: req.session.user });
+});
+
+app.get('/room/:gameId', isAuthenticated, (req, res) => {
+  res.render('room.ejs', { user: req.session.user, gameId: req.params.gameId });
 });
 
 app.get('/about', (req, res) => {
@@ -124,7 +127,7 @@ function initGame(gameId = 'default') {
 // Broadcasting lobby lists
 function broadcastLobbyList() {
   const list = Object.entries(games)
-  .filter(([, g]) => g) // g = game, check that it exists
+  .filter(([, g]) => g && Array.isArray(g.players) && g.players.length > 0)// g = game, check that it exists
   .map(([id, g]) => ({
     gameId: id,
     lobbyName: g.lobbyName || `Lobby ${id.slice(0, 6)}`,
@@ -230,6 +233,10 @@ io.on('connection', (socket) => {
       socket.emit('lobbyJoinError', { reason: 'Lobby is full' });
       return;
     }
+    
+    //name
+    const playerName = (sessUser && String(sessUser)) || clientName || 'Player';
+
     //add player
     const existing = game.players.find(p => p.socketId === socket.id);
     if (existing) {
@@ -240,7 +247,25 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const playerName = sessUser || clientName || 'Player';
+    const existingByName = game.players.find(p => p.name === playerName);
+    if (existingByName) {
+      existingByName.socketId = socket.id;
+      existingByName.id = socket.id;
+      socket.join(gameId);
+      socket.emit('joined', { playerId: existingByName.id, gameId });
+
+      // If this player is the lobby owner by name, reassign ownerId to the new socket.id
+      if (game.ownerName && game.ownerName === playerName) {
+        game.ownerId = socket.id;
+        io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+      }
+
+      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name })));
+      broadcastLobbyList();
+      console.log(`${playerName} rejoined lobby ${gameId} (${game.lobbyName})`);
+      return;
+    }
+  
     const player = {
       socketId: socket.id,
       id: socket.id,

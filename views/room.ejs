@@ -14,7 +14,7 @@
     <div id="roomControls"></div>
     <button id="leaveRoomBtn">Leave Room</button>
 
-    <script>window.CURRENT_USER = "<%= user %>"; window.GAME_ID = "<%= gameId %>";</script>
+    <script>window.CURRENT_USER = "<%= user %>"; window.GAME_ID = "<%= gameId %>"; window.LOBBY_NAME = "<%= (typeof lobbyName !== 'undefined' ? lobbyName : '') %>";</script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
     <script src="/js/room.js"></script>

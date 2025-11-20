@@ -50,13 +50,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function renderPlayers(players) {
-    roomPlayerList.innerHTML = '<h3>Players</h3>';
-    players.forEach(p => {
-      const pDiv = document.createElement('div');
-      pDiv.textContent = p.name + (p.id === currentOwnerId ? ' (Owner)' : '');
-      roomPlayerList.appendChild(pDiv);
-    });
+function renderPlayers(players) {
+  roomPlayerList.innerHTML = '<h3>Players</h3>';
+  players.forEach(p => {
+    const pDiv = document.createElement('div');
+    const ownerLabel = (p.id === currentOwnerId) ? ' (Owner)' : '';
+    const readyLabel = p.ready ? ' ✅ Ready' : ' ⏳ Not Ready';
+    pDiv.textContent = p.name + ownerLabel + readyLabel;
+
+    // If this is the current user, show a toggle button
+    if (p.id === currentPlayerId) {
+      const readyBtn = document.createElement('button');
+      readyBtn.textContent = p.ready ? 'Unready' : 'Ready';
+      readyBtn.onclick = () => {
+        socket.emit('setReady', { gameId: currentGameId, ready: !p.ready });
+      };
+      pDiv.appendChild(readyBtn);
+    }
+
+    roomPlayerList.appendChild(pDiv);
+  });
 
     // update room info (players count) when player list changes
     if (currentGameId) {
@@ -85,7 +98,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     currentOwnerId = meta.ownerId || currentOwnerId;
     roomControls.innerHTML = '';
+      if (currentPlayerId && currentOwnerId && currentPlayerId === currentOwnerId) {
+    const allReady = players.length > 0 && players.every(p => !!p.ready);
+    const startBtn = document.createElement('button');
+    startBtn.textContent = 'Start Game';
+    startBtn.disabled = !allReady;
+    startBtn.onclick = () => {
+      const handSize = 7;
+      socket.emit('startGame', { gameId: currentGameId, handSize });
+    };
+    roomControls.appendChild(startBtn);
 
+    if (!allReady) {
+      const note = document.createElement('div');
+      note.textContent = 'All players must be ready to start.';
+      roomControls.appendChild(note);
+    }
+}
     // If I'm the owner, show start button
     if (currentPlayerId && currentOwnerId && currentPlayerId === currentOwnerId) {
       const startBtn = document.createElement('button');
@@ -108,6 +137,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!s) return '';
     return String(s).replace(/[&<>"']/g, t => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[t]));
   }
+
+  socket.on('startFailed', ({ reason }) => {
+    alert('Unable to start game: ' + reason || 'ALL players must be ready.');
+  });
 
   // receive lobby list
   socket.on('lobbyList', (list) => {

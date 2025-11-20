@@ -87,7 +87,9 @@ app.get('/lobby', isAuthenticated, (req, res) => {
 });
 
 app.get('/room/:gameId', isAuthenticated, (req, res) => {
-  res.render('room.ejs', { user: req.session.user, gameId: req.params.gameId });
+  const game = games[req.params.gameId];
+  const lobbyName = game && game.lobbyName ? game.lobbyName : '';
+  res.render('room.ejs', { user: req.session.user, gameId: req.params.gameId, lobbyName });
 });
 
 app.get('/about', (req, res) => {
@@ -204,7 +206,8 @@ io.on('connection', (socket) => {
       socketId: socket.id,
       id: socket.id,
       name: playerName || 'Host',
-      hand: []
+      hand: [],
+      ready: false
     };
     game.players.push(player);
     socket.join(gameId);
@@ -212,7 +215,7 @@ io.on('connection', (socket) => {
     //Notify creator
     socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName });
     //notify all clients of updated lobby list
-    io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name })));
+    io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
     broadcastLobbyList();
 
     console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
@@ -242,7 +245,7 @@ io.on('connection', (socket) => {
     if (existing) {
       socket.join(gameId);
       socket.emit('joined', { playerId: existing.id, gameId });
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name })));
+      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
       broadcastLobbyList();
       return;
     }
@@ -260,7 +263,7 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
       }
 
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name })));
+      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
       broadcastLobbyList();
       console.log(`${playerName} rejoined lobby ${gameId} (${game.lobbyName})`);
       return;
@@ -270,12 +273,13 @@ io.on('connection', (socket) => {
       socketId: socket.id,
       id: socket.id,
       name: playerName || 'Player',
-      hand: []
+      hand: [],
+      ready: false
     };
     game.players.push(player);
     socket.join(gameId);
     socket.emit('joined', { playerId: player.id, gameId });
-    io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name })));
+    io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
     broadcastLobbyList();
 
     console.log(`${player.name} joined lobby ${gameId} (${game.lobbyName})`);
@@ -289,7 +293,7 @@ io.on('connection', (socket) => {
     if (real === -1) return;
     const [removed] = game.players.splice(real, 1);
     socket.leave(gameId);
-    io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name })));
+    io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
 
     //if owner leaves, promote new owner
     if (removed && removed.socketId === game.ownerId) {
@@ -305,12 +309,27 @@ io.on('connection', (socket) => {
     broadcastLobbyList();
   });
 
+    socket.on('setReady', ({ gameId = 'default', ready = false } = {}) => {
+    const game = games[gameId];
+    if (!game) return;
+    const real = game.players.findIndex(p => p.socketId === socket.id);
+    if (real === -1) return;
+    game.players[real].ready = !!ready;
+    io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+    broadcastLobbyList();
+  });
+
   socket.on('startGame', ({ gameId = 'default', handSize = 7 } = {}) => {
     const game = games[gameId] || initGame(gameId);
     if (!game) return;
     // Only owner can start
     if (socket.id !== game.ownerId) {
       socket.emit('invalidMove', { reason: 'Only the lobby owner can start the game' });
+      return;
+    }
+    const notReady = game.players.some(p => !p.ready);
+    if (notReady) {
+      socket.emit('invalidMove', { reason: 'Not all players are ready' });
       return;
     }
     if (game.started) return;

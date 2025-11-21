@@ -88,7 +88,7 @@ app.get('/lobby', isAuthenticated, (req, res) => {
 
 app.get('/room/:gameId', isAuthenticated, (req, res) => {
   const game = games[req.params.gameId];
-  const lobbyName = game && game.lobbyName ? game.lobbyName : '';
+  const lobbyName = (game && game.lobbyName) ? game.lobbyName : (req.query.lobbyName || '');
   res.render('room.ejs', { user: req.session.user, gameId: req.params.gameId, lobbyName });
 });
 
@@ -216,6 +216,8 @@ io.on('connection', (socket) => {
     socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName });
     //notify all clients of updated lobby list
     io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+    // inform room about the current owner
+    io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
     broadcastLobbyList();
 
     console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
@@ -246,6 +248,7 @@ io.on('connection', (socket) => {
       socket.join(gameId);
       socket.emit('joined', { playerId: existing.id, gameId });
       io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
       broadcastLobbyList();
       return;
     }
@@ -280,6 +283,7 @@ io.on('connection', (socket) => {
     socket.join(gameId);
     socket.emit('joined', { playerId: player.id, gameId });
     io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+    io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
     broadcastLobbyList();
 
     console.log(`${player.name} joined lobby ${gameId} (${game.lobbyName})`);

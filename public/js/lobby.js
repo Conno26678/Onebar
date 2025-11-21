@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentGameId = null;
   let currentPlayerId = null;
   let currentOwnerId = null;
+  let lastPlayers = []; // track latest player list
 
   // When socket connects, record our socket id as our current player id
   socket.on('connect', () => {
@@ -51,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 function renderPlayers(players) {
+  lastPlayers = Array.isArray(players) ? players : [];
   roomPlayerList.innerHTML = '<h3>Players</h3>';
   players.forEach(p => {
     const pDiv = document.createElement('div');
@@ -98,16 +100,18 @@ function renderPlayers(players) {
 
     currentOwnerId = meta.ownerId || currentOwnerId;
     roomControls.innerHTML = '';
+
       if (currentPlayerId && currentOwnerId && currentPlayerId === currentOwnerId) {
-    const allReady = players.length > 0 && players.every(p => !!p.ready);
-    const startBtn = document.createElement('button');
-    startBtn.textContent = 'Start Game';
-    startBtn.disabled = !allReady;
-    startBtn.onclick = () => {
-      const handSize = 7;
-      socket.emit('startGame', { gameId: currentGameId, handSize });
-    };
-    roomControls.appendChild(startBtn);
+        const players = Array.isArray(lastPlayers) ? lastPlayers : [];
+        const allReady = players.length > 0 && players.every(p => !!p.ready);
+        const startBtn = document.createElement('button');
+        startBtn.textContent = 'Start Game';
+        startBtn.disabled = !allReady;
+        startBtn.onclick = () => {
+          const handSize = 7;
+          socket.emit('startGame', { gameId: currentGameId, handSize });
+        };
+        roomControls.appendChild(startBtn);
 
     if (!allReady) {
       const note = document.createElement('div');
@@ -147,13 +151,6 @@ function renderPlayers(players) {
     renderLobbyList(list);
   });
 
-  // success on create
- socket.on('lobbyCreated', ({ gameId, lobbyName }) => {
-  currentGameId = gameId;
-  showCurrentRoom({});
-  socket.emit('getLobbies');
-});
-
   // joined a lobby (server responds after join)
   socket.on('joined', ({ playerId, gameId }) => {
     currentPlayerId = playerId || currentPlayerId;
@@ -189,11 +186,17 @@ function renderPlayers(players) {
   socket.on('gameStarted', ({ currentPlayerId: cp, players }) => {
     window.location.href = '/game?gameId=' + encodeURIComponent(currentGameId);
   });
-
-    // redirect the creator to the room page when server confirms lobby created
+  // redirect/enter room when server confirms lobby created
   socket.on('lobbyCreated', ({ gameId, lobbyName }) => {
-    window.location.href = '/room/' + encodeURIComponent(gameId);
-  });
+  // Keep the current socket alive: update URL and show the in-page room
+  currentGameId = gameId;
+  try {
+    history.replaceState(null, '', '/room/' + encodeURIComponent(gameId));
+  } catch (e) { /* ignore */ }
+  showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId.slice(0,6)}` });
+  // Ask server for fresh lobby list for other viewers
+  socket.emit('getLobbies');
+});
 
   // create lobby
   createBtn.addEventListener('click', () => {

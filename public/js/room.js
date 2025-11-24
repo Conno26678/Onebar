@@ -17,11 +17,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // When socket connects, send join request for this room
   socket.on('connect', () => {
+    currentPlayerId = socket.id;
     socket.emit('joinLobby', { gameId, playerName: currentUser });
   });
 
   socket.on('joined', ({ playerId, gameId: gid }) => {
     currentPlayerId = playerId || socket.id;
+    renderRoomControls();
   });
 
   socket.on('playerList', (players) => {
@@ -58,7 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
     currentOwnerId = ownerId;
     currentOwnerName = ownerName;
     // update room info and controls
-    roomInfo.textContent = `Owner: ${ownerName}`;
+    const playerCount = lastPlayers.length || 0;
+    roomInfo.textContent = `Owner: ${ownerName} | Players: ${playerCount}`;
     renderRoomControls();
   });
 

@@ -80,12 +80,14 @@
 </body>
 <script>
     const socket = io();
-    
+
+    const gameId = <%- JSON.stringify(gameId || 'default') %>;
     let gameActive = true;
 
     const playerName = <%- JSON.stringify(user || 'Anonymous') %>;
 
-    socket.emit('joinGame', { playerName, gameId: 'default' });
+    // Tell server we've opened the game page so it can re-associate this socket
+    socket.emit('joinGame', { playerName, gameId });
 
     socket.on('joined', ({ playerId, gameId }) => {
         console.log('joined', playerId, gameId);
@@ -239,11 +241,10 @@
       // Highlight the player's name in playerList here
     }
 
-    // For testing: a button to start the game (only visible to the first player normally)
-    const startBtn = document.createElement('button');
-    startBtn.innerText = 'Start Game';
-    startBtn.addEventListener('click', () => socket.emit('startGame', { gameId: 'default', handSize: 7 }));
-    document.body.appendChild(startBtn);
+    socket.on('playerList', (players) => {
+      const el = document.getElementById('playerList');
+      if (el) el.innerHTML = 'Players:' + players.map(p => `<span id="p_${p.id}">${p.name}${p.ready ? ' ✅' : ''}</span>`).join(' | ');
+    });
 
     // ONE button: shows a "1" image and allows calling ONE
     const oneBtn = document.createElement('button');

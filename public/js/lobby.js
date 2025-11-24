@@ -1,4 +1,3 @@
-// ...existing code...
 // Simple lobby UI client for socket.io (Thanks copilot)
 document.addEventListener('DOMContentLoaded', () => {
   const socket = io();
@@ -21,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentGameId = null;
   let currentPlayerId = null;
   let currentOwnerId = null;
-  let lastPlayers = []; // track latest player list
+  let lastPlayers = [];
 
   // When socket connects, record our socket id as our current player id
   socket.on('connect', () => {
@@ -119,16 +118,6 @@ function renderPlayers(players) {
       roomControls.appendChild(note);
     }
 }
-    // If I'm the owner, show start button
-    if (currentPlayerId && currentOwnerId && currentPlayerId === currentOwnerId) {
-      const startBtn = document.createElement('button');
-      startBtn.textContent = 'Start Game';
-      startBtn.onclick = () => {
-        const handSize = 7;
-        socket.emit('startGame', { gameId: currentGameId, handSize });
-      };
-      roomControls.appendChild(startBtn);
-    }
 
     // Smooth scroll the room into view for a nicer UX
     try {
@@ -164,12 +153,15 @@ function renderPlayers(players) {
   // player list update for the room
   socket.on('playerList', (players) => {
     renderPlayers(players);
+    // After rendering players, update room controls to show/hide start button
+    if (currentGameId && currentOwnerId) {
+      showCurrentRoom({ gameId: currentGameId, ownerId: currentOwnerId });
+    }
   });
 
   socket.on('ownerChanged', ({ ownerId, ownerName }) => {
     currentOwnerId = ownerId;
-    // show the room
-    showCurrentRoom({ ownerId, ownerName });
+    // Don't call showCurrentRoom here - let playerList handle it
     // update lobby list display for other viewers
     socket.emit('getLobbies');
   });
@@ -182,7 +174,7 @@ function renderPlayers(players) {
     alert('Unable to join: ' + reason);
   });
 
-  // when a game started for this room we navigate to /game
+  // when a game started navigate to /game
   socket.on('gameStarted', ({ currentPlayerId: cp, players }) => {
     window.location.href = '/game?gameId=' + encodeURIComponent(currentGameId);
   });

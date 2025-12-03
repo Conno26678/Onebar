@@ -141,13 +141,13 @@ function renderPlayers(players) {
   });
 
   // joined a lobby (server responds after join)
-  socket.on('joined', ({ playerId, gameId }) => {
+  socket.on('joined', ({ playerId, gameId, lobbyName }) => {
     currentPlayerId = playerId || currentPlayerId;
     currentGameId = gameId || currentGameId;
     // request current lobby list to update UI
     socket.emit('getLobbies');
-    // show current room area 
-    showCurrentRoom({ gameId, lobbyName: `Room ${gameId.slice(0,6)}` });
+    // show current room area (use server-provided lobbyName when available)
+    showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId ? gameId.slice(0,6) : ''}` });
   });
 
   // player list update for the room

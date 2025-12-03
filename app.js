@@ -207,7 +207,7 @@ io.on('connection', (socket) => {
       id: socket.id,
       name: playerName || 'Host',
       hand: [],
-      ready: true
+      ready: false
     };
     game.players.push(player);
     socket.join(gameId);
@@ -251,7 +251,7 @@ io.on('connection', (socket) => {
     }
 
     socket.join(gameId);
-    socket.emit('joined', { playerId: player.id, gameId });
+    socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName });
 
     // Send the player's current hand directly to them
     io.to(player.socketId).emit('deal', player.hand);
@@ -299,7 +299,7 @@ io.on('connection', (socket) => {
     const existing = game.players.find(p => p.socketId === socket.id);
     if (existing) {
       socket.join(gameId);
-      socket.emit('joined', { playerId: existing.id, gameId });
+      socket.emit('joined', { playerId: existing.id, gameId, lobbyName: game.lobbyName });
       io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
       broadcastLobbyList();
@@ -324,7 +324,7 @@ io.on('connection', (socket) => {
       existingByName.ready = wasReady;
       
       socket.join(gameId);
-      socket.emit('joined', { playerId: existingByName.id, gameId });
+      socket.emit('joined', { playerId: existingByName.id, gameId, lobbyName: game.lobbyName });
 
       // If this player is the lobby owner by name, reassign ownerId to the new socket.id and ensure ready to true
       if (game.ownerName && game.ownerName === playerName) {
@@ -350,7 +350,7 @@ io.on('connection', (socket) => {
     };
     game.players.push(player);
     socket.join(gameId);
-    socket.emit('joined', { playerId: player.id, gameId });
+    socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName });
     console.log(`${player.name} joined as NEW player with ready=false`);
     console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
     io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));

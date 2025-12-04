@@ -131,7 +131,7 @@
         let chosen = prompt('The starting card is a Wild. Choose the starting color: red, blue, green, yellow');
         chosen = chosen ? chosen.toLowerCase() : 'red';
         if (!allowed.includes(chosen)) chosen = 'red';
-        socket.emit('startColorChosen', { gameId: gid || 'default', color: chosen });
+        socket.emit('startColorChosen', { gameId: gameId || 'default', color: chosen });
     });
 
     socket.on('playerWon', ({ playerId, playerName }) => {
@@ -184,9 +184,9 @@
             const chosen = prompt('Choose a color: red, blue, green, yellow');
             const allowed = ['red', 'blue', 'green', 'yellow'];
             const chosenColor = (chosen && allowed.includes(chosen.toLowerCase())) ? chosen.toLowerCase() : 'red';
-            socket.emit('playCard', { gameId: 'default', cardId: card.id, chosenColor });
+            socket.emit('playCard', { gameId: gameId, cardId: card.id, chosenColor });
           } else {
-            socket.emit('playCard', { gameId: 'default', cardId: card.id });
+            socket.emit('playCard', { gameId, cardId: card.id });
           }
         });
         container.appendChild(img);
@@ -269,7 +269,7 @@
         return;
       }
       // If they have one card locally, send to server to validate & broadcast
-      socket.emit('callOne', { gameId: 'default' });
+      socket.emit('callOne', { gameId: gameId });
     });
 
     document.body.appendChild(oneBtn);
@@ -346,7 +346,7 @@ tableEl.style.order = '2';
 
 // Clicking the draw pile
 drawImg.addEventListener('click', () => {
-  socket.emit('drawCard', { gameId: 'default' });
+  socket.emit('drawCard', { gameId: gameId });
 });
 
 // Update draw pile count when server tells us

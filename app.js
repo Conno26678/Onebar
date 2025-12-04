@@ -103,6 +103,13 @@ app.get('/logout', (req, res) => {
 
 const games = {};// { [gameId]: { players: [{ socketId, id, name, hand: [], disconnectTimeout: null }], deck: [], turnIndex: 0 } }
 
+function generateJoinCode(len = 6) {
+  const chars = "ABCDEFGHIJKLMNOPQWRTUVWXYZ23456789";
+  let out= "";
+  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
 function initGame(gameId = 'default') {
   const deck = createDeck();
   shuffle(deck);
@@ -121,7 +128,11 @@ function initGame(gameId = 'default') {
     lobbyName: null,
     maxPlayers: 8,
     createdAt: Date.now(),
-    status: 'waiting'
+    status: 'waiting',
+
+    //privacy
+    private: false,
+    joinCode: null
   };
   return games[gameId];
 }
@@ -129,7 +140,7 @@ function initGame(gameId = 'default') {
 // Broadcasting lobby lists
 function broadcastLobbyList() {
   const list = Object.entries(games)
-  .filter(([, g]) => g && Array.isArray(g.players) && g.players.length > 0)// g = game, check that it exists
+  .filter(([, g]) => g && Array.isArray(g.players) && g.players.length > 0 && !g.private)// g = game, check that it exists
   .map(([id, g]) => ({
     gameId: id,
     lobbyName: g.lobbyName || `Lobby ${id.slice(0, 6)}`,
@@ -190,7 +201,7 @@ io.on('connection', (socket) => {
   })));
 
   //New lobby/auto join
-  socket.on('createLobby', ({ lobbyName = null, maxPlayers = 8, playerName: clientName = 'Host' } = {}) => {
+  socket.on('createLobby', ({ lobbyName = null, maxPlayers = 8, playerName: clientName = 'Host', isPrivate = false} = {}) => {
     const playerName = sessUser || clientName || 'Player';
     const gameId = uuidv4();
     const game = initGame(gameId);
@@ -200,6 +211,11 @@ io.on('connection', (socket) => {
     game.maxPlayers = Math.max(2, Math.min(32, Number(maxPlayers) || 8));
     game.createdAt = Date.now();
     game.status = 'waiting';
+
+    if (isPrivate) {
+      game.private = true;
+      game.joinCode = generateJoinCode();
+    }
 
     //Creator auto-joins
     const player = {
@@ -213,7 +229,7 @@ io.on('connection', (socket) => {
     socket.join(gameId);
 
     //Notify creator
-    socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName });
+    socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName, isPrivate: game.private, joinCode: game.joinCode });
     //notify all clients of updated lobby list
     io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
     // inform room about the current owner
@@ -277,11 +293,17 @@ io.on('connection', (socket) => {
   });
 
   //Join an existing lobby
-  socket.on('joinLobby', ({ gameId = 'default', playerName: clientName = 'Anonymous' } = {}) => {
+  socket.on('joinLobby', ({ gameId = 'default', playerName: clientName = 'Anonymous', joinCode = null } = {}) => {
     const game = games[gameId];
     if (!game) {
       socket.emit('lobbyJoinError', { reason: 'Lobby not found' });
       return;
+    }
+    if (game.private) {
+      if (!joinCode || String(joinCode) !== String(game.joinCode || '').toUpperCase()) {
+        socket.emit('lobbyJoinError', { reason: 'Invalid join code for private lobby' });
+        return;
+      }
     }
     if (game.started) {
       socket.emit('lobbyJoinError', { reason: 'Game already started' });
@@ -299,7 +321,7 @@ io.on('connection', (socket) => {
     const existing = game.players.find(p => p.socketId === socket.id);
     if (existing) {
       socket.join(gameId);
-      socket.emit('joined', { playerId: existing.id, gameId, lobbyName: game.lobbyName });
+      socket.emit('joined', { playerId: existing.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: (socket.id === game.ownerId ? game.joinCode : null) });
       io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
       broadcastLobbyList();
@@ -320,11 +342,10 @@ io.on('connection', (socket) => {
       
       existingByName.socketId = socket.id;
       existingByName.id = socket.id;
-      // Keep their ready state (don't reset to false)
       existingByName.ready = wasReady;
       
       socket.join(gameId);
-      socket.emit('joined', { playerId: existingByName.id, gameId, lobbyName: game.lobbyName });
+      socket.emit('joined', { playerId: existingByName.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: (socket.id === game.ownerId ? game.joinCode : null) });
 
       // If this player is the lobby owner by name, reassign ownerId to the new socket.id and ensure ready to true
       if (game.ownerName && game.ownerName === playerName) {
@@ -350,7 +371,7 @@ io.on('connection', (socket) => {
     };
     game.players.push(player);
     socket.join(gameId);
-    socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName });
+    socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: (socket.id === game.ownerId ? game.joinCode : null) });
     console.log(`${player.name} joined as NEW player with ready=false`);
     console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
     io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
@@ -360,6 +381,26 @@ io.on('connection', (socket) => {
     console.log(`${player.name} joined lobby ${gameId} (${game.lobbyName})`);
   });
 
+  // Set lobby privacy
+    socket.on('setPrivate', ({ gameId, isPrivate = false } = {}) => {
+    const game = games[gameId];
+    if (!game) return;
+    if (socket.id !== game.ownerId) {
+      socket.emit('invalidMove', { reason: 'Only owner can change privacy' });
+      return;
+    }
+    game.private = !!isPrivate;
+    if (game.private) {
+      game.joinCode = generateJoinCode(6);
+    } else {
+      game.joinCode = null;
+    }
+    // tell the room about privacy change
+    io.to(gameId).emit('privateChanged', { isPrivate: !!game.private });
+    // also send join code only to owner socket
+    io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
+    broadcastLobbyList();
+  });
   //Leaving lobby
   socket.on('leaveLobby', ({ gameId } = {}) => {
     const game = games[gameId];
@@ -765,7 +806,7 @@ io.on('connection', (socket) => {
       const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
       if (playerIndex !== -1) {
         const player = game.players[playerIndex];
-        console.log(`Player ${player.name} disconnected, starting 2s grace period`);
+        console.log(`Player ${player.name} disconnected, starting 5s grace period`);
         
         // Store the timeout on the player object so we can cancel it if they reconnect
         player.disconnectTimeout = setTimeout(() => {
@@ -802,7 +843,7 @@ io.on('connection', (socket) => {
           }
 
           broadcastLobbyList();
-        }, 2000); // 2 second grace period for page navigation
+        }, 5000); // 5 second grace period for page navigation
       }
     }
   });

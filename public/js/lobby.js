@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentPlayerId = null;
   let currentOwnerId = null;
   let lastPlayers = [];
+  let currentLobbyName = null;
 
   // When socket connects, record our socket id as our current player id
   socket.on('connect', () => {
@@ -80,7 +81,7 @@ function renderPlayers(players) {
   }
 
   function showCurrentRoom(meta = {}) {
-    // Hide lobby list and create UI to give the room full focus
+    // Hide lobby list and show current room
     if (lobbiesContainer) lobbiesContainer.style.display = 'none';
     if (createLobbySection) createLobbySection.style.display = 'none';
 
@@ -88,6 +89,10 @@ function renderPlayers(players) {
     currentGameId = meta.gameId || currentGameId;
     currentRoomTitle.textContent = meta.lobbyName || `Room ${currentGameId ? currentGameId.slice(0,6) : ''}`;
 
+    if (typeof meta.lobbyName !== 'undefined' && meta.lobbyName !== null) {
+      currentLobbyName = meta.lobbyName;
+    }
+    currentRoomTitle.textContent = currentLobbyName || `Room ${currentGameId ? currentGameId.slice(0,6) : ''}`;
     // Update info display if available
     if (typeof meta.playerCount !== 'undefined' || typeof meta.maxPlayers !== 'undefined') {
       const pc = meta.playerCount != null ? meta.playerCount : '0';
@@ -119,7 +124,7 @@ function renderPlayers(players) {
     }
 }
 
-    // Smooth scroll the room into view for a nicer UX
+    // Smooth scroll the room into view
     try {
       currentRoomEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) { /* ignore if not supported */ }
@@ -140,13 +145,13 @@ function renderPlayers(players) {
     renderLobbyList(list);
   });
 
-  // joined a lobby (server responds after join)
+  // joined a lobby
   socket.on('joined', ({ playerId, gameId, lobbyName }) => {
     currentPlayerId = playerId || currentPlayerId;
     currentGameId = gameId || currentGameId;
     // request current lobby list to update UI
     socket.emit('getLobbies');
-    // show current room area (use server-provided lobbyName when available)
+    // show current room area
     showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId ? gameId.slice(0,6) : ''}` });
   });
 
@@ -161,7 +166,6 @@ function renderPlayers(players) {
 
   socket.on('ownerChanged', ({ ownerId, ownerName }) => {
     currentOwnerId = ownerId;
-    // Don't call showCurrentRoom here - let playerList handle it
     // update lobby list display for other viewers
     socket.emit('getLobbies');
   });

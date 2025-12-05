@@ -1,0 +1,37 @@
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Onebar - Lobby List</title>
+                <link rel="stylesheet" href="/css/theme.css">
+            </head>
+            <body>
+                <a href="/logout" class="btn logout-button">Logout</a>
+                <h1>Game Lobby</h1>
+                <div id="lobbiesContainer">
+                <h2>Available Lobbies</h2>
+                <div id="lobbyList">Loading...</div>
+            </div>
+
+            <div id="createLobby">
+                <h2>Create Lobby</h2>
+                <input id="createLobbyName" placeholder="Lobby name" />
+                <input id="createMaxPlayers" type="number" min="2" max="32" value="8" />
+                <label style="margin-left:8px;"><input id="createPrivateLobby" type="checkbox" /> Private</label>
+                <button id="createLobbyBtn">Create</button>
+            </div>
+
+            <div id="currentRoom" style="display:none;">
+                <h2 id="currentRoomTitle">Room</h2>
+                <div id="currentRoomInfo"></div>
+                <div id="roomPlayerList"></div>
+                <div id="roomControls"></div>
+                <button id="leaveLobbyBtn">Leave Lobby</button>
+            </div>
+                <script>window.CURRENT_USER = "<%= user %>";</script>
+                <script src="/socket.io/socket.io.js"></script>
+                <script src="/js/theme.js"></script>
+                <script src="/js/lobby.js"></script>
+                </body>
+                </html>

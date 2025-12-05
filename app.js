@@ -1,12 +1,19 @@
-//Imports
+// Imports
 const express = require('express');
-const app = express();
-const path = require('path');
-const ejs = require('ejs');
-const socketIO = require('socket.io');
 const http = require('http');
+const socketIO = require('socket.io');
+
+// Modules
+const config = require('./modules/config');
+const { sessionMiddleware } = require('./modules/middleware');
+const { setupRoutes } = require('./modules/routes');
+const { setupSocketHandlers } = require('./modules/socket-handlers');
+
+// App setup
+const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
+<<<<<<< Updated upstream
 const port = 3000
 // 172.16.3.147:3000 is the url for others at the moment
 
@@ -227,4 +234,26 @@ io.on('connection', (socket) => {
 //Start the server silly
 server.listen(port, () => {
   console.log(`app listening at http://localhost:${port}`);
+=======
+
+// Middleware
+app.set('view engine', 'ejs');
+app.use(express.static('public'));
+app.use(sessionMiddleware);
+
+// Attach session middleware to socket.io so we can read session in sockets
+io.use((socket, next) => {
+  sessionMiddleware(socket.request, socket.request.res || {}, next);
+});
+
+// Setup routes
+setupRoutes(app);
+
+// Setup socket handlers
+setupSocketHandlers(io);
+
+// Start the server
+server.listen(config.port, () => {
+  console.log(`app listening at http://localhost:${config.port}`);
+>>>>>>> Stashed changes
 });

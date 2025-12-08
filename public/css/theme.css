@@ -1,4 +1,4 @@
-/* Theme Variables (thanks to ChatGPT) */
+/* Theme Variables */
 :root {
   /* Light mode colors */
   --bg-color: #ffffff;
@@ -230,10 +230,6 @@ a:hover {
 }
 
 @keyframes fadeIn {
-<<<<<<< Updated upstream
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-=======
   from {
     opacity: 0;
     transform: translateY(20px);
@@ -410,5 +406,4 @@ button.primary:disabled {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
->>>>>>> Stashed changes
 }

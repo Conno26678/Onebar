@@ -30,7 +30,7 @@ setupRoutes(app);
 // Setup socket handlers
 setupSocketHandlers(io);
 
-// Start the server silly
+// Start the server
 server.listen(config.port, () => {
   console.log(`app listening at http://localhost:${config.port}`);
 });

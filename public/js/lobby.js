@@ -1,4 +1,4 @@
-// Simple lobby UI client for socket.io (Thanks copilot)
+// Simple lobby UI client for socket.io 
 document.addEventListener('DOMContentLoaded', () => {
   const socket = io();
 
@@ -7,6 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const createName = document.getElementById('createLobbyName');
   const createMax = document.getElementById('createMaxPlayers');
   const createPrivate = document.getElementById('createPrivateLobby');
+
+  const joinLobbyCode = document.getElementById('joinLobbyCode');
+  const joinByCodeBtn = document.getElementById('joinByCodeBtn');
+  const joinByCodeSection = document.getElementById('joinByCode');
 
   const currentRoomEl = document.getElementById('currentRoom');
   const currentRoomTitle = document.getElementById('currentRoomTitle');
@@ -85,6 +89,7 @@ function renderPlayers(players) {
     // Hide lobby list and show current room
     if (lobbiesContainer) lobbiesContainer.style.display = 'none';
     if (createLobbySection) createLobbySection.style.display = 'none';
+    if (joinByCodeSection) joinByCodeSection.style.display = 'none';
 
     currentRoomEl.style.display = 'block';
     currentGameId = meta.gameId || currentGameId;
@@ -210,6 +215,16 @@ function renderPlayers(players) {
     socket.emit('createLobby', { lobbyName: name, maxPlayers, playerName: window.CURRENT_USER || 'Host', isPrivate });
   });
 
+  // join by code
+  joinByCodeBtn.addEventListener('click', () => {
+    const code = joinLobbyCode.value.trim();
+    if (!code) {
+      alert('Please enter a lobby code');
+      return;
+    }
+    window.location.href = '/room/' + encodeURIComponent(code);
+  });
+
   // leave lobby
   leaveLobbyBtn.addEventListener('click', () => {
     if (!currentGameId) return;
@@ -221,6 +236,7 @@ function renderPlayers(players) {
     // restore lobby UI
     if (lobbiesContainer) lobbiesContainer.style.display = 'block';
     if (createLobbySection) createLobbySection.style.display = 'block';
+    if (joinByCodeSection) joinByCodeSection.style.display = 'block';
     // refresh
     socket.emit('getLobbies');
   });

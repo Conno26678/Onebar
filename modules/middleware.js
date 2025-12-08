@@ -43,7 +43,8 @@ function handleLogin(req, res) {
     res.redirect(redirectTo);
     console.log(`User ${tokenData.displayName} logged in`);
   } else {
-    res.redirect(`${config.AUTH_URL}/oauth?redirectURL=${config.THIS_URL}/login`);
+    const redirectURL = encodeURIComponent(`${config.THIS_URL}/login`);
+    res.redirect(`${config.AUTH_URL}/oauth?redirectURL=${redirectURL}`);
     console.log('Redirecting to auth server');
   }
 }

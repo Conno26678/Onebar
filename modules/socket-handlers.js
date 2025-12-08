@@ -58,6 +58,8 @@ function setupSocketHandlers(io) {
       socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName, isPrivate: game.private, joinCode: game.joinCode });
       io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+      // Broadcast join code to all players in the room
+      io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
       broadcastLobbyList(io);
 
       console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
@@ -93,6 +95,8 @@ function setupSocketHandlers(io) {
       io.to(player.socketId).emit('deal', player.hand);
       io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+      // Broadcast join code to all players in the room
+      io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
       io.to(gameId).emit('drawPileCount', { count: game.deck.length });
 
       if (game.started) {
@@ -115,7 +119,10 @@ function setupSocketHandlers(io) {
         return;
       }
       if (game.private) {
-        if (!joinCode || String(joinCode) !== String(game.joinCode || '').toUpperCase()) {
+        // Compare join codes case-insensitively so users can enter lower/upper case
+        const provided = (joinCode == null) ? '' : String(joinCode).toUpperCase();
+        const expected = String(game.joinCode || '').toUpperCase();
+        if (!provided || provided !== expected) {
           socket.emit('lobbyJoinError', { reason: 'Invalid join code for private lobby' });
           return;
         }
@@ -134,9 +141,11 @@ function setupSocketHandlers(io) {
       const existing = game.players.find(p => p.socketId === socket.id);
       if (existing) {
         socket.join(gameId);
-        socket.emit('joined', { playerId: existing.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: (socket.id === game.ownerId ? game.joinCode : null) });
+        socket.emit('joined', { playerId: existing.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: game.joinCode || null });
         io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
         io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+        // Broadcast join code to all players in the room
+        io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
         broadcastLobbyList(io);
         return;
       }
@@ -164,6 +173,8 @@ function setupSocketHandlers(io) {
           existingByName.ready = true;
           console.log(`Owner ${playerName} reconnected, setting ready=true`);
           io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+          // Broadcast join code to all players in the room
+          io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
         }
 
         console.log(`After rejoin - Players:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
@@ -187,6 +198,10 @@ function setupSocketHandlers(io) {
       console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
       io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+      // If owner changed, send the private join code to that owner (if any)
+      if (game.ownerId) {
+        io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
+      }
       broadcastLobbyList(io);
 
       console.log(`${player.name} joined lobby ${gameId} (${game.lobbyName})`);
@@ -200,13 +215,15 @@ function setupSocketHandlers(io) {
         return;
       }
       game.private = !!isPrivate;
-      if (game.private) {
+      if (game.private && !game.joinCode) {
+        // Only generate a new code if making private and don't have one yet
         game.joinCode = generateJoinCode(6);
-      } else {
+      } else if (!game.private) {
+        // Clear code when making public
         game.joinCode = null;
       }
       io.to(gameId).emit('privateChanged', { isPrivate: !!game.private });
-      io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
+      io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
       broadcastLobbyList(io);
     });
 
@@ -224,6 +241,9 @@ function setupSocketHandlers(io) {
           game.ownerId = game.players[0].socketId;
           game.ownerName = game.players[0].name;
           io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+          if (game.ownerId) {
+            io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
+          }
         } else {
           delete games[gameId];
         }
@@ -240,6 +260,8 @@ function setupSocketHandlers(io) {
       game.players[real].ready = !!ready;
       console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
       io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      // Broadcast join code to all players in the room
+      io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
       broadcastLobbyList(io);
     });
 
@@ -297,6 +319,7 @@ function setupSocketHandlers(io) {
       game.started = true;
 
       const currentPlayerId = game.players[game.turnIndex].id;
+      const currentSocketId = game.players[game.turnIndex].socketId;
       io.to(gameId).emit('gameStarted', { currentPlayerId, players: game.players.map(p => ({ id: p.id, name: p.name })) });
 
       if (game.discardPile.length > 0) {
@@ -305,9 +328,7 @@ function setupSocketHandlers(io) {
         io.to(gameId).emit('cardPlacedOnTable', top);
 
         if (top.color === 'wild') {
-          const currentSocketId = game.players[game.turnIndex].socketId;
           io.to(currentSocketId).emit('requestStartColor', { gameId, card: top });
-          io.to(gameId).emit('cardPlacedOnTable', top);
           console.log('requesting starting color', currentSocketId);
         }
       }
@@ -598,6 +619,9 @@ function setupSocketHandlers(io) {
                 game.ownerId = game.players[0].socketId;
                 game.ownerName = game.players[0].name;
                 io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+                if (game.ownerId) {
+                  io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
+                }
               } else {
                 delete games[gameId];
                 return;

@@ -1,0 +1,23 @@
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Onebar - Rooms</title>
+        <link rel="stylesheet" href="/css/theme.css">
+    </head>
+    <body>
+        <a href="/logout" class="btn logout-button">Logout</a>
+    <h1 id="roomTitle">Room</h1>
+    <div id="roomJoinCodeDisplay"></div>
+    <div id="roomInfo"></div>
+    <div id="roomPlayerList"></div>
+    <div id="roomControls"></div>
+    <button id="leaveRoomBtn">Leave Room</button>
+
+    <script>window.CURRENT_USER = "<%= user %>"; window.GAME_ID = "<%= gameId %>"; window.LOBBY_NAME = "<%= (typeof lobbyName !== 'undefined' ? lobbyName : '') %>";</script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/theme.js"></script>
+    <script src="/js/room.js"></script>
+    </body>
+    </html>

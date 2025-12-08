@@ -18,7 +18,17 @@ function setupRoutes(app) {
   });
 
   app.get('/room/:gameId', isAuthenticated, (req, res) => {
-    const game = games[req.params.gameId];
+    const param = req.params.gameId;
+    let game = games[param];
+    // If no game found by id, attempt to resolve the param as a join code (case-insensitive)
+    if (!game) {
+      const code = String(param || '').toLowerCase();
+      game = Object.values(games).find(g => g.joinCode && String(g.joinCode).toLowerCase() === code);
+      if (game) {
+        // redirect to canonical room id URL so clients and sockets use the real game id
+        return res.redirect('/room/' + encodeURIComponent(game.id));
+      }
+    }
     const lobbyName = (game && game.lobbyName) ? game.lobbyName : (req.query.lobbyName || '');
     res.render('room.ejs', { user: req.session.user, gameId: req.params.gameId, lobbyName });
   });

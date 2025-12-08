@@ -40,7 +40,7 @@ function setupSocketHandlers(io) {
 
       if (isPrivate) {
         game.private = true;
-        game.joinCode = generateJoinCode();
+        game.joinCode = generateJoinCode(6);
       }
 
       // Creator auto-joins

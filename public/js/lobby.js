@@ -1,4 +1,4 @@
-// Simple lobby UI client for socket.io 
+// Simple lobby UI client for socket.io (Thanks copilot)
 document.addEventListener('DOMContentLoaded', () => {
   const socket = io();
 
@@ -6,11 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const createBtn = document.getElementById('createLobbyBtn');
   const createName = document.getElementById('createLobbyName');
   const createMax = document.getElementById('createMaxPlayers');
-  const createPrivate = document.getElementById('createPrivateLobby');
-
-  const joinLobbyCode = document.getElementById('joinLobbyCode');
-  const joinByCodeBtn = document.getElementById('joinByCodeBtn');
-  const joinByCodeSection = document.getElementById('joinByCode');
 
   const currentRoomEl = document.getElementById('currentRoom');
   const currentRoomTitle = document.getElementById('currentRoomTitle');
@@ -89,7 +84,6 @@ function renderPlayers(players) {
     // Hide lobby list and show current room
     if (lobbiesContainer) lobbiesContainer.style.display = 'none';
     if (createLobbySection) createLobbySection.style.display = 'none';
-    if (joinByCodeSection) joinByCodeSection.style.display = 'none';
 
     currentRoomEl.style.display = 'block';
     currentGameId = meta.gameId || currentGameId;
@@ -189,20 +183,13 @@ function renderPlayers(players) {
     window.location.href = '/game?gameId=' + encodeURIComponent(currentGameId);
   });
   // redirect/enter room when server confirms lobby created
-  socket.on('lobbyCreated', ({ gameId, lobbyName, isPrivate = false, joinCode = null }) => {
+  socket.on('lobbyCreated', ({ gameId, lobbyName }) => {
   // Keep the current socket alive: update URL and show the in-page room
   currentGameId = gameId;
   try {
     history.replaceState(null, '', '/room/' + encodeURIComponent(gameId));
   } catch (e) { /* ignore */ }
   showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId.slice(0,6)}` });
-  // If the server returned a join code (private lobby), show it to the creator in controls
-  if (isPrivate && joinCode) {
-    roomControls.innerHTML = '';
-    const codeDiv = document.createElement('div');
-    codeDiv.textContent = 'Private lobby — join code: ' + joinCode;
-    roomControls.appendChild(codeDiv);
-  }
   // Ask server for fresh lobby list for other viewers
   socket.emit('getLobbies');
 });
@@ -211,18 +198,7 @@ function renderPlayers(players) {
   createBtn.addEventListener('click', () => {
     const name = createName.value || `${window.CURRENT_USER || 'Host'}'s Lobby`;
     const maxPlayers = parseInt(createMax.value, 10) || 8;
-    const isPrivate = !!(createPrivate && createPrivate.checked);
-    socket.emit('createLobby', { lobbyName: name, maxPlayers, playerName: window.CURRENT_USER || 'Host', isPrivate });
-  });
-
-  // join by code
-  joinByCodeBtn.addEventListener('click', () => {
-    const code = joinLobbyCode.value.trim();
-    if (!code) {
-      alert('Please enter a lobby code');
-      return;
-    }
-    window.location.href = '/room/' + encodeURIComponent(code);
+    socket.emit('createLobby', { lobbyName: name, maxPlayers, playerName: window.CURRENT_USER || 'Host' });
   });
 
   // leave lobby
@@ -236,7 +212,6 @@ function renderPlayers(players) {
     // restore lobby UI
     if (lobbiesContainer) lobbiesContainer.style.display = 'block';
     if (createLobbySection) createLobbySection.style.display = 'block';
-    if (joinByCodeSection) joinByCodeSection.style.display = 'block';
     // refresh
     socket.emit('getLobbies');
   });

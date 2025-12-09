@@ -1,4 +1,4 @@
-/* Theme Variables (thanks to ChatGPT) */
+/* Theme Variables */
 :root {
   /* Light mode colors */
   --bg-color: #ffffff;
@@ -205,11 +205,11 @@ a:hover {
   .container {
     padding: 10px;
   }
-  
+
   h1 {
     font-size: 2rem;
   }
-  
+
   .theme-toggle {
     top: 10px;
     right: 10px;
@@ -217,7 +217,7 @@ a:hover {
     height: 45px;
     font-size: 18px;
   }
-  
+
   .btn {
     display: block;
     width: 100%;

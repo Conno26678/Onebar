@@ -1,10 +1,16 @@
-//Imports
+// Imports
 const express = require('express');
-const app = express();
-const path = require('path');
-const ejs = require('ejs');
-const socketIO = require('socket.io');
 const http = require('http');
+const socketIO = require('socket.io');
+
+// Modules
+const config = require('./modules/config');
+const { sessionMiddleware } = require('./modules/middleware');
+const { setupRoutes } = require('./modules/routes');
+const { setupSocketHandlers } = require('./modules/socket-handlers');
+
+// App setup
+const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 require('dotenv').config();
@@ -18,7 +24,7 @@ const { v4: uuidv4 } = require('uuid');
 //modules
 const { createDeck, shuffle } = require('./cards');
 
-//Middleware
+// Middleware
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
 const sessionMiddleware = session({

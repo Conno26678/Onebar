@@ -18,7 +18,14 @@
                 <h2>Create Lobby</h2>
                 <input id="createLobbyName" placeholder="Lobby name" />
                 <input id="createMaxPlayers" type="number" min="2" max="32" value="8" />
+                <label style="margin-left:8px;"><input id="createPrivateLobby" type="checkbox" /> Private</label>
                 <button id="createLobbyBtn">Create</button>
+            </div>
+
+            <div id="joinByCode">
+                <h2>Join by Code</h2>
+                <input id="joinLobbyCode" placeholder="Enter lobby code" />
+                <button id="joinByCodeBtn">Join</button>
             </div>
 
             <div id="currentRoom" style="display:none;">

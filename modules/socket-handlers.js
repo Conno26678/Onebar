@@ -65,6 +65,24 @@ function setupSocketHandlers(io) {
       console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
     });
 
+    // Join by code handler
+    socket.on('joinByCode', ({ joinCode, playerName: clientName = 'Player' } = {}) => {
+      if (!joinCode) {
+        socket.emit('joinByCodeError', { reason: 'No join code provided' });
+        return;
+      }
+      const code = String(joinCode).trim().toUpperCase();
+      // Find game with matching join code
+      const entry = Object.entries(games).find(([, g]) => g.joinCode && String(g.joinCode).toUpperCase() === code);
+      if (!entry) {
+        socket.emit('joinByCodeError', { reason: 'Invalid join code' });
+        return;
+      }
+      const [gameId, game] = entry;
+      // Now join that lobby
+      socket.emit('joinByCodeSuccess', { gameId, lobbyName: game.lobbyName });
+    });
+
     socket.on('joinGame', ({ gameId = 'default', playerName: clientName = 'Player' } = {}) => {
       const game = games[gameId];
       if (!game) {

@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentUser = window.CURRENT_USER || 'Guest';
 
   const roomTitle = document.getElementById('roomTitle');
+  const roomJoinCodeDisplay = document.getElementById('roomJoinCodeDisplay');
   const roomInfo = document.getElementById('roomInfo');
   const roomPlayerList = document.getElementById('roomPlayerList');
   const roomControls = document.getElementById('roomControls');
@@ -14,6 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentOwnerName = null;
   let currentPlayerId = null;
   let lastPlayers = [];
+  let currentRoomIsPrivate = false;
+  let currentJoinCode = null;
+  let hasPromptedForCode = false;
 
   // When socket connects, send join request for this room
   socket.on('connect', () => {
@@ -21,10 +25,51 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.emit('joinLobby', { gameId, playerName: currentUser });
   });
 
-  socket.on('joined', ({ playerId, gameId: gid }) => {
+  socket.on('joined', ({ playerId, gameId: gid, lobbyName, isPrivate = false, joinCode = null }) => {
     currentPlayerId = playerId || socket.id;
+    // remember privacy state and join code
+    currentRoomIsPrivate = !!isPrivate;
+    if (joinCode) currentJoinCode = joinCode;
+    updateJoinCodeDisplay();
     renderRoomControls();
   });
+
+  // If join failed because lobby is private, show join code input and retry
+  socket.on('lobbyJoinError', ({ reason }) => {
+    if ((reason && (reason.toString().toLowerCase().includes('private') || reason.toString().toLowerCase().includes('code'))) && !hasPromptedForCode) {
+      hasPromptedForCode = true;
+      showJoinCodeInput();
+      return;
+    }
+    alert('Unable to join: ' + (reason || 'Unknown error'));
+    window.location.href = '/lobby';
+  });
+
+  function showJoinCodeInput() {
+    // Create join code input UI
+    roomControls.innerHTML = '';
+    const inputContainer = document.createElement('div');
+    inputContainer.style.marginTop = '20px';
+    const label = document.createElement('label');
+    label.textContent = 'This lobby is private. Enter join code: ';
+    const codeInput = document.createElement('input');
+    codeInput.type = 'text';
+    codeInput.id = 'joinCodeInput';
+    codeInput.placeholder = 'Enter code';
+    codeInput.style.marginRight = '10px';
+    const submitBtn = document.createElement('button');
+    submitBtn.textContent = 'Join';
+    submitBtn.onclick = () => {
+      const code = codeInput.value.trim().toUpperCase();
+      if (code) {
+        socket.emit('joinLobby', { gameId, playerName: currentUser, joinCode: code });
+      }
+    };
+    inputContainer.appendChild(label);
+    inputContainer.appendChild(codeInput);
+    inputContainer.appendChild(submitBtn);
+    roomControls.appendChild(inputContainer);
+  }
 
   socket.on('playerList', (players) => {
     lastPlayers = players || [];
@@ -41,7 +86,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const readyBtn = document.createElement('button');
         readyBtn.textContent = p.ready ? 'Unready' : 'Ready';
         readyBtn.onclick = () => {
-          socket.emit('setReady', { gameId, ready: !p.ready });
+          const newReadyState = !p.ready;
+          socket.emit('setReady', { gameId, ready: newReadyState });
+          // Clear join code display when owner readies up
+          if (currentPlayerId === currentOwnerId && newReadyState) {
+            roomJoinCodeDisplay.innerHTML = '';
+          }
         };
         pDiv.appendChild(readyBtn);
       }
@@ -62,6 +112,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // update room info and controls
     const playerCount = lastPlayers.length || 0;
     roomInfo.textContent = `Owner: ${ownerName} | Players: ${playerCount}`;
+    updateJoinCodeDisplay();
+    renderRoomControls();
+  });
+
+  socket.on('privateChanged', ({ isPrivate }) => {
+    currentRoomIsPrivate = !!isPrivate;
+    updateJoinCodeDisplay();
+    renderRoomControls();
+  });
+
+  socket.on('privateSet', ({ joinCode }) => {
+    currentJoinCode = joinCode || null;
+    updateJoinCodeDisplay();
     renderRoomControls();
   });
 
@@ -79,11 +142,43 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = '/lobby';
   });
 
+  function updateJoinCodeDisplay() {
+    // Only show join code to owners
+    if (currentRoomIsPrivate && currentJoinCode && currentPlayerId === currentOwnerId) {
+      roomJoinCodeDisplay.innerHTML = '';
+      const codeDiv = document.createElement('div');
+      codeDiv.style.fontSize = '1.2em';
+      codeDiv.style.fontWeight = 'bold';
+      codeDiv.style.marginTop = '10px';
+      codeDiv.style.marginBottom = '10px';
+      codeDiv.style.color = '#2ecc71';
+      codeDiv.textContent = 'Join code: ' + currentJoinCode;
+      roomJoinCodeDisplay.appendChild(codeDiv);
+    } else {
+      roomJoinCodeDisplay.innerHTML = '';
+    }
+  }
+
   function renderRoomControls() {
     roomControls.innerHTML = '';
     if (!currentPlayerId) return;
-    // if I'm the owner, show Start Game button (enabled only when all ready)
+    // if I'm the owner, show Start Game button (enabled only when all ready) and private toggle
     if (currentPlayerId === currentOwnerId) {
+      // Private lobby toggle
+      const privDiv = document.createElement('div');
+      const privLabel = document.createElement('label');
+      privLabel.textContent = 'Private: ';
+      const privCheckbox = document.createElement('input');
+      privCheckbox.type = 'checkbox';
+      privCheckbox.checked = !!currentRoomIsPrivate;
+      privCheckbox.onchange = () => {
+        const makePrivate = !!privCheckbox.checked;
+        socket.emit('setPrivate', { gameId, isPrivate: makePrivate });
+      };
+      privLabel.appendChild(privCheckbox);
+      privDiv.appendChild(privLabel);
+      roomControls.appendChild(privDiv);
+
       const players = Array.isArray(lastPlayers) ? lastPlayers : [];
       const allReady = players.length > 0 && players.every(p => !!p.ready);
       const startBtn = document.createElement('button');

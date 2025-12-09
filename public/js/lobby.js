@@ -6,6 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const createBtn = document.getElementById('createLobbyBtn');
   const createName = document.getElementById('createLobbyName');
   const createMax = document.getElementById('createMaxPlayers');
+  const createPrivate = document.getElementById('createPrivateLobby');
+
+  const joinLobbyCode = document.getElementById('joinLobbyCode');
+  const joinByCodeBtn = document.getElementById('joinByCodeBtn');
 
   const currentRoomEl = document.getElementById('currentRoom');
   const currentRoomTitle = document.getElementById('currentRoomTitle');
@@ -16,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const lobbiesContainer = document.getElementById('lobbiesContainer');
   const createLobbySection = document.getElementById('createLobby');
+  const joinByCodeSection = document.getElementById('joinByCode');
 
   let currentGameId = null;
   let currentPlayerId = null;
@@ -84,6 +89,7 @@ function renderPlayers(players) {
     // Hide lobby list and show current room
     if (lobbiesContainer) lobbiesContainer.style.display = 'none';
     if (createLobbySection) createLobbySection.style.display = 'none';
+    if (joinByCodeSection) joinByCodeSection.style.display = 'none';
 
     currentRoomEl.style.display = 'block';
     currentGameId = meta.gameId || currentGameId;
@@ -183,13 +189,20 @@ function renderPlayers(players) {
     window.location.href = '/game?gameId=' + encodeURIComponent(currentGameId);
   });
   // redirect/enter room when server confirms lobby created
-  socket.on('lobbyCreated', ({ gameId, lobbyName }) => {
+  socket.on('lobbyCreated', ({ gameId, lobbyName, isPrivate = false, joinCode = null }) => {
   // Keep the current socket alive: update URL and show the in-page room
   currentGameId = gameId;
   try {
     history.replaceState(null, '', '/room/' + encodeURIComponent(gameId));
   } catch (e) { /* ignore */ }
   showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId.slice(0,6)}` });
+  // If the server returned a join code (private lobby), show it to the creator in controls
+  if (isPrivate && joinCode) {
+    roomControls.innerHTML = '';
+    const codeDiv = document.createElement('div');
+    codeDiv.textContent = 'Private lobby — join code: ' + joinCode;
+    roomControls.appendChild(codeDiv);
+  }
   // Ask server for fresh lobby list for other viewers
   socket.emit('getLobbies');
 });
@@ -198,7 +211,8 @@ function renderPlayers(players) {
   createBtn.addEventListener('click', () => {
     const name = createName.value || `${window.CURRENT_USER || 'Host'}'s Lobby`;
     const maxPlayers = parseInt(createMax.value, 10) || 8;
-    socket.emit('createLobby', { lobbyName: name, maxPlayers, playerName: window.CURRENT_USER || 'Host' });
+    const isPrivate = !!(createPrivate && createPrivate.checked);
+    socket.emit('createLobby', { lobbyName: name, maxPlayers, playerName: window.CURRENT_USER || 'Host', isPrivate });
   });
 
   // leave lobby
@@ -212,8 +226,37 @@ function renderPlayers(players) {
     // restore lobby UI
     if (lobbiesContainer) lobbiesContainer.style.display = 'block';
     if (createLobbySection) createLobbySection.style.display = 'block';
+    if (joinByCodeSection) joinByCodeSection.style.display = 'block';
     // refresh
     socket.emit('getLobbies');
+  });
+
+  // join by code
+  if (joinByCodeBtn && joinLobbyCode) {
+    joinByCodeBtn.addEventListener('click', () => {
+      const code = (joinLobbyCode.value || '').trim().toUpperCase();
+      if (!code) {
+        alert('Please enter a lobby code');
+        return;
+      }
+      // We don't know the gameId from the code alone, so we ask the server
+      // to find it. We'll emit a custom event or redirect to /room/:code
+      // For simplicity, let's create a temporary redirect endpoint or 
+      // just navigate to /room/<code> and let the server handle it.
+      // Since the backend expects a gameId, we'll need to handle this differently.
+      // One approach: emit a joinByCode event to the server
+      socket.emit('joinByCode', { joinCode: code, playerName: window.CURRENT_USER || 'Player' });
+    });
+  }
+
+  // Handle join by code response
+  socket.on('joinByCodeSuccess', ({ gameId, lobbyName }) => {
+    currentGameId = gameId;
+    window.location.href = '/room/' + encodeURIComponent(gameId);
+  });
+
+  socket.on('joinByCodeError', ({ reason }) => {
+    alert('Unable to join: ' + (reason || 'Invalid code'));
   });
 
   // Request lobby list periodically (only when not currently in a room)

@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const roomTitle = document.getElementById('roomTitle');
   const roomJoinCodeDisplay = document.getElementById('roomJoinCodeDisplay');
+  const joinCodeContainer = document.getElementById('joinCodeContainer');
   const roomInfo = document.getElementById('roomInfo');
   const roomPlayerList = document.getElementById('roomPlayerList');
   const roomControls = document.getElementById('roomControls');
@@ -19,23 +20,38 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentJoinCode = null;
   let hasPromptedForCode = false;
 
+  // Check for join code in URL (from join-by-code flow)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlJoinCode = urlParams.get('code');
+
   // When socket connects, send join request for this room
   socket.on('connect', () => {
     currentPlayerId = socket.id;
-    socket.emit('joinLobby', { gameId, playerName: currentUser });
+    socket.emit('joinLobby', { gameId, playerName: currentUser, joinCode: urlJoinCode || null });
   });
 
-  socket.on('joined', ({ playerId, gameId: gid, lobbyName, isPrivate = false, joinCode = null }) => {
+   socket.on('joined', ({ playerId, gameId: gid, lobbyName, isPrivate = false, joinCode = null, ownerId = null, ownerName = null }) => {
     currentPlayerId = playerId || socket.id;
     // remember privacy state and join code
     currentRoomIsPrivate = !!isPrivate;
     if (joinCode) currentJoinCode = joinCode;
     updateJoinCodeDisplay();
     renderRoomControls();
+
+    if (ownerId) {
+      currentOwnerId = ownerId;
+      if (ownerName) currentOwnerName = ownerName;
+    } else if (!currentOwnerId && currentPlayerId && currentPlayerId === socket.id) {
+        currentOwnerId = currentPlayerId;
+      }
+
+      updateJoinCodeDisplay();
+      renderRoomControls();
   });
 
   // If join failed because lobby is private, show join code input and retry
   socket.on('lobbyJoinError', ({ reason }) => {
+    console.log('hasPromptedForCode:', hasPromptedForCode);
     if ((reason && (reason.toString().toLowerCase().includes('private') || reason.toString().toLowerCase().includes('code'))) && !hasPromptedForCode) {
       hasPromptedForCode = true;
       showJoinCodeInput();
@@ -87,11 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         readyBtn.textContent = p.ready ? 'Unready' : 'Ready';
         readyBtn.onclick = () => {
           const newReadyState = !p.ready;
-          socket.emit('setReady', { gameId, ready: newReadyState });
-          // Clear join code display when owner readies up
-          if (currentPlayerId === currentOwnerId && newReadyState) {
-            roomJoinCodeDisplay.innerHTML = '';
-          }
+          socket.emit('setReady', { gameId, ready: newReadyState});
         };
         pDiv.appendChild(readyBtn);
       }
@@ -107,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   socket.on('ownerChanged', ({ ownerId, ownerName }) => {
+    console.log('ownerChanged received:', { ownerId, ownerName, currentPlayerId });
     currentOwnerId = ownerId;
     currentOwnerName = ownerName;
     // update room info and controls
@@ -117,12 +130,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   socket.on('privateChanged', ({ isPrivate }) => {
+    console.log('privateChanged received:', { isPrivate });
     currentRoomIsPrivate = !!isPrivate;
     updateJoinCodeDisplay();
     renderRoomControls();
   });
 
   socket.on('privateSet', ({ joinCode }) => {
+    console.log('privateSet received:', { joinCode, currentPlayerId, currentOwnerId });
     currentJoinCode = joinCode || null;
     updateJoinCodeDisplay();
     renderRoomControls();
@@ -142,20 +157,80 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = '/lobby';
   });
 
-  function updateJoinCodeDisplay() {
-    // Only show join code to owners
-    if (currentRoomIsPrivate && currentJoinCode && currentPlayerId === currentOwnerId) {
-      roomJoinCodeDisplay.innerHTML = '';
-      const codeDiv = document.createElement('div');
-      codeDiv.style.fontSize = '1.2em';
-      codeDiv.style.fontWeight = 'bold';
-      codeDiv.style.marginTop = '10px';
-      codeDiv.style.marginBottom = '10px';
-      codeDiv.style.color = '#2ecc71';
-      codeDiv.textContent = 'Join code: ' + currentJoinCode;
-      roomJoinCodeDisplay.appendChild(codeDiv);
+  function copyJoinCode() {
+    const code = currentJoinCode || '';
+    if (!code) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(() => {
+        alert('Join code copied to clipboard: ' + code);
+      }).catch(err => {
+        fallbackCopy(code);
+      });
     } else {
-      roomJoinCodeDisplay.innerHTML = '';
+      fallbackCopy(code);
+    }
+  }
+
+  function fallbackCopy(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      alert('Join code copied to clipboard: ' + text);
+    } catch (err) {
+      alert(' Copy failed. Unable to copy join code to clipboard');
+    }
+    document.body.removeChild(textArea);
+  }
+
+  function updateJoinCodeDisplay() {
+    // Display join code in the persistent container (not cleared by other updates)
+    console.log('updateJoinCodeDisplay called:', { currentRoomIsPrivate, currentJoinCode, currentPlayerId, currentOwnerId });
+    joinCodeContainer.innerHTML = '';
+    
+    // Only show to owner when room is private and we have a code
+    if (currentRoomIsPrivate && currentJoinCode && currentPlayerId === currentOwnerId) {
+      console.log('Showing join code!');
+      const wrapper = document.createElement('div');
+      wrapper.style.padding = '10px';
+      wrapper.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+      wrapper.style.borderRadius = '8px';
+      wrapper.style.display = 'inline-flex';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.gap = '10px';
+
+      const label = document.createElement('span');
+      label.textContent = 'Join Code: ';
+      label.style.fontWeight = 'bold';
+
+      const codeSpan = document.createElement('span');
+      codeSpan.textContent = currentJoinCode;
+      codeSpan.style.fontSize = '1.2em';
+      codeSpan.style.fontWeight = 'bold';
+      codeSpan.style.letterSpacing = '2px';
+      codeSpan.style.padding = '4px 8px';
+      codeSpan.style.backgroundColor = '#fff';
+      codeSpan.style.color = '#333';
+      codeSpan.style.border = '1px solid #ccc';
+      codeSpan.style.borderRadius = '4px';
+
+      const copyBtn = document.createElement('button');
+      copyBtn.textContent = 'Copy Code';
+      copyBtn.type = 'button';
+      copyBtn.style.padding = '6px 12px';
+      copyBtn.style.cursor = 'pointer';
+      copyBtn.addEventListener('click', function() {
+        copyJoinCode();
+      });
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(codeSpan);
+      wrapper.appendChild(copyBtn);
+      joinCodeContainer.appendChild(wrapper);
     }
   }
 
@@ -166,6 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentPlayerId === currentOwnerId) {
       // Private lobby toggle
       const privDiv = document.createElement('div');
+      privDiv.style.marginBottom = '10px';
       const privLabel = document.createElement('label');
       privLabel.textContent = 'Private: ';
       const privCheckbox = document.createElement('input');

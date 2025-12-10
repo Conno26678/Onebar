@@ -171,7 +171,8 @@ function setupSocketHandlers(io) {
       const existingByName = game.players.find(p => p.name === playerName);
       if (existingByName) {
         const wasReady = existingByName.ready;
-        console.log(`Player ${playerName} rejoining: wasReady=${wasReady}, isOwner=${game.ownerName === playerName}`);
+        const isOwner = game.ownerName && game.ownerName === playerName;
+        console.log(`Player ${playerName} rejoining: wasReady=${wasReady}, isOwner=${isOwner}`);
 
         if (existingByName.disconnectTimeout) {
           clearTimeout(existingByName.disconnectTimeout);
@@ -183,17 +184,27 @@ function setupSocketHandlers(io) {
         existingByName.id = socket.id;
         existingByName.ready = wasReady;
 
-        socket.join(gameId);
-        socket.emit('joined', { playerId: existingByName.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: (socket.id === game.ownerId ? game.joinCode : null) });
-
-        if (game.ownerName && game.ownerName === playerName) {
+        // Update owner socket id BEFORE sending events
+        if (isOwner) {
           game.ownerId = socket.id;
           existingByName.ready = true;
           console.log(`Owner ${playerName} reconnected, setting ready=true`);
-          io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
-          // Broadcast join code to all players in the room
-          io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
         }
+
+        socket.join(gameId);
+        // Send join code to owner
+        socket.emit('joined', { 
+          playerId: existingByName.id, 
+          gameId, 
+          lobbyName: game.lobbyName, 
+          isPrivate: !!game.private, 
+          joinCode: isOwner ? game.joinCode : null,
+          ownerId: game.ownerId,
+          ownerName: game.ownerName
+        });
+
+        io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+        io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
 
         console.log(`After rejoin - Players:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
         io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));

@@ -250,9 +250,11 @@ function renderPlayers(players) {
   }
 
   // Handle join by code response
-  socket.on('joinByCodeSuccess', ({ gameId, lobbyName }) => {
+  socket.on('joinByCodeSuccess', ({ gameId, lobbyName, joinCode }) => {
     currentGameId = gameId;
-    window.location.href = '/room/' + encodeURIComponent(gameId);
+    // Pass the join code in URL so room.js can use it
+    const code = (joinLobbyCode && joinLobbyCode.value) ? joinLobbyCode.value.trim().toUpperCase() : '';
+    window.location.href = '/room/' + encodeURIComponent(gameId) + (code ? '?code=' + encodeURIComponent(code) : '');
   });
 
   socket.on('joinByCodeError', ({ reason }) => {

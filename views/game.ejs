@@ -67,13 +67,12 @@
     <div id="playerList"></div>
     <div id="status"></div>
 
+    <h3>Table</h3>
+    <div id="tableArea"></div>
+    <div id="table"></div>
+
     <h3>Your Hand</h3>
     <div id="hand"></div>
-
-    <h3>Table</h3>
-     <div id="tableArea"></div>
-    
-    <div id="table"></div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
@@ -249,14 +248,33 @@
     // ONE button: shows a "1" image and allows calling ONE
     const oneBtn = document.createElement('button');
     oneBtn.id = 'oneBtn';
-    oneBtn.style.marginLeft = '8px';
+    // Make the ONE button fixed and larger. We'll animate it from center -> lower-right.
+    oneBtn.style.position = 'fixed';
+    oneBtn.style.width = '110px';
+    oneBtn.style.height = '110px';
+    oneBtn.style.padding = '8px';
+    oneBtn.style.display = 'flex';
+    oneBtn.style.alignItems = 'center';
+    oneBtn.style.justifyContent = 'center';
+    oneBtn.style.borderRadius = '10px';
+    // remove white outline / border and drop shadow so it appears cleaner
+    oneBtn.style.border = 'none';
+    oneBtn.style.background = 'transparent';
+    oneBtn.style.boxShadow = 'none';
+    oneBtn.style.cursor = 'pointer';
+    oneBtn.style.zIndex = '9999';
+    // start centered using left/top (we'll convert to px coords for smooth animation)
+    oneBtn.style.left = '50%';
+    oneBtn.style.top = '50%';
+    oneBtn.style.transform = 'translate(-50%, -50%)';
+    oneBtn.style.transition = 'left 700ms cubic-bezier(.2,.8,.2,1), top 700ms cubic-bezier(.2,.8,.2,1), transform 700ms';
     // If you don't have a "one" image, you can use text or a card image that represents "1".
     const oneImg = document.createElement('img');
     oneImg.src = '/img/ONElogo.png';
     oneImg.alt = 'ONE';
-    oneImg.style.width = '48px';
-    oneImg.style.height = 'auto';
-    oneImg.style.verticalAlign = 'middle';
+    oneImg.style.width = '88px';
+    oneImg.style.height = '88px';
+    oneImg.style.objectFit = 'contain';
     oneBtn.appendChild(oneImg);
     oneBtn.title = 'Press when you have one card';
 
@@ -272,7 +290,59 @@
       socket.emit('callOne', { gameId: gameId });
     });
 
-    document.body.appendChild(oneBtn);
+    // Append the ONE button to the controls container (right of piles) when available,
+    // otherwise try the draw pile, and finally fallback to body.
+    function placeOneBtn() {
+      // Always append to body when using fixed positioning so placement is predictable
+      if (!document.body.contains(oneBtn)) document.body.appendChild(oneBtn);
+    }
+    placeOneBtn();
+
+    // Entrance animation: place centered, then move to bottom-right corner
+    (function animateOneBtnToCorner() {
+      const delayBeforeMove = 700; // ms
+      let movedToCorner = false;
+
+      function placeCentered() {
+        const w = oneBtn.offsetWidth || 110;
+        const h = oneBtn.offsetHeight || 110;
+        const centerLeft = Math.round((window.innerWidth - w) / 2);
+        const centerTop = Math.round((window.innerHeight - h) / 2);
+        // set px positions to avoid percentage->px transition jank
+        oneBtn.style.transform = 'none';
+        oneBtn.style.left = centerLeft + 'px';
+        oneBtn.style.top = centerTop + 'px';
+      }
+
+      function moveToCorner() {
+        const w = oneBtn.offsetWidth || 110;
+        const h = oneBtn.offsetHeight || 110;
+        const targetLeft = Math.max(8, window.innerWidth - 16 - w);
+        const targetTop = Math.max(8, window.innerHeight - 16 - h);
+        oneBtn.style.left = targetLeft + 'px';
+        oneBtn.style.top = targetTop + 'px';
+        movedToCorner = true;
+      }
+
+      // small timeout so element is in DOM and has layout
+      setTimeout(() => {
+        placeCentered();
+        setTimeout(moveToCorner, delayBeforeMove);
+      }, 60);
+
+      window.addEventListener('resize', () => {
+        if (movedToCorner) {
+          const w = oneBtn.offsetWidth || 110;
+          const h = oneBtn.offsetHeight || 110;
+          const targetLeft = Math.max(8, window.innerWidth - 16 - w);
+          const targetTop = Math.max(8, window.innerHeight - 16 - h);
+          oneBtn.style.left = targetLeft + 'px';
+          oneBtn.style.top = targetTop + 'px';
+        } else {
+          placeCentered();
+        }
+      });
+    })();
 
     // Listen for server confirmation / errors
     socket.on('playerCalledOne', ({ playerId, playerName }) => {
@@ -332,17 +402,26 @@ drawContainer.appendChild(drawImg);
 const tableArea = document.getElementById('tableArea');
 const tableEl = document.getElementById('table');
 
-// Append draw pile first, then the table (discard). This keeps a consistent order.
-tableArea.appendChild(drawContainer);
+// Create a controls column (right side) to hold buttons like ONE
+const controlContainer = document.createElement('div');
+controlContainer.id = 'tableControls';
+controlContainer.style.display = 'flex';
+controlContainer.style.flexDirection = 'column';
+controlContainer.style.alignItems = 'center';
+controlContainer.style.minWidth = '80px';
+controlContainer.style.margin = '8px';
 
-// If the #table element isn't already a child of #tableArea, move it in.
+// Append draw pile, table (discard), then controls to tableArea to form left->center->right
+tableArea.appendChild(drawContainer);
 if (tableEl.parentNode !== tableArea) {
   tableArea.appendChild(tableEl);
 }
+tableArea.appendChild(controlContainer);
 
-// Force ordering  so draw pile is left and discard is right
-drawContainer.style.order = '1';
-tableEl.style.order = '2';
+// Force ordering: discard (table) left, draw pile center, controls right
+tableEl.style.order = '1';
+drawContainer.style.order = '2';
+controlContainer.style.order = '3';
 
 // Clicking the draw pile
 drawImg.addEventListener('click', () => {

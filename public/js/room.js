@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const roomControls = document.getElementById('roomControls');
   const leaveRoomBtn = document.getElementById('leaveRoomBtn');
 
-  roomTitle.textContent =  window.LOBBY_NAME ||`Room ${gameId ? gameId.slice(0,6) : ''}`;
+  roomTitle.textContent = '🎮 ' + (window.LOBBY_NAME || `Room ${gameId ? gameId.slice(0,6) : ''}`);
   let currentOwnerId = null;
   let currentOwnerName = null;
   let currentPlayerId = null;
@@ -90,30 +90,50 @@ document.addEventListener('DOMContentLoaded', () => {
   socket.on('playerList', (players) => {
     lastPlayers = players || [];
     // render list
-    roomPlayerList.innerHTML = '<h3>Players</h3>';
-    players.forEach(p => {
-      const pDiv = document.createElement('div');
-      const ownerLabel = (p.id === currentOwnerId) ? ' (Owner)' : '';
-      const readyLabel = p.ready ? ' ✅ Ready' : ' ⏳ Not Ready';
-      pDiv.textContent = p.name + ownerLabel + readyLabel;
+    roomPlayerList.innerHTML = '';
+    if (players.length === 0) {
+      roomPlayerList.innerHTML = '<div class="waiting-indicator">Waiting for players<span class="dots">...</span></div>';
+    } else {
+      players.forEach(p => {
+        const pDiv = document.createElement('div');
+        pDiv.className = 'player-tag fade-in' + (p.id === currentOwnerId ? ' host' : '');
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = p.name;
+        pDiv.appendChild(nameSpan);
+        
+        if (p.id === currentOwnerId) {
+          const hostBadge = document.createElement('span');
+          hostBadge.className = 'host-badge';
+          hostBadge.textContent = '👑';
+          pDiv.appendChild(hostBadge);
+        }
+        
+        const readySpan = document.createElement('span');
+        readySpan.className = 'ready-status';
+        readySpan.textContent = p.ready ? ' ✅' : ' ⏳';
+        pDiv.appendChild(readySpan);
 
-      // show ready toggle only for the current user
-      if (currentPlayerId && p.id === currentPlayerId) {
-        const readyBtn = document.createElement('button');
-        readyBtn.textContent = p.ready ? 'Unready' : 'Ready';
-        readyBtn.onclick = () => {
-          const newReadyState = !p.ready;
-          socket.emit('setReady', { gameId, ready: newReadyState});
-        };
-        pDiv.appendChild(readyBtn);
-      }
+        // show ready toggle only for the current user
+        if (currentPlayerId && p.id === currentPlayerId) {
+          const readyBtn = document.createElement('button');
+          readyBtn.className = 'ready-btn';
+          readyBtn.textContent = p.ready ? 'Unready' : 'Ready';
+          readyBtn.onclick = (e) => {
+            e.stopPropagation();
+            const newReadyState = !p.ready;
+            socket.emit('setReady', { gameId, ready: newReadyState});
+          };
+          pDiv.appendChild(readyBtn);
+        }
 
-      roomPlayerList.appendChild(pDiv);
-    });
+        roomPlayerList.appendChild(pDiv);
+      });
+    }
 
     // update room info
-    const ownerText = currentOwnerName ? `Owner: ${currentOwnerName}` : (currentOwnerId ? 'Owner: (unknown)' : 'Owner: -');
-    roomInfo.textContent = `${ownerText} | Players: ${players.length}`;
+    const ownerText = currentOwnerName ? `👑 ${currentOwnerName}` : (currentOwnerId ? '👑 Host' : '');
+    roomInfo.innerHTML = `<div class="info-item">${ownerText}</div><div class="info-item">👥 ${players.length} Players</div>`;
 
     renderRoomControls();
   });
@@ -162,13 +182,40 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!code) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(code).then(() => {
-        alert('Join code copied to clipboard: ' + code);
+        showCopyNotification('Join code copied!');
       }).catch(err => {
         fallbackCopy(code);
       });
     } else {
       fallbackCopy(code);
     }
+  }
+
+  function showCopyNotification(message) {
+    // Create a toast notification
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--gradient-accent, linear-gradient(135deg, #38a169, #68d391));
+      color: white;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-weight: 600;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 10000;
+      animation: slideUp 0.3s ease-out;
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 2000);
   }
 
   function fallbackCopy(text) {
@@ -180,9 +227,9 @@ document.addEventListener('DOMContentLoaded', () => {
     textArea.select();
     try {
       document.execCommand('copy');
-      alert('Join code copied to clipboard: ' + text);
+      showCopyNotification('Join code copied!');
     } catch (err) {
-      alert(' Copy failed. Unable to copy join code to clipboard');
+      alert('Unable to copy join code to clipboard');
     }
     document.body.removeChild(textArea);
   }
@@ -190,86 +237,90 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateJoinCodeDisplay() {
     // Display join code in the persistent container (not cleared by other updates)
     console.log('updateJoinCodeDisplay called:', { currentRoomIsPrivate, currentJoinCode, currentPlayerId, currentOwnerId });
-    joinCodeContainer.innerHTML = '';
     
     // Only show to owner when room is private and we have a code
     if (currentRoomIsPrivate && currentJoinCode && currentPlayerId === currentOwnerId) {
       console.log('Showing join code!');
-      const wrapper = document.createElement('div');
-      wrapper.style.padding = '10px';
-      wrapper.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
-      wrapper.style.borderRadius = '8px';
-      wrapper.style.display = 'inline-flex';
-      wrapper.style.alignItems = 'center';
-      wrapper.style.gap = '10px';
-
-      const label = document.createElement('span');
-      label.textContent = 'Join Code: ';
-      label.style.fontWeight = 'bold';
-
-      const codeSpan = document.createElement('span');
-      codeSpan.textContent = currentJoinCode;
-      codeSpan.style.fontSize = '1.2em';
-      codeSpan.style.fontWeight = 'bold';
-      codeSpan.style.letterSpacing = '2px';
-      codeSpan.style.padding = '4px 8px';
-      codeSpan.style.backgroundColor = '#fff';
-      codeSpan.style.color = '#333';
-      codeSpan.style.border = '1px solid #ccc';
-      codeSpan.style.borderRadius = '4px';
-
-      const copyBtn = document.createElement('button');
-      copyBtn.textContent = 'Copy Code';
-      copyBtn.type = 'button';
-      copyBtn.style.padding = '6px 12px';
-      copyBtn.style.cursor = 'pointer';
-      copyBtn.addEventListener('click', function() {
-        copyJoinCode();
-      });
-
-      wrapper.appendChild(label);
-      wrapper.appendChild(codeSpan);
-      wrapper.appendChild(copyBtn);
-      joinCodeContainer.appendChild(wrapper);
+      joinCodeContainer.style.display = 'block';
+      roomJoinCodeDisplay.textContent = currentJoinCode;
+      roomJoinCodeDisplay.onclick = () => copyJoinCode();
+    } else {
+      joinCodeContainer.style.display = 'none';
     }
   }
 
   function renderRoomControls() {
-    roomControls.innerHTML = '';
-    if (!currentPlayerId) return;
+    // Only update controls if there's an actual change needed
+    // Check if we already have the right controls rendered
+    const existingStartBtn = roomControls.querySelector('.start-btn');
+    const existingPrivToggle = roomControls.querySelector('.privacy-toggle');
+    
+    if (!currentPlayerId) {
+      roomControls.innerHTML = '';
+      return;
+    }
+    
     // if I'm the owner, show Start Game button (enabled only when all ready) and private toggle
     if (currentPlayerId === currentOwnerId) {
-      // Private lobby toggle
-      const privDiv = document.createElement('div');
-      privDiv.style.marginBottom = '10px';
-      const privLabel = document.createElement('label');
-      privLabel.textContent = 'Private: ';
-      const privCheckbox = document.createElement('input');
-      privCheckbox.type = 'checkbox';
-      privCheckbox.checked = !!currentRoomIsPrivate;
-      privCheckbox.onchange = () => {
-        const makePrivate = !!privCheckbox.checked;
-        socket.emit('setPrivate', { gameId, isPrivate: makePrivate });
-      };
-      privLabel.appendChild(privCheckbox);
-      privDiv.appendChild(privLabel);
-      roomControls.appendChild(privDiv);
+      // Only rebuild controls if they don't exist yet
+      if (!existingStartBtn || !existingPrivToggle) {
+        roomControls.innerHTML = '';
+        
+        // Private lobby toggle
+        const privDiv = document.createElement('div');
+        privDiv.className = 'privacy-toggle';
+        const privLabel = document.createElement('label');
+        privLabel.className = 'checkbox-wrapper';
+        const privCheckbox = document.createElement('input');
+        privCheckbox.type = 'checkbox';
+        privCheckbox.id = 'privacyCheckbox';
+        privCheckbox.checked = !!currentRoomIsPrivate;
+        privCheckbox.onchange = () => {
+          const makePrivate = !!privCheckbox.checked;
+          socket.emit('setPrivate', { gameId, isPrivate: makePrivate });
+        };
+        const labelText = document.createElement('span');
+        labelText.textContent = '🔒 Private Lobby';
+        privLabel.appendChild(privCheckbox);
+        privLabel.appendChild(labelText);
+        privDiv.appendChild(privLabel);
+        roomControls.appendChild(privDiv);
 
-      const players = Array.isArray(lastPlayers) ? lastPlayers : [];
-      const allReady = players.length > 0 && players.every(p => !!p.ready);
-      const startBtn = document.createElement('button');
-      startBtn.textContent = 'Start Game';
-      startBtn.disabled = !allReady;
-      startBtn.onclick = () => {
-        socket.emit('startGame', { gameId, handSize: 7 });
-      };
-      roomControls.appendChild(startBtn);
+        const startBtn = document.createElement('button');
+        startBtn.className = 'start-btn';
+        startBtn.textContent = '🚀 Start Game';
+        startBtn.onclick = () => {
+          socket.emit('startGame', { gameId, handSize: 7 });
+        };
+        roomControls.appendChild(startBtn);
 
-      if (!allReady) {
         const note = document.createElement('div');
-        note.textContent = 'All players must be ready to start.';
+        note.className = 'waiting-note';
         roomControls.appendChild(note);
       }
+      
+      // Update the state of existing controls without clearing
+      const players = Array.isArray(lastPlayers) ? lastPlayers : [];
+      const allReady = players.length > 0 && players.every(p => !!p.ready);
+      
+      const startBtn = roomControls.querySelector('.start-btn');
+      if (startBtn) {
+        startBtn.disabled = !allReady;
+      }
+      
+      const privCheckbox = roomControls.querySelector('#privacyCheckbox');
+      if (privCheckbox) {
+        privCheckbox.checked = !!currentRoomIsPrivate;
+      }
+      
+      const note = roomControls.querySelector('.waiting-note');
+      if (note) {
+        note.textContent = allReady ? '' : '⏳ Waiting for all players to be ready...';
+        note.style.display = allReady ? 'none' : 'block';
+      }
+    } else {
+      // Not the owner, clear controls
+      roomControls.innerHTML = '';
     }
   }
 

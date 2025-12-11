@@ -35,41 +35,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderLobbyList(lobbies) {
     if (!Array.isArray(lobbies) || lobbies.length === 0) {
-      lobbyListEl.innerHTML = '<div>No lobbies available</div>';
+      lobbyListEl.innerHTML = '<div class="empty-state"><div class="emoji">🎮</div><div>No lobbies available. Create one!</div></div>';
       return;
     }
     lobbyListEl.innerHTML = '';
     lobbies.forEach(l => {
       const div = document.createElement('div');
-      div.className = 'lobbyEntry';
+      div.className = 'lobby-item fade-in';
       div.innerHTML = `
-        <strong>${escapeHtml(l.lobbyName)}</strong>
-        <div>Owner: ${escapeHtml(l.ownerName)}</div>
-        <div>Players: ${l.playerCount}/${l.maxPlayers}</div>
-        <div>Status: ${escapeHtml(l.status)}</div>
+        <div class="lobby-name">${escapeHtml(l.lobbyName)}</div>
+        <div class="lobby-info">
+          <span class="player-count">${l.playerCount}/${l.maxPlayers} Players</span>
+          ${l.isPrivate ? '<span class="private-badge">🔒 Private</span>' : ''}
+        </div>
       `;
-      const joinBtn = document.createElement('button');
-      joinBtn.textContent = 'Join';
-      joinBtn.onclick = () => { window.location.href = '/room/' + encodeURIComponent(l.gameId);};
-      div.appendChild(joinBtn);
+      div.onclick = () => { window.location.href = '/room/' + encodeURIComponent(l.gameId);};
       lobbyListEl.appendChild(div);
     });
   }
 
 function renderPlayers(players) {
   lastPlayers = Array.isArray(players) ? players : [];
-  roomPlayerList.innerHTML = '<h3>Players</h3>';
+  roomPlayerList.innerHTML = '';
   players.forEach(p => {
     const pDiv = document.createElement('div');
-    const ownerLabel = (p.id === currentOwnerId) ? ' (Owner)' : '';
-    const readyLabel = p.ready ? ' ✅ Ready' : ' ⏳ Not Ready';
-    pDiv.textContent = p.name + ownerLabel + readyLabel;
+    pDiv.className = 'player-tag' + (p.id === currentOwnerId ? ' host' : '');
+    
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = p.name;
+    pDiv.appendChild(nameSpan);
+    
+    if (p.id === currentOwnerId) {
+      const hostBadge = document.createElement('span');
+      hostBadge.className = 'host-badge';
+      hostBadge.textContent = '👑 Host';
+      pDiv.appendChild(hostBadge);
+    }
+    
+    const readySpan = document.createElement('span');
+    readySpan.className = 'ready-status';
+    readySpan.textContent = p.ready ? ' ✅' : ' ⏳';
+    pDiv.appendChild(readySpan);
 
     // If this is the current user, show a toggle button
     if (p.id === currentPlayerId) {
       const readyBtn = document.createElement('button');
+      readyBtn.className = 'ready-btn';
       readyBtn.textContent = p.ready ? 'Unready' : 'Ready';
-      readyBtn.onclick = () => {
+      readyBtn.onclick = (e) => {
+        e.stopPropagation();
         socket.emit('setReady', { gameId: currentGameId, ready: !p.ready });
       };
       pDiv.appendChild(readyBtn);
@@ -92,18 +106,19 @@ function renderPlayers(players) {
     if (joinByCodeSection) joinByCodeSection.style.display = 'none';
 
     currentRoomEl.style.display = 'block';
+    currentRoomEl.classList.add('active');
     currentGameId = meta.gameId || currentGameId;
     currentRoomTitle.textContent = meta.lobbyName || `Room ${currentGameId ? currentGameId.slice(0,6) : ''}`;
 
     if (typeof meta.lobbyName !== 'undefined' && meta.lobbyName !== null) {
       currentLobbyName = meta.lobbyName;
     }
-    currentRoomTitle.textContent = currentLobbyName || `Room ${currentGameId ? currentGameId.slice(0,6) : ''}`;
+    currentRoomTitle.textContent = '🎮 ' + (currentLobbyName || `Room ${currentGameId ? currentGameId.slice(0,6) : ''}`);
     // Update info display if available
     if (typeof meta.playerCount !== 'undefined' || typeof meta.maxPlayers !== 'undefined') {
       const pc = meta.playerCount != null ? meta.playerCount : '0';
       const mp = meta.maxPlayers != null ? meta.maxPlayers : (createMax ? createMax.value : '8');
-      currentRoomInfo.innerHTML = `Owner: ${escapeHtml(meta.ownerName || 'Host')} | Players: ${pc}/${mp}`;
+      currentRoomInfo.innerHTML = `<span class="info-item">👑 ${escapeHtml(meta.ownerName || 'Host')}</span><span class="info-item">👥 ${pc}/${mp} Players</span>`;
     } else {
       // leave previous info if we don't have new values
     }
@@ -115,7 +130,8 @@ function renderPlayers(players) {
         const players = Array.isArray(lastPlayers) ? lastPlayers : [];
         const allReady = players.length > 0 && players.every(p => !!p.ready);
         const startBtn = document.createElement('button');
-        startBtn.textContent = 'Start Game';
+        startBtn.className = 'start-btn';
+        startBtn.textContent = '🚀 Start Game';
         startBtn.disabled = !allReady;
         startBtn.onclick = () => {
           const handSize = 7;
@@ -125,7 +141,8 @@ function renderPlayers(players) {
 
     if (!allReady) {
       const note = document.createElement('div');
-      note.textContent = 'All players must be ready to start.';
+      note.className = 'waiting-note';
+      note.textContent = '⏳ Waiting for all players to be ready...';
       roomControls.appendChild(note);
     }
 }

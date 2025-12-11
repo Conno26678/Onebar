@@ -1,0 +1,198 @@
+/* Card Atlas CSS - Use with data-card-id attribute */
+/* Format: [color]_[value]_* where color is red, yellow, green, blue, wild */
+/* Values: 0-9, Skip, Reverse, DrawTwo, Wild, WildDrawFour */
+
+/* Base card styles */
+[data-card-id] {
+    display: inline-block;
+    background-image: url('../img/cards/bigcard.png');
+    background-repeat: no-repeat;
+    background-size: 1344px 1200px; /* 14 columns x 8 rows sprite sheet scaled 1.5x */
+    width: 96px;  /* Single card width 64px * 1.5 */
+    height: 150px; /* Single card height 100px * 1.5 */
+}
+
+/* Card dimensions - 14 columns x 8 rows */
+/* Each card: 64px wide, 100px tall */
+
+/* ============================================ */
+/* ROW 1 - RED CARDS */
+/* ============================================ */
+[data-card-id^="red_0_"] { background-position: 0px 0px; }
+[data-card-id^="red_1_"] { background-position: -96px 0px; }
+[data-card-id^="red_2_"] { background-position: -192px 0px; }
+[data-card-id^="red_3_"] { background-position: -288px 0px; }
+[data-card-id^="red_4_"] { background-position: -384px 0px; }
+[data-card-id^="red_5_"] { background-position: -480px 0px; }
+[data-card-id^="red_6_"] { background-position: -576px 0px; }
+[data-card-id^="red_7_"] { background-position: -672px 0px; }
+[data-card-id^="red_8_"] { background-position: -768px 0px; }
+[data-card-id^="red_9_"] { background-position: -864px 0px; }
+[data-card-id^="red_Skip_"] { background-position: -960px 0px; }
+[data-card-id^="red_Reverse_"] { background-position: -1056px 0px; }
+[data-card-id^="red_DrawTwo_"] { background-position: -1152px 0px; }
+
+/* ============================================ */
+/* ROW 2 - YELLOW CARDS */
+/* ============================================ */
+[data-card-id^="yellow_0_"] { background-position: 0px -150px; }
+[data-card-id^="yellow_1_"] { background-position: -96px -150px; }
+[data-card-id^="yellow_2_"] { background-position: -192px -150px; }
+[data-card-id^="yellow_3_"] { background-position: -288px -150px; }
+[data-card-id^="yellow_4_"] { background-position: -384px -150px; }
+[data-card-id^="yellow_5_"] { background-position: -480px -150px; }
+[data-card-id^="yellow_6_"] { background-position: -576px -150px; }
+[data-card-id^="yellow_7_"] { background-position: -672px -150px; }
+[data-card-id^="yellow_8_"] { background-position: -768px -150px; }
+[data-card-id^="yellow_9_"] { background-position: -864px -150px; }
+[data-card-id^="yellow_Skip_"] { background-position: -960px -150px; }
+[data-card-id^="yellow_Reverse_"] { background-position: -1056px -150px; }
+[data-card-id^="yellow_DrawTwo_"] { background-position: -1152px -150px; }
+
+/* ============================================ */
+/* ROW 4 - BLUE CARDS */
+/* ============================================ */
+[data-card-id^="blue_0_"] { background-position: 0px -450px; }
+[data-card-id^="blue_1_"] { background-position: -96px -450px; }
+[data-card-id^="blue_2_"] { background-position: -192px -450px; }
+[data-card-id^="blue_3_"] { background-position: -288px -450px; }
+[data-card-id^="blue_4_"] { background-position: -384px -450px; }
+[data-card-id^="blue_5_"] { background-position: -480px -450px; }
+[data-card-id^="blue_6_"] { background-position: -576px -450px; }
+[data-card-id^="blue_7_"] { background-position: -672px -450px; }
+[data-card-id^="blue_8_"] { background-position: -768px -450px; }
+[data-card-id^="blue_9_"] { background-position: -864px -450px; }
+[data-card-id^="blue_Skip_"] { background-position: -960px -450px; }
+[data-card-id^="blue_Reverse_"] { background-position: -1056px -450px; }
+[data-card-id^="blue_DrawTwo_"] { background-position: -1152px -450px; }
+
+/* ============================================ */
+/* ROW 5 - RED CARDS (Second set - duplicates) */
+/* ============================================ */
+[data-card-id^="red2_1_"] { background-position: -96px -600px; }
+[data-card-id^="red2_2_"] { background-position: -192px -600px; }
+[data-card-id^="red2_3_"] { background-position: -288px -600px; }
+[data-card-id^="red2_4_"] { background-position: -384px -600px; }
+[data-card-id^="red2_5_"] { background-position: -480px -600px; }
+[data-card-id^="red2_6_"] { background-position: -576px -600px; }
+[data-card-id^="red2_7_"] { background-position: -672px -600px; }
+[data-card-id^="red2_8_"] { background-position: -768px -600px; }
+[data-card-id^="red2_9_"] { background-position: -864px -600px; }
+[data-card-id^="red2_Skip_"] { background-position: -960px -600px; }
+[data-card-id^="red2_Reverse_"] { background-position: -1056px -600px; }
+[data-card-id^="red2_DrawTwo_"] { background-position: -1152px -600px; }
+
+/* ============================================ */
+/* ROW 6 - YELLOW CARDS (Second set - duplicates) */
+/* ============================================ */
+[data-card-id^="yellow2_1_"] { background-position: -96px -750px; }
+[data-card-id^="yellow2_2_"] { background-position: -192px -750px; }
+[data-card-id^="yellow2_3_"] { background-position: -288px -750px; }
+[data-card-id^="yellow2_4_"] { background-position: -384px -750px; }
+[data-card-id^="yellow2_5_"] { background-position: -480px -750px; }
+[data-card-id^="yellow2_6_"] { background-position: -576px -750px; }
+[data-card-id^="yellow2_7_"] { background-position: -672px -750px; }
+[data-card-id^="yellow2_8_"] { background-position: -768px -750px; }
+[data-card-id^="yellow2_9_"] { background-position: -864px -750px; }
+[data-card-id^="yellow2_Skip_"] { background-position: -960px -750px; }
+[data-card-id^="yellow2_Reverse_"] { background-position: -1056px -750px; }
+[data-card-id^="yellow2_DrawTwo_"] { background-position: -1152px -750px; }
+
+/* ============================================ */
+/* ROW 7 - GREEN CARDS */
+/* ============================================ */
+[data-card-id^="green_0_"] { background-position: 0px -900px; }
+[data-card-id^="green_1_"] { background-position: -96px -900px; }
+[data-card-id^="green_2_"] { background-position: -192px -900px; }
+[data-card-id^="green_3_"] { background-position: -288px -900px; }
+[data-card-id^="green_4_"] { background-position: -384px -900px; }
+[data-card-id^="green_5_"] { background-position: -480px -900px; }
+[data-card-id^="green_6_"] { background-position: -576px -900px; }
+[data-card-id^="green_7_"] { background-position: -672px -900px; }
+[data-card-id^="green_8_"] { background-position: -768px -900px; }
+[data-card-id^="green_9_"] { background-position: -864px -900px; }
+[data-card-id^="green_Skip_"] { background-position: -960px -900px; }
+[data-card-id^="green_Reverse_"] { background-position: -1056px -900px; }
+[data-card-id^="green_DrawTwo_"] { background-position: -1152px -900px; }
+
+/* ============================================ */
+/* ROW 8 - GREEN CARDS (Second set) */
+/* ============================================ */
+[data-card-id^="green2_0_"] { background-position: 0px -1050px; }
+[data-card-id^="green2_1_"] { background-position: -96px -1050px; }
+[data-card-id^="green2_2_"] { background-position: -192px -1050px; }
+[data-card-id^="green2_3_"] { background-position: -288px -1050px; }
+[data-card-id^="green2_4_"] { background-position: -384px -1050px; }
+[data-card-id^="green2_5_"] { background-position: -480px -1050px; }
+[data-card-id^="green2_6_"] { background-position: -576px -1050px; }
+[data-card-id^="green2_7_"] { background-position: -672px -1050px; }
+[data-card-id^="green2_8_"] { background-position: -768px -1050px; }
+[data-card-id^="green2_9_"] { background-position: -864px -1050px; }
+[data-card-id^="green2_Skip_"] { background-position: -960px -1050px; }
+[data-card-id^="green2_Reverse_"] { background-position: -1056px -1050px; }
+[data-card-id^="green2_DrawTwo_"] { background-position: -1152px -1050px; }
+
+/* ============================================ */
+/* WILD CARDS - Last column */
+/* ============================================ */
+/* WildDrawFour must come AFTER Wild_ to override due to CSS cascade */
+/* since wild_Wild_ would also match wild_WildDrawFour_ if not fixed properly */
+[data-card-id^="wild_WildDrawFour_"] { background-position: -1248px -750px; }
+[data-card-id^="wild_Wild_"] { background-position: -1248px 0px; }
+
+/* Alternative wild card positions (different rows) */
+[data-card-id^="wild_WildDrawFour_1"] { background-position: -1248px -750px; }
+[data-card-id^="wild_WildDrawFour_2"] { background-position: -1248px -750px; }
+[data-card-id^="wild_WildDrawFour_3"] { background-position: -1248px -750px; }
+[data-card-id^="wild_WildDrawFour_4"] { background-position: -1248px -750px; }
+
+[data-card-id^="wild_Wild_1"] { background-position: -1248px 0px; }
+[data-card-id^="wild_Wild_2"] { background-position: -1248px -300px; }
+[data-card-id^="wild_Wild_3"] { background-position: -1248px -600px; }
+[data-card-id^="wild_Wild_4"] { background-position: -1248px -900px; }
+
+/* ============================================ */
+/* UTILITY CLASSES */
+/* ============================================ */
+
+/* Card back (if available in atlas) */
+[data-card-id="back"] {
+    background-position: 0px -1050px;
+}
+
+/* Scaled card sizes */
+.card-small {
+    width: 48px;
+    height: 75px;
+    background-size: 672px 600px;
+}
+
+.card-medium {
+    width: 64px;
+    height: 100px;
+    background-size: 896px 800px;
+}
+
+.card-large {
+    width: 96px;
+    height: 150px;
+    background-size: 1344px 1200px;
+}
+
+/* Card hover effect */
+[data-card-id]:hover {
+    transform: translateY(-5px);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+/* Selected card */
+[data-card-id].selected {
+    box-shadow: 0 0 10px 3px gold;
+}
+
+/* Disabled card */
+[data-card-id].disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}

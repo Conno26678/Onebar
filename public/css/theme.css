@@ -49,8 +49,7 @@
 
 body {
   font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: var(--gradient-bg);
-  background-attachment: fixed;
+  background: var(--bg-color);
   color: var(--text-color);
   line-height: 1.6;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -84,8 +83,8 @@ body {
 
 .theme-toggle:hover {
   transform: scale(1.1) rotate(15deg);
-  background: var(--gradient-accent);
-  box-shadow: 0 6px 25px var(--shadow), var(--glow-accent);
+  background: var(--gradient-primary);
+  box-shadow: 0 6px 25px var(--shadow), var(--glow-primary);
 }
 
 .theme-toggle:active {
@@ -176,11 +175,11 @@ a:hover {
 }
 
 .btn:hover {
-  background: var(--gradient-accent);
+  background: var(--gradient-primary);
   transform: translateY(-3px);
   color: white;
   text-decoration: none;
-  box-shadow: 0 8px 25px var(--shadow), var(--glow-accent);
+  box-shadow: 0 8px 25px var(--shadow), var(--glow-primary);
 }
 
 .btn:active {
@@ -212,25 +211,9 @@ a:hover {
   overflow: hidden;
 }
 
-.card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: var(--gradient-primary);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
 .card:hover {
-  transform: translateY(-8px);
+  transform: translateY(-8px) scale(1.03);
   box-shadow: 0 12px 40px var(--shadow);
-}
-
-.card:hover::before {
-  opacity: 1;
 }
 
 /* Game elements */

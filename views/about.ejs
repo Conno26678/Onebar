@@ -3,14 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About/Rules</title>
+    <title>Onebar - About/Rules</title>
     <link rel="stylesheet" href="/css/theme.css">
+    <style>
+        .about-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .about-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .about-header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .about-header p {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+        }
+        
+        .about-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px var(--shadow);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .about-section:hover {
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 0 8px 30px var(--shadow);
+        }
+        
+        .about-section h2 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            font-size: 1.5rem;
+        }
+        
+        .about-section h2 .icon {
+            font-size: 1.8rem;
+        }
+        
+        .about-section p {
+            color: var(--text-color);
+            line-height: 1.8;
+            font-size: 1.05rem;
+        }
+        
+        .rules-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 16px;
+        }
+        
+        .rules-list li {
+            padding: 12px 16px;
+            margin: 8px 0;
+            background: var(--hover-color);
+            border-radius: 10px;
+            border-left: 4px solid var(--primary-color);
+            transition: all 0.2s ease;
+        }
+        
+        .rules-list li:hover {
+            transform: translateX(8px);
+            background: var(--border-color);
+        }
+        
+        .rules-list li strong {
+            color: var(--primary-color);
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            color: var(--secondary-color);
+            transition: all 0.3s ease;
+        }
+        
+        .back-link:hover {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        
+        .contact-info {
+            text-align: center;
+            padding: 20px;
+            background: var(--hover-color);
+            border-radius: 12px;
+            margin-top: 16px;
+        }
+        
+        .contact-info strong {
+            color: var(--primary-color);
+        }
+    </style>
 </head>
 <body>
-    <h1>What is this?</h1>
-    <p>This is the about page. Different information about the project or its features will be provided here. If rules aren't listed properly or if any problems arise, please contact the dev, Connor Y. Suggestions for changes to the game or new ideas will also be considered.</p>
-    <h1>What are the rules?</h1>
-    <p>The OG one everyone is dealt 7 cards with the goal of getting rid of all of them. In order to play a card it either has to match the color, number/symbol, or be a wild card. Normal color cards with numbers don't do anything, special cards do there effects. Skips skip the next persons turn, reverses change the turn order, +2 makes the next person draw 2 cards and skips their turn, wilds let you pick the color, draw four wilds let you pick the color and make the next person draw 4 and skips their turn.  </p>
+    <a href="/" class="back-link">← Back to Home</a>
+    
+    <div class="about-container">
+        <div class="about-header">
+            <h1>Onebar</h1>
+            <p>The classic card game, reimagined for the web</p>
+        </div>
+        
+        <div class="about-section fade-in">
+            <h2>About This Project</h2>
+            <p>Welcome to Onebar! This is an online multiplayer card game inspired by the classic UNO. If you encounter any issues or have suggestions for new features, please reach out to the developer.</p>
+            <div class="contact-info">
+                <p>Developed by <strong>Connor Y.</strong></p>
+                <p>Feedback and suggestions are always welcome!</p>
+            </div>
+        </div>
+        
+        <div class="about-section fade-in">
+            <h2>How to Play</h2>
+            <p>Each player starts with <strong>7 cards</strong>. The goal is to be the first to get rid of all your cards!</p>
+            
+            <h3 style="margin-top: 20px; margin-bottom: 12px; color: var(--secondary-color);">Matching Rules</h3>
+            <p>To play a card, it must match the top card by:</p>
+            <ul class="rules-list">
+                <li><strong>Color</strong> - Same color as the current card</li>
+                <li><strong>Number/Symbol</strong> - Same number or symbol</li>
+                <li><strong>Wild Card</strong> - Can be played on any card</li>
+            </ul>
+        </div>
+        
+        <div class="about-section fade-in">
+            <h2>Special Cards</h2>
+            <ul class="rules-list">
+                <li><strong>Skip</strong> - Skips the next player's turn</li>
+                <li><strong>Reverse</strong> - Reverses the direction of play</li>
+                <li><strong>Draw Two (+2)</strong> - Next player draws 2 cards and loses their turn</li>
+                <li><strong>Wild</strong> - Choose any color to continue play</li>
+                <li><strong>Wild Draw Four</strong> - Choose any color AND the next player draws 4 cards and loses their turn</li>
+            </ul>
+        </div>
+    </div>
+    
     <script src="/js/theme.js"></script>
 </body>
 </html>

@@ -127,6 +127,15 @@ function setupSocketHandlers(io) {
       if (game.discardPile && game.discardPile.length > 0) {
         const top = game.discardPile[game.discardPile.length - 1];
         io.to(gameId).emit('cardPlacedOnTable', top);
+        
+        // If it's a wild card without an activeColor and it's this player's turn, ask for color
+        if (top.color === 'wild' && !top.activeColor && game.started) {
+          const currentPlayer = game.players[game.turnIndex];
+          if (currentPlayer && currentPlayer.socketId === socket.id) {
+            io.to(socket.id).emit('requestStartColor', { gameId, card: top });
+            console.log('Re-requesting starting color after join for', player.name);
+          }
+        }
       }
     });
 
@@ -432,7 +441,7 @@ function setupSocketHandlers(io) {
       console.log(`Start color chosen for game ${gameId}: ${color}`);
     });
 
-    socket.on('playCard', ({ gameId = 'default', cardId, chosenColor, calledOne = false } = {}) => {
+    socket.on('playCard', ({ gameId = 'default', cardId, chosenColor } = {}) => {
       const game = games[gameId];
       if (!game || !game.started) {
         socket.emit('invalidMove', { reason: 'Game not started' });
@@ -455,26 +464,29 @@ function setupSocketHandlers(io) {
         return;
       }
 
-      // Check if player is going from 2 cards to 1 without calling ONE
-      const hadTwoCards = player.hand.length === 2;
-
-      const [card] = player.hand.splice(cardIndex, 1);
-      
-      // If player went from 2 to 1 card without calling ONE, penalize immediately
-      if (hadTwoCards && player.hand.length === 1 && !calledOne) {
+      // Block playing last card (winning) if player has 1 card and hasn't called ONE
+      if (player.hand.length === 1 && !player.calledOne) {
+        // Penalize: give them 2 cards and reject the play
         const penaltyCards = drawFromDeck(game, 2);
         player.hand.push(...penaltyCards);
         io.to(player.socketId).emit('deal', player.hand);
+        socket.emit('invalidMove', { reason: 'You must call ONE before playing your last card!' });
         io.to(gameId).emit('playerPenalized', { 
           playerId: player.id, 
           playerName: player.name, 
           count: penaltyCards.length,
           reason: 'noOneCalled'
         });
-        io.to(gameId).emit('playerDrew', { playerId: player.id, count: penaltyCards.length });
         io.to(gameId).emit('drawPileCount', { count: game.deck.length });
-        console.log(`Player ${player.name} forgot to call ONE - drew ${penaltyCards.length} penalty cards`);
+        console.log(`Player ${player.name} tried to play last card without calling ONE - drew ${penaltyCards.length} penalty cards`);
+        return;
       }
+
+      const [card] = player.hand.splice(cardIndex, 1);
+      
+      // Reset calledOne after playing a card
+      player.calledOne = false;
+      
       const topCard = game.discardPile.length > 0 ? game.discardPile[game.discardPile.length - 1] : null;
       const topActiveColor = topCard ? (topCard.activeColor || topCard.color) : null;
 
@@ -485,6 +497,8 @@ function setupSocketHandlers(io) {
       if (!isValidPlay) {
         player.hand.push(card);
         socket.emit('invalidMove', { reason: 'Card doesnt match color or value twin' });
+        // Resend the hand so the client has the correct state
+        io.to(player.socketId).emit('deal', player.hand);
         return;
       }
 
@@ -558,6 +572,41 @@ function setupSocketHandlers(io) {
       io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
       io.to(gameId).emit('drawPileCount', { count: game.deck.length });
 
+      // ONE timer logic - when player goes down to 1 card, start 5 second timer
+      if (player.hand.length === 1) {
+        // Clear any existing pending ONE for this player
+        if (game.onePending && game.onePending.playerId === player.id) {
+          clearOnePending(game);
+        }
+        
+        const penaltyDelayMs = 5000;
+        const timeoutId = setTimeout(() => {
+          if (!game.onePending || game.onePending.playerId !== player.id) return;
+          // Player didn't call ONE in time - penalize
+          const drawn = drawFromDeck(game, 2);
+          player.hand.push(...drawn);
+          io.to(player.socketId).emit('deal', player.hand);
+          io.to(gameId).emit('playerPenalized', { 
+            playerId: player.id, 
+            playerName: player.name, 
+            count: drawn.length,
+            reason: 'timeout'
+          });
+          io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+          clearOnePending(game);
+          console.log(`Player ${player.name} failed to call ONE in time - drew ${drawn.length} penalty cards`);
+        }, penaltyDelayMs);
+
+        game.onePending = {
+          playerId: player.id,
+          timeoutId,
+          expiresAt: Date.now() + penaltyDelayMs
+        };
+
+        // Notify the player they need to call ONE
+        io.to(player.socketId).emit('youHaveOne', { expiresAt: game.onePending.expiresAt });
+      }
+
       // Win detection
       if (player.hand.length === 0) {
         if (game.onePending && game.onePending.playerId === player.id) clearOnePending(game);
@@ -594,6 +643,10 @@ function setupSocketHandlers(io) {
         return;
       }
 
+      // Mark that player has called ONE - allows them to play their last card
+      player.calledOne = true;
+
+      // Clear the penalty timer
       if (game.onePending && game.onePending.playerId === player.id) {
         clearOnePending(game);
       }

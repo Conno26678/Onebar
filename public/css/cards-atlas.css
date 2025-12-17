@@ -99,21 +99,21 @@
 [data-card-id^="yellow2_DrawTwo_"] { background-position: -1152px -750px; }
 
 /* ============================================ */
-/* ROW 7 - GREEN CARDS */
+/* ROW 3 - GREEN CARDS */
 /* ============================================ */
-[data-card-id^="green_0_"] { background-position: 0px -900px; }
-[data-card-id^="green_1_"] { background-position: -96px -900px; }
-[data-card-id^="green_2_"] { background-position: -192px -900px; }
-[data-card-id^="green_3_"] { background-position: -288px -900px; }
-[data-card-id^="green_4_"] { background-position: -384px -900px; }
-[data-card-id^="green_5_"] { background-position: -480px -900px; }
-[data-card-id^="green_6_"] { background-position: -576px -900px; }
-[data-card-id^="green_7_"] { background-position: -672px -900px; }
-[data-card-id^="green_8_"] { background-position: -768px -900px; }
-[data-card-id^="green_9_"] { background-position: -864px -900px; }
-[data-card-id^="green_Skip_"] { background-position: -960px -900px; }
-[data-card-id^="green_Reverse_"] { background-position: -1056px -900px; }
-[data-card-id^="green_DrawTwo_"] { background-position: -1152px -900px; }
+[data-card-id^="green_0_"] { background-position: 0px -300px; }
+[data-card-id^="green_1_"] { background-position: -96px -300px; }
+[data-card-id^="green_2_"] { background-position: -192px -300px; }
+[data-card-id^="green_3_"] { background-position: -288px -300px; }
+[data-card-id^="green_4_"] { background-position: -384px -300px; }
+[data-card-id^="green_5_"] { background-position: -480px -300px; }
+[data-card-id^="green_6_"] { background-position: -576px -300px; }
+[data-card-id^="green_7_"] { background-position: -672px -300px; }
+[data-card-id^="green_8_"] { background-position: -768px -300px; }
+[data-card-id^="green_9_"] { background-position: -864px -300px; }
+[data-card-id^="green_Skip_"] { background-position: -960px -300px; }
+[data-card-id^="green_Reverse_"] { background-position: -1056px -300px; }
+[data-card-id^="green_DrawTwo_"] { background-position: -1152px -300px; }
 
 /* ============================================ */
 /* ROW 8 - GREEN CARDS (Second set) */
@@ -181,9 +181,9 @@
 
 /* Card hover effect */
 [data-card-id]:hover {
-    transform: translateY(-5px);
+    transform: translateY(-10px) scale(1.05) !important;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: transform 0.15s ease;
 }
 
 /* Selected card */

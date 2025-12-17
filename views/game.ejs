@@ -243,6 +243,25 @@
             border-radius: 6px;
         }
 
+        #hand [data-card-id] {
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: bottom center;
+        }
+
+        #hand [data-card-id]:hover {
+            transform: translateY(-20px) scale(1.15);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+        }
+
+        #hand [data-card-id]:active {
+            transform: translateY(-10px) scale(1.1);
+        }
+
+        /* Legacy support for img cards */
         #hand img {
             aspect-ratio: 241 / 361;
             cursor: pointer;
@@ -262,7 +281,7 @@
             transform: translateY(-10px) scale(1.1);
         }
 
-        /* ONE Button Enhancement */
+        /* ONE Button */
         #oneBtn {
             position: fixed !important;
             width: 100px !important;
@@ -602,9 +621,6 @@
         .split('Wild_Draw_Four').join('WildDrawFour')
         .split('Draw_Two').join('DrawTwo');
     }
-    
-    // Track if ONE has been called for current hand
-    let oneCalledForCurrentHand = false;
 
     // Color Picker Function
     function showColorPicker(callback, title = 'Choose a Color') {
@@ -825,25 +841,16 @@
         cardEl.addEventListener('click', async () => {
           if (!gameActive) return;
           
-          // Check if playing second-to-last card (will have 1 card after)
-          const currentHandCount = document.querySelectorAll('#hand div[data-card-id]').length;
-          const calledOne = oneCalledForCurrentHand;
-          
           // Animate card to discard pile
           await animateCardToDiscard(cardEl, card.img);
           
-          // Reset ONE called status after playing
-          if (currentHandCount <= 2) {
-            oneCalledForCurrentHand = false;
-          }
-          
-          // play the card - send calledOne flag so server can check penalty
+          // play the card
           if (card.color === 'wild') {
             showColorPicker((chosenColor) => {
-              socket.emit('playCard', { gameId: gameId, cardId: card.id, chosenColor, calledOne });
+              socket.emit('playCard', { gameId: gameId, cardId: card.id, chosenColor });
             });
           } else {
-            socket.emit('playCard', { gameId, cardId: card.id, calledOne });
+            socket.emit('playCard', { gameId, cardId: card.id });
           }
         });
         container.appendChild(cardEl);
@@ -937,18 +944,16 @@
     oneImg.style.height = '140px';
     oneImg.style.objectFit = 'contain';
     oneBtn.appendChild(oneImg);
-    oneBtn.title = 'Press BEFORE playing your second-to-last card!';
+    oneBtn.title = 'Press when you have ONE card left!';
 
     oneBtn.addEventListener('click', () => {
       const handCount = document.querySelectorAll('#hand div[data-card-id]').length;
-      if (handCount !== 2) {
-        // yell at them for clicking incorrectly
-        alert("You don't have two cards — press ONE when you're about to play your second-to-last card!");
+      if (handCount !== 1) {
+        // Don't alert, just ignore if they don't have 1 card
         return;
       }
-      // Mark that ONE has been called for this hand (before playing the card)
-      oneCalledForCurrentHand = true;
-      alert("ONE called! Now play your card.");
+      // Send to server to validate and broadcast
+      socket.emit('callOne', { gameId: gameId });
     });
 
     // Append the ONE button to the controls container (right of piles) when available,
@@ -963,20 +968,37 @@
 
     // Listen for server confirmation / errors
     socket.on('playerCalledOne', ({ playerId, playerName }) => {
-      alert(`${playerName || playerId} called ONE!`);
+      const name = playerName || document.getElementById('p_' + playerId)?.textContent || playerId;
+      alert(name + ' called ONE!');
     });
 
     socket.on('invalidOneCall', ({ reason }) => {
-      alert(`Invalid ONE call: ${reason || ''}`);
+      // Silent - don't alert on invalid calls
     });
 
     socket.on('playerPenalized', ({ playerId, playerName, count, reason }) => {
       const name = playerName || document.getElementById('p_' + playerId)?.textContent || playerId;
       if (reason === 'noOneCalled') {
-        alert(`🚨 ${name} FORGOT TO CALL ONE! +${count} cards as penalty! 🚨`);
+        alert(name + ' tried to play without calling ONE! +' + count + ' cards as penalty!');
+      } else if (reason === 'timeout') {
+        alert(name + ' failed to call ONE in time and drew ' + count + ' card' + (count !== 1 ? 's' : ''));
       } else {
-        alert(`${name} failed to call ONE in time and drew ${count} card${count !== 1 ? 's' : ''}`);  
+        alert(name + ' drew ' + count + ' penalty card' + (count !== 1 ? 's' : ''));
       }
+    });
+
+    // Notify the player when they have ONE card and need to call it
+    socket.on('youHaveOne', ({ expiresAt }) => {
+      const remainMs = Math.max(0, expiresAt - Date.now());
+      const secs = Math.ceil(remainMs / 1000);
+      const s = document.getElementById('status');
+      s.innerText = 'You have ONE card! Press the ONE button within ' + secs + ' seconds!';
+      // Clear this message after the timeout
+      setTimeout(() => {
+        if (s && s.innerText && s.innerText.includes('ONE card')) {
+          s.innerText = '';
+        }
+      }, remainMs + 100);
     });
 
 

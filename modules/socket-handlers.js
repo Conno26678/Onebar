@@ -397,19 +397,146 @@ function setupSocketHandlers(io) {
       }
 
       const player = game.players[playerIndex];
-      player.hand.push(...drawn);
+      const drawnCard = drawn[0];
 
-      io.to(player.socketId).emit('deal', player.hand);
-      io.to(gameId).emit('playerDrew', { playerId: player.id, count: drawn.length });
-      io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+      //Drawn card playable logic
+      const topCard = game.discardPile.length > 0 ? game.discardPile[game.discardPile.length - 1] : null;
+      const topActiuveColor = topCard ? (topCard.activeColor || topCard.color) : null;
 
-      const playerCount = game.players.length;
-      const step = game.direction;
-      const nextIndex = ((game.turnIndex + step) % playerCount + playerCount) % playerCount;
-      game.turnIndex = nextIndex;
+      const isWild = drawnCard.color === 'wild';
+      const matchesColor = topActiuveColor && drawnCard.color === topActiuveColor;
+      const matchesValue = topCard && String(drawnCard.value) === String(topCard.value);
+      const isPlayable = !topCard || isWild || matchesColor || matchesValue;
 
-      const nextPlayerId = game.players[game.turnIndex].id;
-      io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      if (isPlayable) {
+        //store temp until they choose to play or keep
+        game.pendingDrawnCard = {
+          playerId: player.id,
+          card: drawnCard
+        };
+        io.to(player.socketId).emit('drawnCardPlayable', {
+          card: drawnCard,
+          gameId,
+          isWild
+        });
+        io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+      } else {
+        //card not playable, auto add to hand
+        player.hand.push(drawnCard);
+        io.to(player.socketId).emit('deal', player.hand);
+        io.to(gameId).emit('playerDrew', { playerId: player.id, count: 1});
+        io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+
+        //turn advances
+        const playerCount = game.players.length;
+        const step = game.direction;
+        const nextIndex = ((game.turnIndex + step) % playerCount + playerCount) % playerCount;
+        game.turnIndex = nextIndex;
+
+        const nextPlayerId = game.players[game.turnIndex].id;
+        io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      }
+      });
+
+      socket.on('drawnCardChoice', ({ gameId = 'default',  action, chosenColor } = {}) => {
+        const game = games[gameId];
+        if (!game || !game.started) return;
+
+        const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
+        if (playerIndex === -1) return;
+
+        const player = game.players[playerIndex];
+
+        //verify drawn card
+        if (!game.pendingDrawnCard || game.pendingDrawnCard.playerId !== player.id) {
+          socket.emit('invalidMove', { reason: 'No pending drawn card to act upon' });
+          return;
+        }
+
+        const card = game.pendingDrawnCard.card;
+        game.pendingDrawnCard = null;
+
+        if (action === 'keep') {
+          //add to hand
+          player.hand.push(card);
+          io.to(player.socketId).emit('deal', player.hand);
+          io.to(gameId).emit('playerDrew', { playerId: player.id, count: 1 });
+
+          //turn advances
+          const playerCount = game.players.length;
+          const step = game.direction;
+          const nextIndex = ((game.turnIndex + step) % playerCount + playerCount) % playerCount;
+          game.turnIndex = nextIndex;
+
+          const nextPlayerId = game.players[game.turnIndex].id;
+          io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+        } else if (action === 'play') {
+          //play the card
+          const isWild = card.color === 'wild';
+          if (isWild) {
+            const allowed = ['red', 'green', 'blue', 'yellow'];
+            if (!chosenColor || !allowed.includes(String(chosenColor).toLowerCase())) {
+              chosenColor = 'red';
+            } else {
+              chosenColor = String(chosenColor).toLowerCase();
+            }
+            card.activeColor = chosenColor;
+          } else {
+            card.activeColor = card.color;
+          }
+
+          game.discardPile.push(card);
+          io.to(gameId).emit('cardPlayed', { playerId: player.id, playerName: player.name, card });
+
+          const playerCount = game.players.length;
+          const step = game.direction;
+          let nextIndex = ((playerIndex + step) % playerCount + playerCount) % playerCount;
+
+          const special = String(card.value).toLowerCase();
+
+          //Handles special cards
+          if (special === 'skip' || special === 'skip_2') {
+            nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
+          } else if (
+            special === 'wild draw four' ||
+            special === 'wild_draw_four' ||
+            special.includes('draw four') ||
+            special.includes('draw_four') ||
+            special.includes('wild draw')
+          ) {
+            const victim = game.players[nextIndex]; 
+            const drawnCards = drawFromDeck(game, 4);
+            victim.hand.push(...drawnCards);
+            io.to(victim.socketId).emit('deal', victim.hand);
+            io.to(gameId).emit('playerDrewCards', { playerId: victim.id, count: drawnCards.length });
+            nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
+          } else if (
+            special === 'draw two' ||
+            special === 'draw_two' ||
+            special.includes('draw two') ||
+            special.includes('draw_two')
+          ) {
+            const victim = game.players[nextIndex];
+            const drawnCards = drawFromDeck(game, 2);
+            victim.hand.push(...drawnCards);
+            io.to(victim.socketId).emit('deal', victim.hand);
+            io.to(gameId).emit('playerDrewCards', { playerId: victim.id, count: drawnCards.length });
+            nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
+          } else if (special === 'reverse') {
+            game.direction = -game.direction;
+            if (playerCount === 2) {
+              nextIndex = playerIndex;
+            } else {
+              nextIndex = ((playerIndex + game.direction) % playerCount + playerCount) % playerCount;
+            }
+          }
+
+          game.turnIndex = nextIndex;
+
+          const nextPlayerId = game.players[game.turnIndex].id;
+          io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+          io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+        }
     });
 
     socket.on('startColorChosen', ({ gameId = 'default', color } = {}) => {

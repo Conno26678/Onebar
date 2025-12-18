@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const roomControls = document.getElementById('roomControls');
   const leaveRoomBtn = document.getElementById('leaveRoomBtn');
 
-  roomTitle.textContent = '🎮 ' + (window.LOBBY_NAME || `Room ${gameId ? gameId.slice(0,6) : ''}`);
+  roomTitle.textContent = (window.LOBBY_NAME || `Room ${gameId ? gameId.slice(0,6) : ''}`);
   let currentOwnerId = null;
   let currentOwnerName = null;
   let currentPlayerId = null;
@@ -105,13 +105,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (p.id === currentOwnerId) {
           const hostBadge = document.createElement('span');
           hostBadge.className = 'host-badge';
-          hostBadge.textContent = '👑';
+          hostBadge.textContent = ' Host';
           pDiv.appendChild(hostBadge);
         }
         
         const readySpan = document.createElement('span');
-        readySpan.className = 'ready-status';
-        readySpan.textContent = p.ready ? ' ✅' : ' ⏳';
+        readySpan.className = 'ready-status ' + (p.ready ? 'ready' : 'not-ready');
         pDiv.appendChild(readySpan);
 
         // show ready toggle only for the current user
@@ -132,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // update room info
-    const ownerText = currentOwnerName ? `👑 ${currentOwnerName}` : (currentOwnerId ? '👑 Host' : '');
+    const ownerText = currentOwnerName ? `Host ${currentOwnerName}` : (currentOwnerId ? 'Host' : '');
     roomInfo.innerHTML = `<div class="info-item">${ownerText}</div><div class="info-item">👥 ${players.length} Players</div>`;
 
     renderRoomControls();
@@ -280,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
           socket.emit('setPrivate', { gameId, isPrivate: makePrivate });
         };
         const labelText = document.createElement('span');
-        labelText.textContent = '🔒 Private Lobby';
+        labelText.textContent = 'Private Lobby';
         privLabel.appendChild(privCheckbox);
         privLabel.appendChild(labelText);
         privDiv.appendChild(privLabel);
@@ -288,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const startBtn = document.createElement('button');
         startBtn.className = 'start-btn';
-        startBtn.textContent = '🚀 Start Game';
+        startBtn.textContent = 'Start Game';
         startBtn.onclick = () => {
           socket.emit('startGame', { gameId, handSize: 7 });
         };
@@ -315,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const note = roomControls.querySelector('.waiting-note');
       if (note) {
-        note.textContent = allReady ? '' : '⏳ Waiting for all players to be ready...';
+        note.textContent = allReady ? '' : 'Waiting for all players to be ready...';
         note.style.display = allReady ? 'none' : 'block';
       }
     } else {

@@ -1,4 +1,4 @@
-// Simple lobby UI client for socket.io (Thanks copilot)
+// Simple lobby UI client for socket.io 
 document.addEventListener('DOMContentLoaded', () => {
   const socket = io();
 
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderLobbyList(lobbies) {
     if (!Array.isArray(lobbies) || lobbies.length === 0) {
-      lobbyListEl.innerHTML = '<div class="empty-state"><div class="emoji">🎮</div><div>No lobbies available. Create one!</div></div>';
+      lobbyListEl.innerHTML = '<div class="empty-state"><div class="emoji"></div><div>No lobbies available. Create one!</div></div>';
       return;
     }
     lobbyListEl.innerHTML = '';
@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="lobby-name">${escapeHtml(l.lobbyName)}</div>
         <div class="lobby-info">
           <span class="player-count">${l.playerCount}/${l.maxPlayers} Players</span>
-          ${l.isPrivate ? '<span class="private-badge">🔒 Private</span>' : ''}
+          ${l.isPrivate ? '<span class="private-badge"> Private</span>' : ''}
         </div>
       `;
       div.onclick = () => { window.location.href = '/room/' + encodeURIComponent(l.gameId);};
@@ -68,13 +68,12 @@ function renderPlayers(players) {
     if (p.id === currentOwnerId) {
       const hostBadge = document.createElement('span');
       hostBadge.className = 'host-badge';
-      hostBadge.textContent = '👑 Host';
+      hostBadge.textContent = ' Host';
       pDiv.appendChild(hostBadge);
     }
     
     const readySpan = document.createElement('span');
-    readySpan.className = 'ready-status';
-    readySpan.textContent = p.ready ? ' ✅' : ' ⏳';
+    readySpan.className = 'ready-status ' + (p.ready ? 'ready' : 'not-ready');
     pDiv.appendChild(readySpan);
 
     // If this is the current user, show a toggle button
@@ -113,12 +112,12 @@ function renderPlayers(players) {
     if (typeof meta.lobbyName !== 'undefined' && meta.lobbyName !== null) {
       currentLobbyName = meta.lobbyName;
     }
-    currentRoomTitle.textContent = '🎮 ' + (currentLobbyName || `Room ${currentGameId ? currentGameId.slice(0,6) : ''}`);
+    currentRoomTitle.textContent = (currentLobbyName || `Room ${currentGameId ? currentGameId.slice(0,6) : ''}`);
     // Update info display if available
     if (typeof meta.playerCount !== 'undefined' || typeof meta.maxPlayers !== 'undefined') {
       const pc = meta.playerCount != null ? meta.playerCount : '0';
       const mp = meta.maxPlayers != null ? meta.maxPlayers : (createMax ? createMax.value : '8');
-      currentRoomInfo.innerHTML = `<span class="info-item">👑 ${escapeHtml(meta.ownerName || 'Host')}</span><span class="info-item">👥 ${pc}/${mp} Players</span>`;
+      currentRoomInfo.innerHTML = `<span class="info-item"> ${escapeHtml(meta.ownerName || 'Host')}</span><span class="info-item">👥 ${pc}/${mp} Players</span>`;
     } else {
       // leave previous info if we don't have new values
     }
@@ -131,7 +130,7 @@ function renderPlayers(players) {
         const allReady = players.length > 0 && players.every(p => !!p.ready);
         const startBtn = document.createElement('button');
         startBtn.className = 'start-btn';
-        startBtn.textContent = '🚀 Start Game';
+        startBtn.textContent = 'Start Game';
         startBtn.disabled = !allReady;
         startBtn.onclick = () => {
           const handSize = 7;
@@ -142,7 +141,7 @@ function renderPlayers(players) {
     if (!allReady) {
       const note = document.createElement('div');
       note.className = 'waiting-note';
-      note.textContent = '⏳ Waiting for all players to be ready...';
+      note.textContent = 'Waiting for all players to be ready...';
       roomControls.appendChild(note);
     }
 }
@@ -256,12 +255,6 @@ function renderPlayers(players) {
         alert('Please enter a lobby code');
         return;
       }
-      // We don't know the gameId from the code alone, so we ask the server
-      // to find it. We'll emit a custom event or redirect to /room/:code
-      // For simplicity, let's create a temporary redirect endpoint or 
-      // just navigate to /room/<code> and let the server handle it.
-      // Since the backend expects a gameId, we'll need to handle this differently.
-      // One approach: emit a joinByCode event to the server
       socket.emit('joinByCode', { joinCode: code, playerName: window.CURRENT_USER || 'Player' });
     });
   }

@@ -13,6 +13,17 @@ function broadcastLobbyList(io) {
   io.emit('lobbyList', getLobbyList());
 }
 
+// When emitting playerList, include card counts and ready status:
+function emitPlayerList(io, game) {
+  const playerData = game.players.map(p => ({
+    id: p.id,
+    name: p.name,
+    cardCount: p.hand ? p.hand.length : 0,
+    ready: !!p.ready
+  }));
+  io.to(game.id).emit('playerList', playerData);
+}
+
 function setupSocketHandlers(io) {
   io.on('connection', (socket) => {
     const sess = socket.request && socket.request.session;
@@ -56,7 +67,7 @@ function setupSocketHandlers(io) {
 
       // Notify creator
       socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName, isPrivate: game.private, joinCode: game.joinCode });
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      emitPlayerList(io, game);
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
       // Broadcast join code to all players in the room
       io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
@@ -111,7 +122,7 @@ function setupSocketHandlers(io) {
       socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName });
 
       io.to(player.socketId).emit('deal', player.hand);
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      emitPlayerList(io, game);
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
       // Broadcast join code to all players in the room
       io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
@@ -169,7 +180,7 @@ function setupSocketHandlers(io) {
       if (existing) {
         socket.join(gameId);
         socket.emit('joined', { playerId: existing.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: game.joinCode || null });
-        io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+        emitPlayerList(io, game);
         io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
         // Broadcast join code to all players in the room
         io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
@@ -216,7 +227,7 @@ function setupSocketHandlers(io) {
         io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
 
         console.log(`After rejoin - Players:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
-        io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+        emitPlayerList(io, game);
         broadcastLobbyList(io);
         console.log(`${playerName} rejoined lobby ${gameId} (${game.lobbyName})`);
         return;
@@ -234,7 +245,7 @@ function setupSocketHandlers(io) {
       socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: (socket.id === game.ownerId ? game.joinCode : null) });
       console.log(`${player.name} joined as NEW player with ready=false`);
       console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      emitPlayerList(io, game);
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
       // If owner changed, send the private join code to that owner (if any)
       if (game.ownerId) {
@@ -272,7 +283,7 @@ function setupSocketHandlers(io) {
       if (real === -1) return;
       const [removed] = game.players.splice(real, 1);
       socket.leave(gameId);
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      emitPlayerList(io, game);
 
       if (removed && removed.socketId === game.ownerId) {
         if (game.players.length > 0) {
@@ -297,7 +308,7 @@ function setupSocketHandlers(io) {
       console.log(`Player ${game.players[real].name} setting ready to ${ready}`);
       game.players[real].ready = !!ready;
       console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      emitPlayerList(io, game);
       // Broadcast join code to all players in the room
       io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
       broadcastLobbyList(io);
@@ -343,6 +354,7 @@ function setupSocketHandlers(io) {
         player.hand = game.deck.splice(0, handSize);
         io.to(player.socketId).emit('deal', player.hand);
       }
+      emitPlayerList(io, game);
 
       if (game.deck.length > 0) {
         const top = game.deck.pop();
@@ -426,6 +438,7 @@ function setupSocketHandlers(io) {
         io.to(player.socketId).emit('deal', player.hand);
         io.to(gameId).emit('playerDrew', { playerId: player.id, count: 1});
         io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+        emitPlayerList(io, game);
 
         //turn advances
         const playerCount = game.players.length;
@@ -461,6 +474,7 @@ function setupSocketHandlers(io) {
           player.hand.push(card);
           io.to(player.socketId).emit('deal', player.hand);
           io.to(gameId).emit('playerDrew', { playerId: player.id, count: 1 });
+          emitPlayerList(io, game);
 
           //turn advances
           const playerCount = game.players.length;
@@ -536,6 +550,7 @@ function setupSocketHandlers(io) {
           const nextPlayerId = game.players[game.turnIndex].id;
           io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
           io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+          emitPlayerList(io, game);
         }
     });
 
@@ -605,6 +620,7 @@ function setupSocketHandlers(io) {
           reason: 'noOneCalled'
         });
         io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+        emitPlayerList(io, game);
         console.log(`Player ${player.name} tried to play last card without calling ONE - drew ${penaltyCards.length} penalty cards`);
         return;
       }
@@ -698,6 +714,7 @@ function setupSocketHandlers(io) {
       const nextPlayerId = game.players[game.turnIndex].id;
       io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
       io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+      emitPlayerList(io, game);
 
       // ONE timer logic - when player goes down to 1 card, start 5 second timer
       if (player.hand.length === 1) {
@@ -720,6 +737,7 @@ function setupSocketHandlers(io) {
             reason: 'timeout'
           });
           io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+          emitPlayerList(io, game);
           clearOnePending(game);
           console.log(`Player ${player.name} failed to call ONE in time - drew ${drawn.length} penalty cards`);
         }, penaltyDelayMs);
@@ -803,7 +821,7 @@ function setupSocketHandlers(io) {
 
             console.log(`Removing disconnected player ${player.name} after timeout`);
             const [removed] = game.players.splice(stillThere, 1);
-            io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+            emitPlayerList(io, game);
 
             if (removed && removed.socketId === game.ownerId) {
               if (game.players.length > 0) {

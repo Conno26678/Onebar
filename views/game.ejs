@@ -181,8 +181,11 @@
 
     socket.on('playerList', (players) => {
         const el = document.getElementById('playerList');
-        el.innerHTML = 'Players:' + players.map(p => `<span id="p_${p.id}">${p.name}</span>`).join(' | ');
+        if (el) el.innerHTML = 'Players: ' + players.map(p =>
+          `<span id="p_${p.id}">${p.name} (${p.cardCount ?? '?'})</span>`
+        ).join(' | ');
     });
+
     let isInitialDeal = true;
     
     socket.on('deal', (hand) => {
@@ -414,11 +417,6 @@
       status.innerText = `Current turn: ${displayName || currentId}`;
       // Highlight the player's name in playerList here
     }
-
-    socket.on('playerList', (players) => {
-      const el = document.getElementById('playerList');
-      if (el) el.innerHTML = 'Players:' + players.map(p => `<span id="p_${p.id}">${p.name}${p.ready ? ' ✅' : ''}</span>`).join(' | ');
-    });
 
     // ONE button: shows a "1" image and allows calling ONE
     const oneBtn = document.createElement('button');

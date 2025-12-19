@@ -32,6 +32,70 @@
 
     const playerName = <%- JSON.stringify(user || 'Anonymous') %>;
     
+    // Track if this is the initial page load vs a reconnection
+    let isInitialLoad = true;
+
+    //store lobby ID
+    let currentRommId = gameId;
+
+    function showWinMedal(winnerName, isCurrentUserWinner) {
+      disableGameUI();
+
+      const overlay = document.createElement('div');
+      overlay.className = 'win-modal-overlay';
+
+      const modal = document.createElement('div');
+      modal.className = 'win-modal';
+
+      const trophy = document.createElement('div');
+      trophy.className = 'win-modal-trophy';
+      trophy.textContent = '🏆';
+      modal.appendChild(trophy);
+
+      const title = document.createElement('div');
+      title.className = 'win-modal-title';
+      title.textContent = isCurrentUserWinner ? 'Congratulations! You Won!' : `Game Over!`;
+      modal.appendChild(title);
+
+      const winner = document.createElement('div');
+      winner.className = 'win-modal-winner';
+      winner.textContent = winnerName;
+      modal.appendChild(winner);
+
+      const subtitle = document.createElement('div');
+      subtitle.className = 'win-modal-subtitle';
+      subtitle.textContent = isCurrentUserWinner ? 'Congrats on your win' : `${winnerName} has won the game!`;
+      modal.appendChild(subtitle);
+
+      const buttons = document.createElement('div');
+      buttons.className = 'win-modal-buttons';
+
+      const playAgainBtn = document.createElement('button');
+      playAgainBtn.className = 'win-modal-btn play-again';
+      playAgainBtn.textContent = 'Play Again';
+      playAgainBtn.addEventListener('click', () => {
+        window.location.href = '/room/' + encodeURIComponent(currentRommId);
+      });
+      buttons.appendChild(playAgainBtn);
+
+      const goHomeBtn = document.createElement('button');
+      goHomeBtn.className = 'win-modal-btn go-home';
+      goHomeBtn.textContent = 'Go to Home';
+      goHomeBtn.addEventListener('click', () => {
+        window.location.href = '/';
+      });
+      buttons.appendChild(goHomeBtn);
+
+      modal.appendChild(buttons);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+
+      //Prevent clicking through overlay
+      overlay.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+    
     // Helper function to fix card IDs for CSS sprite matching
     function fixCardId(id) {
       if (!id) return id;
@@ -174,9 +238,33 @@
     // Tell server we've opened the game page
     socket.emit('joinGame', { playerName, gameId });
 
+    // Handle socket reconnection - automatically rejoin the game
+    socket.on('connect', () => {
+        console.log('Socket connected/reconnected');
+        // Re-emit joinGame on reconnection to restore state
+        socket.emit('joinGame', { playerName, gameId });
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Socket disconnected');
+        document.getElementById('status').innerText = 'Connection lost. Reconnecting...';
+    });
+
     socket.on('joined', ({ playerId, gameId }) => {
         console.log('joined', playerId, gameId);
         document.getElementById('status').innerText = `Joined game ${gameId} as ${playerName}`;
+        // After first join, subsequent deals are reconnections - don't animate
+        isInitialLoad = false;
+    });
+
+    socket.on('joinFailed', ({ reason }) => {
+        console.error('Failed to join game:', reason);
+        document.getElementById('status').innerText = `Failed to join: ${reason}`;
+        alert('Failed to join game: ' + reason);
+        // Redirect to lobby after a short delay
+        setTimeout(() => {
+            window.location.href = '/lobby';
+        }, 2000);
     });
 
     socket.on('playerList', (players) => {
@@ -187,11 +275,15 @@
     });
 
     let isInitialDeal = true;
+    let currentHand = []; // Track current hand for restoring on invalid moves
     
     socket.on('deal', (hand) => {
-        renderHand(hand, isInitialDeal); // Only animate on initial deal
-        isInitialDeal = false; // After first deal, no more swoosh animations
-        console.log('received deal', hand);
+        // Only animate on initial deal, not on reconnections
+        const shouldAnimate = isInitialDeal && isInitialLoad;
+        currentHand = hand; // Store the hand
+        renderHand(hand, shouldAnimate);
+        isInitialDeal = false;
+        console.log('received deal', hand, 'animated:', shouldAnimate);
     });
     
     socket.on('gameStarted', ({currentPlayerId, players}) => {
@@ -210,10 +302,14 @@
     socket.on('cardPlayed', ({ playerId, playerName, card }) => {
         addCardToTable(card, playerId, playerName);
         removeCardFromHand(card.id);
+        // Update local hand tracking
+        currentHand = currentHand.filter(c => c.id !== card.id);
     });
 
     socket.on('invalidMove', ({ reason }) => {
         alert('Invalid move: ' + reason);
+        // Re-render hand to restore any cards that were hidden during animation
+        renderHand(currentHand, false);
     });
 
         socket.on('requestStartColor', ({ gameId: gid, card }) => {
@@ -223,8 +319,8 @@
     });
 
     socket.on('playerWon', ({ playerId, playerName }) => {
-        alert(`${playerName} has won the game!`);
-        disableGameUI();
+        const isCurrentUserWinner = (playerName === <%- JSON.stringify(user || 'Anonymous') %>);
+        showWinMedal(playerName, isCurrentUserWinner);
     });
 
     socket.on('gameEnded', (data) => {
@@ -234,27 +330,48 @@
       if (winner) {
         const status = document.getElementById('status');
         status.innerText = `Game over! Winner: ${winner.name || winner.id}`;
+        if (!document.querySelector('.wub-medal-overlay')) {
+          const isCurrentUserWinner = (winner.name === <%- JSON.stringify(user || 'Anonymous') %>);
+          showWinMedal(winner.name || winner.id, isCurrentUserWinner);
+        }
       }
-    });
+    })
 
-    function disableGameUI() {
+     function disableGameUI() {
       gameActive = false;
+      
+      // Disable draw pile
       const drawImg = document.getElementById('drawPileImg');
       if (drawImg) {
         drawImg.style.opacity = '0.5';
         drawImg.style.pointerEvents = 'none';
+        drawImg.style.cursor = 'not-allowed';
       }
-      //remove hand click events
-      document.querySelectorAll('#hand img').forEach(img => {
-        img.style.opacity = '0.5';
-        img.style.pointerEvents = 'none';
+      
+      // Disable all hand cards
+      document.querySelectorAll('#hand .card, #hand div[data-card-id]').forEach(card => {
+        card.style.opacity = '0.5';
+        card.style.pointerEvents = 'none';
+        card.style.cursor = 'not-allowed';
       });
-        // optionally hide or disable Start Game button
-      const startBtn = document.querySelector('button');
-      if (startBtn) {
-        startBtn.disabled = false; // keep available to start a new game if server supports it
+      
+      // Disable ONE button
+      const oneBtn = document.getElementById('oneBtn');
+      if (oneBtn) {
+        oneBtn.style.opacity = '0.5';
+        oneBtn.style.pointerEvents = 'none';
+        oneBtn.style.cursor = 'not-allowed';
       }
+      
+      // Disable any other interactive elements
+      document.querySelectorAll('button').forEach(btn => {
+        if (!btn.closest('.win-modal')) {
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+        }
+      });
     }
+
 
     // Card Animation Functions
     function animateCardToDiscard(cardElement, cardImg) {

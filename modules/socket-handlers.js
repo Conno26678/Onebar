@@ -104,7 +104,14 @@ function setupSocketHandlers(io) {
       const name = (sessUser && String(sessUser)) || clientName || 'Player';
 
       let player = game.players.find(p => p.name === name);
+      let isReconnect = false;
+      
       if (!player) {
+        // New player joining mid-game - only allow if game hasn't started
+        if (game.started) {
+          socket.emit('joinFailed', { reason: 'Game already in progress' });
+          return;
+        }
         player = {
           socketId: socket.id,
           id: socket.id,
@@ -113,14 +120,24 @@ function setupSocketHandlers(io) {
           ready: false
         };
         game.players.push(player);
+        console.log(`New player ${name} joined game ${gameId}`);
       } else {
+        // Existing player reconnecting - clear any pending disconnect timeout
+        isReconnect = true;
+        if (player.disconnectTimeout) {
+          clearTimeout(player.disconnectTimeout);
+          player.disconnectTimeout = null;
+          console.log(`Cleared disconnect timeout for ${name} on game rejoin`);
+        }
         player.socketId = socket.id;
         player.id = socket.id;
+        console.log(`Player ${name} reconnected to game ${gameId}`);
       }
 
       socket.join(gameId);
       socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName });
 
+      // Send the player's current hand
       io.to(player.socketId).emit('deal', player.hand);
       emitPlayerList(io, game);
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
@@ -128,16 +145,22 @@ function setupSocketHandlers(io) {
       io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
       io.to(gameId).emit('drawPileCount', { count: game.deck.length });
 
+      // Restore game state for reconnecting player
       if (game.started) {
         const currentPlayerId = game.players[game.turnIndex]?.id;
         if (currentPlayerId) {
           io.to(player.socketId).emit('turnChanged', { currentPlayerId });
         }
+        // Notify client that game is already in progress
+        io.to(player.socketId).emit('gameStarted', { 
+          currentPlayerId, 
+          players: game.players.map(p => ({ id: p.id, name: p.name })) 
+        });
       }
 
       if (game.discardPile && game.discardPile.length > 0) {
         const top = game.discardPile[game.discardPile.length - 1];
-        io.to(gameId).emit('cardPlacedOnTable', top);
+        io.to(player.socketId).emit('cardPlacedOnTable', top);
         
         // If it's a wild card without an activeColor and it's this player's turn, ask for color
         if (top.color === 'wild' && !top.activeColor && game.started) {

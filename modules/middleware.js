@@ -1,9 +1,10 @@
 const session = require('express-session');
 const jwt = require('jsonwebtoken');
-const config = require('./config');
+const db = require('../util/database');
+
 
 const sessionMiddleware = session({
-  secret: config.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false
 });
@@ -26,6 +27,7 @@ function isAuthenticated(req, res, next) {
     }
   } else {
     console.log('User not authenticated, redirecting to login');
+    console.log(`Redirect URL: ${process.env.AUTH_URL}?redirectURL=${process.env.THIS_URL}`);
     res.redirect('/login');
   }
 }
@@ -38,14 +40,65 @@ function handleLogin(req, res) {
     req.session.token = tokenData;
     req.session.user = tokenData.displayName;
     req.session.permission = tokenData.permissions;
-
-    const redirectTo = req.query.redirectURL || '/';
-    res.redirect(redirectTo);
-    console.log(`User ${tokenData.displayName} logged in`);
+    
+    // Helper function to load user payment status and redirect
+    const loadPaymentStatusAndRedirect = () => {
+      db.get("SELECT hasPaid FROM users WHERE id = ?", [tokenData.id], (err, row) => {
+        if (err) {
+          console.error('Error loading payment status:', err.message);
+        } else if (row) {
+          req.session.hasPaid = !!row.hasPaid;
+          console.log(`Loaded payment status for user ${tokenData.id}: hasPaid=${req.session.hasPaid}`);
+        }
+        
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('Session save error:', saveErr);
+          }
+          const redirectTo = req.query.redirectURL || '/';
+          res.redirect(redirectTo);
+        });
+      });
+    };
+    
+    db.run("INSERT INTO users (id, displayName, pin) VALUES (?, ?, ?)", [tokenData.id, tokenData.displayName, null], (err) => {
+      // if the table doesnt exist, create it
+      if (err && err.message.includes('no such table')) {
+        db.run("CREATE TABLE users (id INTEGER PRIMARY KEY, displayName TEXT, pin INTERGER)", (err) => {
+          if (err) {
+            console.error('Error creating users table:', err.message);
+          } else {
+            // try inserting again
+            db.run("INSERT INTO users (id, displayName, pin) VALUES (?, ?, ?)", [tokenData.id, tokenData.displayName, null], (err) => {
+              if (err) {
+                if (err.message.includes('UNIQUE constraint failed')) {
+                  // User already exists, load their payment status
+                  loadPaymentStatusAndRedirect();
+                } else {
+                  console.error('Database error:', err.message);
+                  const redirectTo = req.query.redirectURL || '/';
+                  res.redirect(redirectTo);
+                }
+              } else {
+                console.log('New user added to database');
+                loadPaymentStatusAndRedirect();
+              }
+            });
+          }
+        });
+      } else if (err && err.message.includes('UNIQUE constraint failed')) {
+        // User already exists, load their payment status
+        loadPaymentStatusAndRedirect();
+      } else if (err) {
+        console.error('Database error:', err.message);
+        res.status(500).send('Database error');
+      } else {
+        console.log('New user added to database');
+        loadPaymentStatusAndRedirect();
+      }
+    });
   } else {
-    const redirectURL = encodeURIComponent(`${config.THIS_URL}/login`);
-    res.redirect(`${config.AUTH_URL}/oauth?redirectURL=${redirectURL}`);
-    console.log('Redirecting to auth server');
+    res.redirect(`${process.env.AUTH_URL}?redirectURL=${process.env.THIS_URL}`);
   }
 }
 

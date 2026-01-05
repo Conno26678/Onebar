@@ -3,7 +3,7 @@
     <div class="row price-display">
         <div class="price-content">
             <span class="price-label">Purchase Cost:</span>
-            <span class="price-amount" id="price">75 Digipogs</span>
+            <span class="price-amount" id="price">150 Digipogs</span>
         </div>
     </div>
     <div class="row">
@@ -21,3 +21,124 @@
     </div>
     <div class="actions"><button class="primary" id="transferBtn">Send Transfer</button></div>
 </div>
+<script>
+    (function () {
+        'use strict';
+
+        const pinInput = document.getElementById('pin');
+        const savePIN = document.getElementById('savePIN');
+        const transferBtn = document.getElementById('transferBtn');
+
+        // Load saved PIN on page load
+        async function loadSavedPin() {
+            try {
+                const savedPin = await getSavedPin();
+                if (savedPin) {
+                    pinInput.value = savedPin;
+                    savePIN.checked = true; // Check the save PIN checkbox if we loaded a PIN
+                }
+            } catch (error) {
+                console.error('Failed to load saved PIN:', error);
+            }
+        }
+
+        async function getSavedPin() {
+            try {
+                const res = await fetch('/getPin', { method: 'POST' });
+                const data = await res.json();
+                if (!data.ok) {
+                    console.error('Failed to retrieve saved PIN', data.error);
+                    return '';
+                }
+                return data.userPin || '';
+            } catch (error) {
+                console.error('Error fetching saved PIN:', error);
+                return '';
+            }
+        }
+
+        // Load saved PIN when the page loads
+        loadSavedPin();
+        async function post(path, body) {
+            const res = await fetch(path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const text = await res.text();
+            try { return JSON.parse(text); } catch { return { raw: text }; }
+        }
+        async function doTransfer() {
+            const pin = pinInput.value;
+
+
+            // Save PIN if checkbox is checked
+            if (savePIN.checked) {
+                try {
+                    await post('/savePin', { pin });
+                } catch (error) {
+                    console.error('Failed to save PIN:', error);
+                }
+            }
+
+            let reason = 'Onebar Payment';
+            let amount = 150;
+
+            if (!pin) {
+                alert('Please enter your PIN.');
+                return;
+            }
+
+            try {
+                const result = await post('/transfer', { pin, reason });
+                const isSuccess = result.ok === true || result.success === true || result.status === 'success' ||
+                    (result.error === undefined && result.token !== undefined);
+                if (isSuccess) {
+                    window.dispatchEvent(new CustomEvent('paymentSuccess'));
+                    window.dispatchEvent(new CustomEvent('hidePaymentModal'));
+                    return;
+                } else {
+                    let errorMessage = result.error || result.message || 'Unknown error';
+                    alert('Transfer failed: ' + errorMessage);
+                    console.error('Transfer failed:', result);
+                }
+            } catch (error) {
+                console.error('Transfer error:', error);
+                alert('Transfer failed: Network error');
+            }
+        }
+
+        async function getPrice() {
+
+            try {
+                const res = await fetch('/getAmount', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pendingAction })
+                });
+                const data = await res.json();
+
+                if (data.ok) {
+                    document.getElementById('price').innerText = `${data.amount} Digipogs`;
+                } else {
+                    console.error('Error loading price:', data.error);
+                    document.getElementById('price').innerText = 'Error loading price';
+                }
+            } catch (error) {
+                console.error('Error fetching price:', error);
+                document.getElementById('price').innerText = 'Error loading price';
+            }
+        }
+
+        // Wire up event listeners
+        transferBtn?.addEventListener('click', doTransfer);
+
+        // Listen for price update requests from player.ejs
+        window.addEventListener('updatePrice', (e) => {
+            getPrice();
+        });
+
+        // Load saved PIN when included
+        loadSavedPin();
+    })();
+</script>

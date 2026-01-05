@@ -7,6 +7,8 @@
     "express-session": "^1.18.2",
     "jsonwebtoken": "^9.0.2",
     "socket.io": "^4.8.1",
+    "sqlite3": "^5.1.7",
+    "stack": "^0.1.0",
     "uuid": "^8.3.2"
   }
 }

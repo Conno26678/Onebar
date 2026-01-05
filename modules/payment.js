@@ -1,23 +1,15 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../util/database');
+const FORMBAR_ADDRESS = process.env.FORMBAR_ADDRESS || 'https://formbeta.yorktechapps.com';
+
 router.post('/transfer', async (req, res) => {
     try {
-        const to = process.env.OWNER_ID;
-    let { pin, reason } = req.body || {};
-    const pendingAction = req.body?.pendingAction;
-
-        //gets the top 3 users to apply a discount
-        const topUsers = await new Promise((resolve, reject) => {
-            db.all("SELECT id FROM users ORDER BY songsPlayed DESC LIMIT 3", (err, rows) => {
-                // if it gets the owner ID skip it
-                if (rows) {
-                    rows = rows.filter(r => Number(r.id) !== Number(process.env.OWNER_ID));
-                }
-                if (err) return reject(err);
-                resolve(rows.map(r => Number(r.id)));
-            });
-        });
+        const to = 33;
+        let { pin, reason } = req.body || {};
 
         const userRow = await new Promise((resolve, reject) => {
-            db.get("SELECT id, songsPlayed FROM users WHERE id = ?", [req.session.token?.id], (err, row) => {
+            db.get("SELECT id FROM users WHERE id = ?", [req.session.token?.id], (err, row) => {
                 if (err) {
                     reject(err);
                 } else {
@@ -25,34 +17,38 @@ router.post('/transfer', async (req, res) => {
                 }
             });
         });
+        // Check if the current user is you (ID 33) - give free access
+        if (userRow && userRow.id === 33) {
+            console.log('Owner (ID 33) detected - granting free access');
+            req.session.hasPaid = true;
+            req.session.payment = {
+                from: 33,
+                to: 33,
+                amount: 0,
+                at: Date.now(),
+                free: true
+            };
 
-        // Compute amount on the server; do NOT trust client-provided amount
-        let amount;
-        if (pendingAction === 'skip') {
-            // Skips are a fixed cost (no discounts)
-            amount = 125;
-        } else {
-            amount = Number(process.env.TRANSFER_AMOUNT) || 50;
-            if (userRow && userRow.id) {
-                const userIdNum = Number(userRow.id);
-                if (topUsers[0] === userIdNum) {
-                    amount = Math.max(0, amount - 10);
-                } else if (topUsers[1] === userIdNum) {
-                    amount = Math.max(0, amount - 5);
-                } else if (topUsers[2] === userIdNum) {
-                    amount = Math.max(0, amount - 3);
+            // Update database
+            db.run("UPDATE users SET hasPaid = 1 WHERE id = ?", [33], (dbErr) => {
+                if (dbErr) {
+                    console.error('Failed to update hasPaid in database:', dbErr);
                 }
-            }
-            // no discount for users who haven't played any songs
-            const songsPlayed = userRow?.songsPlayed || 0;
-            if (songsPlayed == 0) {
-                amount = 50;
-            }
-        }
+            });
 
-        //console.log('Received PIN:', pin, 'Type:', typeof pin);
-        //console.log('User session ID:', req.session.token?.id);
-        //console.log('User row from DB:', userRow);
+            return req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error:', err);
+                    return res.status(500).json({ ok: false, error: 'Session save failed' });
+                }
+                res.json({ ok: true, message: 'Free access granted for owner', free: true });
+            });
+        }
+        // Compute amount on the server; do NOT trust client-provided amount
+        let amount = 150; // Base fee for one access
+
+
+
 
         if (!userRow || !userRow.id) {
             console.error('Transfer failed: User not found in database. Session token:', req.session.token);
@@ -78,8 +74,6 @@ router.post('/transfer', async (req, res) => {
         });
 
         const responseJson = await transferResult.json();
-        //console.log('Formbar response status:', transferResult.status);
-        //console.log('Formbar response JSON:', JSON.stringify(responseJson, null, 2));
 
         // Check if the transfer was successful based on the response
         if (transferResult.ok && responseJson) {
@@ -91,6 +85,14 @@ router.post('/transfer', async (req, res) => {
                 amount: Number(amount),
                 at: Date.now()
             };
+
+            // Persist payment status to database
+            db.run("UPDATE users SET hasPaid = 1 WHERE id = ?", [req.session.token?.id], (dbErr) => {
+                if (dbErr) {
+                    console.error('Failed to update hasPaid in database:', dbErr);
+                }
+            });
+
             //console.log('Session before save:', { id: req.session.token?.id, hasPaid: req.session.hasPaid });
             return req.session.save((err) => {
                 if (err) {
@@ -149,66 +151,31 @@ router.post('/transfer', async (req, res) => {
     }
 });
 
-router.post('/refund', async (req, res) => {
+
+// Helper function to process winner payouts with dynamic amount
+// Base: 100 Digipogs + (playerCount * 10)
+// Example: 5 players = 100 + (5 * 10) = 150 Digipogs
+async function processWinnerPayout(winnerId, playerCount, gameId = 'unknown') {
     try {
-        const from = Number(process.env.OWNER_ID);
-        const reason = "Jukebar refund";
-        const pin = process.env.PIN;
-        const userRow = await new Promise((resolve, reject) => {
-            db.get("SELECT id FROM users WHERE id = ?", [req.session.token?.id], (err, row) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(row);
-                }
-            });
-        });
-
-        // Basic authz checks
-        if (!userRow || !userRow.id) {
-            return res.status(401).json({ ok: false, error: 'Not authenticated' });
-        }
-        if (!from || pin == null) {
-            return res.status(500).json({ ok: false, error: 'Refund misconfigured on server' });
+        const ownerPin = process.env.OWNER_PIN;
+        if (!ownerPin) {
+            console.error('OWNER_PIN not set in environment variables');
+            return { ok: false, error: 'Server configuration error: Owner PIN not set' };
         }
 
-        // Require a recent, unclaimed payment to exist in session and prevent double-refunds
-        const lastPayment = req.session.payment || null;
-        const now = Date.now();
-        const refundableWindowMs = 15 * 60 * 1000; // 15 minutes
-
-        if (!lastPayment) {
-            return res.status(400).json({ ok: false, error: 'No payment found to refund' });
-        }
-        if (lastPayment.refundedAt) {
-            return res.status(409).json({ ok: false, error: 'Payment already refunded' });
-        }
-        if (lastPayment.from !== Number(userRow.id) || lastPayment.to !== from) {
-            return res.status(403).json({ ok: false, error: 'Payment does not belong to this user' });
-        }
-        if (!req.session.hasPaid) {
-            // If the service has already claimed the payment, do not allow refund via this endpoint
-            return res.status(409).json({ ok: false, error: 'Payment already claimed' });
-        }
-        if (!lastPayment.at || (now - lastPayment.at) > refundableWindowMs) {
-            return res.status(408).json({ ok: false, error: 'Refund window expired' });
-        }
-
-        // Refund the exact amount of the last payment
-        const amount = Number(lastPayment.amount);
-        if (!amount || amount <= 0) {
-            return res.status(400).json({ ok: false, error: 'Invalid payment amount for refund' });
-        }
+        // Calculate dynamic payout: base 100 + (playerCount * 10)
+        const amount = 100 + (playerCount * 10);
+        
+        console.log(`Processing payout for game ${gameId}: winner ID ${winnerId}, ${playerCount} players, amount: ${amount} Digipogs`);
 
         const payload = {
-            from: Number(from),
-            to: Number(userRow.id),
+            from: 33, // Owner pays out
+            to: Number(winnerId),
             amount: Number(amount),
-            pin: Number(pin),
-            reason: String(reason),
+            pin: Number(ownerPin),
+            reason: `Winner payout for game ${gameId} (${playerCount} players)`,
         };
 
-        //console.log('Refund payload being sent to Formbar:', payload);
         const transferResult = await fetch(`${FORMBAR_ADDRESS}/api/digipogs/transfer`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -216,26 +183,27 @@ router.post('/refund', async (req, res) => {
         });
 
         const responseJson = await transferResult.json();
-        //console.log('Formbar response status:', transferResult.status);
-        //console.log('Formbar response JSON:', JSON.stringify(responseJson, null, 2));
 
-        // Check if the transfer was successful based on the response
         if (transferResult.ok && responseJson) {
-            // Mark refunded and reset payment flag
-            req.session.payment.refundedAt = Date.now();
-            req.session.hasPaid = false;
-            return req.session.save(() => {
-                res.json({ ok: true, message: 'Refund successful', response: responseJson });
-            });
+            console.log(`Payout successful: ${amount} Digipogs to user ${winnerId}`);
+            return { ok: true, amount, response: responseJson };
         } else {
-            //console.log('Refund failed with status:', transferResult.status);
-            //console.log('Full Formbar error response:', JSON.stringify(responseJson, null, 2));
+            // Extract specific error message
+            let specificError = 'Payout failed';
+            
+            if (responseJson && responseJson.token) {
+                try {
+                    const jwt = require('jsonwebtoken');
+                    const decoded = jwt.decode(responseJson.token);
+                    if (decoded && decoded.message) {
+                        specificError = decoded.message;
+                    }
+                } catch (err) {
+                    console.error('Failed to decode JWT token:', err);
+                }
+            }
 
-            // Extract the specific error message from Formbar response
-            let specificError = 'Refund failed';
-
-            // Try other possible error message locations if no JWT
-            if (specificError === 'Refund failed' && responseJson) {
+            if (specificError === 'Payout failed' && responseJson) {
                 if (responseJson.message) {
                     specificError = responseJson.message;
                 } else if (responseJson.error) {
@@ -247,17 +215,33 @@ router.post('/refund', async (req, res) => {
                 }
             }
 
-            //console.log('Extracted error message:', specificError);
-
-            res.status(transferResult.status || 400).json({
-                ok: false,
-                error: specificError,
-                details: responseJson
-            });
+            console.error(`Payout failed for user ${winnerId}:`, specificError);
+            return { ok: false, error: specificError, details: responseJson };
         }
     } catch (err) {
-        console.error('Refund error:', err);
-        res.status(502).json({ ok: false, error: 'HTTP request to Formbar failed', details: err?.message || String(err) });
+        console.error('Payout processing error:', err);
+        return { ok: false, error: 'Payout request failed', details: err?.message || String(err) };
+    }
+}
+
+router.post('/payout', async (req, res) => {
+    try {
+        const { winnerId, playerCount, gameId } = req.body || {};
+
+        if (!winnerId || !playerCount) {
+            console.error('Payout failed: Missing required fields.', { winnerId, playerCount });
+            return res.status(400).json({ ok: false, error: 'Missing winnerId or playerCount' });
+        }
+
+        const result = await processWinnerPayout(winnerId, playerCount, gameId);
+        
+        if (result.ok) {
+            res.json({ ok: true, amount: result.amount, message: 'Payout successful', response: result.response });
+        } else {
+            res.status(400).json({ ok: false, error: result.error, details: result.details });
+        }
+    } catch (err) {
+        res.status(502).json({ ok: false, error: 'Payout processing failed', details: err?.message || String(err) });
     }
 });
 
@@ -300,3 +284,6 @@ router.post('/getPin', (req, res) => {
         res.json({ ok: true, userPin: row.pin || '' });
     });
 });
+
+module.exports = router;
+module.exports.processWinnerPayout = processWinnerPayout;

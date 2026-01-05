@@ -27,10 +27,27 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentOwnerId = null;
   let lastPlayers = [];
   let currentLobbyName = null;
+  let hasPaid = false;
+  let pendingAction = null; // Store pending action after payment
 
   // When socket connects, record our socket id as our current player id
   socket.on('connect', () => {
     currentPlayerId = socket.id;
+  });
+
+  // Receive payment status from server
+  socket.on('paymentStatus', ({ hasPaid: paid }) => {
+    hasPaid = paid;
+    updateUIForPaymentStatus();
+  });
+
+  // Handle payment requirement error
+  socket.on('createLobbyError', ({ reason, requiresPayment }) => {
+    if (requiresPayment) {
+      showPaymentModal();
+    } else {
+      alert('Unable to create lobby: ' + reason);
+    }
   });
 
   function renderLobbyList(lobbies) {
@@ -49,47 +66,54 @@ document.addEventListener('DOMContentLoaded', () => {
           ${l.isPrivate ? '<span class="private-badge"> Private</span>' : ''}
         </div>
       `;
-      div.onclick = () => { window.location.href = '/room/' + encodeURIComponent(l.gameId);};
+      div.onclick = () => {
+        if (!hasPaid) {
+          pendingAction = { type: 'joinLobby', gameId: l.gameId };
+          showPaymentModal();
+        } else {
+          window.location.href = '/room/' + encodeURIComponent(l.gameId);
+        }
+      };
       lobbyListEl.appendChild(div);
     });
   }
 
-function renderPlayers(players) {
-  lastPlayers = Array.isArray(players) ? players : [];
-  roomPlayerList.innerHTML = '';
-  players.forEach(p => {
-    const pDiv = document.createElement('div');
-    pDiv.className = 'player-tag' + (p.id === currentOwnerId ? ' host' : '');
-    
-    const nameSpan = document.createElement('span');
-    nameSpan.textContent = p.name;
-    pDiv.appendChild(nameSpan);
-    
-    if (p.id === currentOwnerId) {
-      const hostBadge = document.createElement('span');
-      hostBadge.className = 'host-badge';
-      hostBadge.textContent = ' Host';
-      pDiv.appendChild(hostBadge);
-    }
-    
-    const readySpan = document.createElement('span');
-    readySpan.className = 'ready-status ' + (p.ready ? 'ready' : 'not-ready');
-    pDiv.appendChild(readySpan);
+  function renderPlayers(players) {
+    lastPlayers = Array.isArray(players) ? players : [];
+    roomPlayerList.innerHTML = '';
+    players.forEach(p => {
+      const pDiv = document.createElement('div');
+      pDiv.className = 'player-tag' + (p.id === currentOwnerId ? ' host' : '');
 
-    // If this is the current user, show a toggle button
-    if (p.id === currentPlayerId) {
-      const readyBtn = document.createElement('button');
-      readyBtn.className = 'ready-btn';
-      readyBtn.textContent = p.ready ? 'Unready' : 'Ready';
-      readyBtn.onclick = (e) => {
-        e.stopPropagation();
-        socket.emit('setReady', { gameId: currentGameId, ready: !p.ready });
-      };
-      pDiv.appendChild(readyBtn);
-    }
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = p.name;
+      pDiv.appendChild(nameSpan);
 
-    roomPlayerList.appendChild(pDiv);
-  });
+      if (p.id === currentOwnerId) {
+        const hostBadge = document.createElement('span');
+        hostBadge.className = 'host-badge';
+        hostBadge.textContent = ' Host';
+        pDiv.appendChild(hostBadge);
+      }
+
+      const readySpan = document.createElement('span');
+      readySpan.className = 'ready-status ' + (p.ready ? 'ready' : 'not-ready');
+      pDiv.appendChild(readySpan);
+
+      // If this is the current user, show a toggle button
+      if (p.id === currentPlayerId) {
+        const readyBtn = document.createElement('button');
+        readyBtn.className = 'ready-btn';
+        readyBtn.textContent = p.ready ? 'Unready' : 'Ready';
+        readyBtn.onclick = (e) => {
+          e.stopPropagation();
+          socket.emit('setReady', { gameId: currentGameId, ready: !p.ready });
+        };
+        pDiv.appendChild(readyBtn);
+      }
+
+      roomPlayerList.appendChild(pDiv);
+    });
 
     // update room info (players count) when player list changes
     if (currentGameId) {
@@ -107,12 +131,12 @@ function renderPlayers(players) {
     currentRoomEl.style.display = 'block';
     currentRoomEl.classList.add('active');
     currentGameId = meta.gameId || currentGameId;
-    currentRoomTitle.textContent = meta.lobbyName || `Room ${currentGameId ? currentGameId.slice(0,6) : ''}`;
+    currentRoomTitle.textContent = meta.lobbyName || `Room ${currentGameId ? currentGameId.slice(0, 6) : ''}`;
 
     if (typeof meta.lobbyName !== 'undefined' && meta.lobbyName !== null) {
       currentLobbyName = meta.lobbyName;
     }
-    currentRoomTitle.textContent = (currentLobbyName || `Room ${currentGameId ? currentGameId.slice(0,6) : ''}`);
+    currentRoomTitle.textContent = (currentLobbyName || `Room ${currentGameId ? currentGameId.slice(0, 6) : ''}`);
     // Update info display if available
     if (typeof meta.playerCount !== 'undefined' || typeof meta.maxPlayers !== 'undefined') {
       const pc = meta.playerCount != null ? meta.playerCount : '0';
@@ -125,26 +149,26 @@ function renderPlayers(players) {
     currentOwnerId = meta.ownerId || currentOwnerId;
     roomControls.innerHTML = '';
 
-      if (currentPlayerId && currentOwnerId && currentPlayerId === currentOwnerId) {
-        const players = Array.isArray(lastPlayers) ? lastPlayers : [];
-        const allReady = players.length > 0 && players.every(p => !!p.ready);
-        const startBtn = document.createElement('button');
-        startBtn.className = 'start-btn';
-        startBtn.textContent = 'Start Game';
-        startBtn.disabled = !allReady;
-        startBtn.onclick = () => {
-          const handSize = 7;
-          socket.emit('startGame', { gameId: currentGameId, handSize });
-        };
-        roomControls.appendChild(startBtn);
+    if (currentPlayerId && currentOwnerId && currentPlayerId === currentOwnerId) {
+      const players = Array.isArray(lastPlayers) ? lastPlayers : [];
+      const allReady = players.length > 0 && players.every(p => !!p.ready);
+      const startBtn = document.createElement('button');
+      startBtn.className = 'start-btn';
+      startBtn.textContent = 'Start Game';
+      startBtn.disabled = !allReady;
+      startBtn.onclick = () => {
+        const handSize = 7;
+        socket.emit('startGame', { gameId: currentGameId, handSize });
+      };
+      roomControls.appendChild(startBtn);
 
-    if (!allReady) {
-      const note = document.createElement('div');
-      note.className = 'waiting-note';
-      note.textContent = 'Waiting for all players to be ready...';
-      roomControls.appendChild(note);
+      if (!allReady) {
+        const note = document.createElement('div');
+        note.className = 'waiting-note';
+        note.textContent = 'Waiting for all players to be ready...';
+        roomControls.appendChild(note);
+      }
     }
-}
 
     // Smooth scroll the room into view
     try {
@@ -155,7 +179,7 @@ function renderPlayers(players) {
   // escape helper
   function escapeHtml(s) {
     if (!s) return '';
-    return String(s).replace(/[&<>"']/g, t => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[t]));
+    return String(s).replace(/[&<>"']/g, t => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": "&#39;" }[t]));
   }
 
   socket.on('startFailed', ({ reason }) => {
@@ -174,7 +198,7 @@ function renderPlayers(players) {
     // request current lobby list to update UI
     socket.emit('getLobbies');
     // show current room area
-    showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId ? gameId.slice(0,6) : ''}` });
+    showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId ? gameId.slice(0, 6) : ''}` });
   });
 
   // player list update for the room
@@ -206,30 +230,40 @@ function renderPlayers(players) {
   });
   // redirect/enter room when server confirms lobby created
   socket.on('lobbyCreated', ({ gameId, lobbyName, isPrivate = false, joinCode = null }) => {
-  // Keep the current socket alive: update URL and show the in-page room
-  currentGameId = gameId;
-  try {
-    history.replaceState(null, '', '/room/' + encodeURIComponent(gameId));
-  } catch (e) { /* ignore */ }
-  showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId.slice(0,6)}` });
-  // If the server returned a join code (private lobby), show it to the creator in controls
-  if (isPrivate && joinCode) {
-    roomControls.innerHTML = '';
-    const codeDiv = document.createElement('div');
-    codeDiv.textContent = 'Private lobby — join code: ' + joinCode;
-    roomControls.appendChild(codeDiv);
-  }
-  // Ask server for fresh lobby list for other viewers
-  socket.emit('getLobbies');
-});
+    // Keep the current socket alive: update URL and show the in-page room
+    currentGameId = gameId;
+    try {
+      history.replaceState(null, '', '/room/' + encodeURIComponent(gameId));
+    } catch (e) { /* ignore */ }
+    showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId.slice(0, 6)}` });
+    // If the server returned a join code (private lobby), show it to the creator in controls
+    if (isPrivate && joinCode) {
+      roomControls.innerHTML = '';
+      const codeDiv = document.createElement('div');
+      codeDiv.textContent = 'Private lobby — join code: ' + joinCode;
+      roomControls.appendChild(codeDiv);
+    }
+    // Ask server for fresh lobby list for other viewers
+    socket.emit('getLobbies');
+  });
 
   // create lobby
   createBtn.addEventListener('click', () => {
+    if (!hasPaid) {
+      pendingAction = { type: 'createLobby' };
+      showPaymentModal();
+      return;
+    }
+    createLobbyNow();
+  });
+
+  // Function to create lobby
+  function createLobbyNow() {
     const name = createName.value || `${window.CURRENT_USER || 'Host'}'s Lobby`;
     const maxPlayers = parseInt(createMax.value, 10) || 8;
     const isPrivate = !!(createPrivate && createPrivate.checked);
     socket.emit('createLobby', { lobbyName: name, maxPlayers, playerName: window.CURRENT_USER || 'Host', isPrivate });
-  });
+  }
 
   // leave lobby
   leaveLobbyBtn.addEventListener('click', () => {
@@ -255,6 +289,11 @@ function renderPlayers(players) {
         alert('Please enter a lobby code');
         return;
       }
+      if (!hasPaid) {
+        pendingAction = { type: 'joinByCode', code: code };
+        showPaymentModal();
+        return;
+      }
       socket.emit('joinByCode', { joinCode: code, playerName: window.CURRENT_USER || 'Player' });
     });
   }
@@ -277,4 +316,52 @@ function renderPlayers(players) {
       socket.emit('getLobbies');
     }
   }, 5000);
+
+  // Payment modal functions
+  window.showPaymentModal = function () {
+    const modal = document.getElementById('paymentModal');
+    if (modal) modal.style.display = 'block';
+  };
+
+  window.hidePaymentModal = function () {
+    const modal = document.getElementById('paymentModal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  // Update UI based on payment status
+  function updateUIForPaymentStatus() {
+    if (!hasPaid && createBtn) {
+      createBtn.classList.add('payment-required');
+      createBtn.title = 'Payment required to create lobbies';
+    } else if (createBtn) {
+      createBtn.classList.remove('payment-required');
+      createBtn.title = '';
+    }
+  }
+
+  // Listen for payment success
+  window.addEventListener('paymentSuccess', () => {
+    // Request fresh payment status from server via socket
+    socket.emit('refreshPaymentStatus');
+    // Also update local state immediately for responsiveness
+    hasPaid = true;
+    updateUIForPaymentStatus();
+    hidePaymentModal();
+
+    // Execute pending action if there is one
+    if (pendingAction) {
+      if (pendingAction.type === 'createLobby') {
+        createLobbyNow();
+      } else if (pendingAction.type === 'joinLobby') {
+        window.location.href = '/room/' + encodeURIComponent(pendingAction.gameId);
+      } else if (pendingAction.type === 'joinByCode') {
+        socket.emit('joinByCode', { joinCode: pendingAction.code, playerName: window.CURRENT_USER || 'Player' });
+      }
+      pendingAction = null; // Clear pending action
+    }
+  });
+
+  window.addEventListener('hidePaymentModal', () => {
+    hidePaymentModal();
+  });
 });

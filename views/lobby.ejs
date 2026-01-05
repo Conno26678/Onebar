@@ -57,6 +57,14 @@
         </div>
     </div>
 
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="payment-modal" style="display: none;">
+        <div class="payment-modal-content">
+            <span class="payment-modal-close" onclick="hidePaymentModal()">&times;</span>
+            <%- include('partials/pay') %>
+        </div>
+    </div>
+
     <script>window.CURRENT_USER = "<%= user %>";</script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>

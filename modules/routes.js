@@ -1,8 +1,12 @@
 const express = require('express');
 const { isAuthenticated, handleLogin } = require('./middleware');
 const { games } = require('./game');
+const paymentRouter = require('./payment');
 
 function setupRoutes(app) {
+  // Mount payment routes (must be before other routes to handle POST requests)
+  app.use('/', paymentRouter);
+  
   app.get('/login', handleLogin);
 
   app.get('/', isAuthenticated, (req, res) => {

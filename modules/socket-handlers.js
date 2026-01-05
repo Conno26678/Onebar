@@ -13,6 +13,17 @@ function broadcastLobbyList(io) {
   io.emit('lobbyList', getLobbyList());
 }
 
+// When emitting playerList, include card counts and ready status:
+function emitPlayerList(io, game) {
+  const playerData = game.players.map(p => ({
+    id: p.id,
+    name: p.name,
+    cardCount: p.hand ? p.hand.length : 0,
+    ready: !!p.ready
+  }));
+  io.to(game.id).emit('playerList', playerData);
+}
+
 function setupSocketHandlers(io) {
   io.on('connection', (socket) => {
     const sess = socket.request && socket.request.session;
@@ -56,13 +67,31 @@ function setupSocketHandlers(io) {
 
       // Notify creator
       socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName, isPrivate: game.private, joinCode: game.joinCode });
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      emitPlayerList(io, game);
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
       // Broadcast join code to all players in the room
       io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
       broadcastLobbyList(io);
 
       console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
+    });
+
+    // Join by code handler
+    socket.on('joinByCode', ({ joinCode, playerName: clientName = 'Player' } = {}) => {
+      if (!joinCode) {
+        socket.emit('joinByCodeError', { reason: 'No join code provided' });
+        return;
+      }
+      const code = String(joinCode).trim().toUpperCase();
+      // Find game with matching join code
+      const entry = Object.entries(games).find(([, g]) => g.joinCode && String(g.joinCode).toUpperCase() === code);
+      if (!entry) {
+        socket.emit('joinByCodeError', { reason: 'Invalid join code' });
+        return;
+      }
+      const [gameId, game] = entry;
+      // Now join that lobby
+      socket.emit('joinByCodeSuccess', { gameId, lobbyName: game.lobbyName });
     });
 
     socket.on('joinGame', ({ gameId = 'default', playerName: clientName = 'Player' } = {}) => {
@@ -75,7 +104,14 @@ function setupSocketHandlers(io) {
       const name = (sessUser && String(sessUser)) || clientName || 'Player';
 
       let player = game.players.find(p => p.name === name);
+      let isReconnect = false;
+      
       if (!player) {
+        // New player joining mid-game - only allow if game hasn't started
+        if (game.started) {
+          socket.emit('joinFailed', { reason: 'Game already in progress' });
+          return;
+        }
         player = {
           socketId: socket.id,
           id: socket.id,
@@ -84,31 +120,56 @@ function setupSocketHandlers(io) {
           ready: false
         };
         game.players.push(player);
+        console.log(`New player ${name} joined game ${gameId}`);
       } else {
+        // Existing player reconnecting - clear any pending disconnect timeout
+        isReconnect = true;
+        if (player.disconnectTimeout) {
+          clearTimeout(player.disconnectTimeout);
+          player.disconnectTimeout = null;
+          console.log(`Cleared disconnect timeout for ${name} on game rejoin`);
+        }
         player.socketId = socket.id;
         player.id = socket.id;
+        console.log(`Player ${name} reconnected to game ${gameId}`);
       }
 
       socket.join(gameId);
       socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName });
 
+      // Send the player's current hand
       io.to(player.socketId).emit('deal', player.hand);
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      emitPlayerList(io, game);
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
       // Broadcast join code to all players in the room
       io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
       io.to(gameId).emit('drawPileCount', { count: game.deck.length });
 
+      // Restore game state for reconnecting player
       if (game.started) {
         const currentPlayerId = game.players[game.turnIndex]?.id;
         if (currentPlayerId) {
           io.to(player.socketId).emit('turnChanged', { currentPlayerId });
         }
+        // Notify client that game is already in progress
+        io.to(player.socketId).emit('gameStarted', { 
+          currentPlayerId, 
+          players: game.players.map(p => ({ id: p.id, name: p.name })) 
+        });
       }
 
       if (game.discardPile && game.discardPile.length > 0) {
         const top = game.discardPile[game.discardPile.length - 1];
-        io.to(gameId).emit('cardPlacedOnTable', top);
+        io.to(player.socketId).emit('cardPlacedOnTable', top);
+        
+        // If it's a wild card without an activeColor and it's this player's turn, ask for color
+        if (top.color === 'wild' && !top.activeColor && game.started) {
+          const currentPlayer = game.players[game.turnIndex];
+          if (currentPlayer && currentPlayer.socketId === socket.id) {
+            io.to(socket.id).emit('requestStartColor', { gameId, card: top });
+            console.log('Re-requesting starting color after join for', player.name);
+          }
+        }
       }
     });
 
@@ -142,7 +203,7 @@ function setupSocketHandlers(io) {
       if (existing) {
         socket.join(gameId);
         socket.emit('joined', { playerId: existing.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: game.joinCode || null });
-        io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+        emitPlayerList(io, game);
         io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
         // Broadcast join code to all players in the room
         io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
@@ -153,7 +214,8 @@ function setupSocketHandlers(io) {
       const existingByName = game.players.find(p => p.name === playerName);
       if (existingByName) {
         const wasReady = existingByName.ready;
-        console.log(`Player ${playerName} rejoining: wasReady=${wasReady}, isOwner=${game.ownerName === playerName}`);
+        const isOwner = game.ownerName && game.ownerName === playerName;
+        console.log(`Player ${playerName} rejoining: wasReady=${wasReady}, isOwner=${isOwner}`);
 
         if (existingByName.disconnectTimeout) {
           clearTimeout(existingByName.disconnectTimeout);
@@ -165,20 +227,30 @@ function setupSocketHandlers(io) {
         existingByName.id = socket.id;
         existingByName.ready = wasReady;
 
-        socket.join(gameId);
-        socket.emit('joined', { playerId: existingByName.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: (socket.id === game.ownerId ? game.joinCode : null) });
-
-        if (game.ownerName && game.ownerName === playerName) {
+        // Update owner socket id BEFORE sending events
+        if (isOwner) {
           game.ownerId = socket.id;
           existingByName.ready = true;
           console.log(`Owner ${playerName} reconnected, setting ready=true`);
-          io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
-          // Broadcast join code to all players in the room
-          io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
         }
 
+        socket.join(gameId);
+        // Send join code to owner
+        socket.emit('joined', { 
+          playerId: existingByName.id, 
+          gameId, 
+          lobbyName: game.lobbyName, 
+          isPrivate: !!game.private, 
+          joinCode: isOwner ? game.joinCode : null,
+          ownerId: game.ownerId,
+          ownerName: game.ownerName
+        });
+
+        io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+        io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
+
         console.log(`After rejoin - Players:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
-        io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+        emitPlayerList(io, game);
         broadcastLobbyList(io);
         console.log(`${playerName} rejoined lobby ${gameId} (${game.lobbyName})`);
         return;
@@ -196,7 +268,7 @@ function setupSocketHandlers(io) {
       socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: (socket.id === game.ownerId ? game.joinCode : null) });
       console.log(`${player.name} joined as NEW player with ready=false`);
       console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      emitPlayerList(io, game);
       io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
       // If owner changed, send the private join code to that owner (if any)
       if (game.ownerId) {
@@ -234,7 +306,7 @@ function setupSocketHandlers(io) {
       if (real === -1) return;
       const [removed] = game.players.splice(real, 1);
       socket.leave(gameId);
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      emitPlayerList(io, game);
 
       if (removed && removed.socketId === game.ownerId) {
         if (game.players.length > 0) {
@@ -259,7 +331,7 @@ function setupSocketHandlers(io) {
       console.log(`Player ${game.players[real].name} setting ready to ${ready}`);
       game.players[real].ready = !!ready;
       console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
-      io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+      emitPlayerList(io, game);
       // Broadcast join code to all players in the room
       io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
       broadcastLobbyList(io);
@@ -305,6 +377,7 @@ function setupSocketHandlers(io) {
         player.hand = game.deck.splice(0, handSize);
         io.to(player.socketId).emit('deal', player.hand);
       }
+      emitPlayerList(io, game);
 
       if (game.deck.length > 0) {
         const top = game.deck.pop();
@@ -359,19 +432,149 @@ function setupSocketHandlers(io) {
       }
 
       const player = game.players[playerIndex];
-      player.hand.push(...drawn);
+      const drawnCard = drawn[0];
 
-      io.to(player.socketId).emit('deal', player.hand);
-      io.to(gameId).emit('playerDrew', { playerId: player.id, count: drawn.length });
-      io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+      //Drawn card playable logic
+      const topCard = game.discardPile.length > 0 ? game.discardPile[game.discardPile.length - 1] : null;
+      const topActiuveColor = topCard ? (topCard.activeColor || topCard.color) : null;
 
-      const playerCount = game.players.length;
-      const step = game.direction;
-      const nextIndex = ((game.turnIndex + step) % playerCount + playerCount) % playerCount;
-      game.turnIndex = nextIndex;
+      const isWild = drawnCard.color === 'wild';
+      const matchesColor = topActiuveColor && drawnCard.color === topActiuveColor;
+      const matchesValue = topCard && String(drawnCard.value) === String(topCard.value);
+      const isPlayable = !topCard || isWild || matchesColor || matchesValue;
 
-      const nextPlayerId = game.players[game.turnIndex].id;
-      io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      if (isPlayable) {
+        //store temp until they choose to play or keep
+        game.pendingDrawnCard = {
+          playerId: player.id,
+          card: drawnCard
+        };
+        io.to(player.socketId).emit('drawnCardPlayable', {
+          card: drawnCard,
+          gameId,
+          isWild
+        });
+        io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+      } else {
+        //card not playable, auto add to hand
+        player.hand.push(drawnCard);
+        io.to(player.socketId).emit('deal', player.hand);
+        io.to(gameId).emit('playerDrew', { playerId: player.id, count: 1});
+        io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+        emitPlayerList(io, game);
+
+        //turn advances
+        const playerCount = game.players.length;
+        const step = game.direction;
+        const nextIndex = ((game.turnIndex + step) % playerCount + playerCount) % playerCount;
+        game.turnIndex = nextIndex;
+
+        const nextPlayerId = game.players[game.turnIndex].id;
+        io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      }
+      });
+
+      socket.on('drawnCardChoice', ({ gameId = 'default',  action, chosenColor } = {}) => {
+        const game = games[gameId];
+        if (!game || !game.started) return;
+
+        const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
+        if (playerIndex === -1) return;
+
+        const player = game.players[playerIndex];
+
+        //verify drawn card
+        if (!game.pendingDrawnCard || game.pendingDrawnCard.playerId !== player.id) {
+          socket.emit('invalidMove', { reason: 'No pending drawn card to act upon' });
+          return;
+        }
+
+        const card = game.pendingDrawnCard.card;
+        game.pendingDrawnCard = null;
+
+        if (action === 'keep') {
+          //add to hand
+          player.hand.push(card);
+          io.to(player.socketId).emit('deal', player.hand);
+          io.to(gameId).emit('playerDrew', { playerId: player.id, count: 1 });
+          emitPlayerList(io, game);
+
+          //turn advances
+          const playerCount = game.players.length;
+          const step = game.direction;
+          const nextIndex = ((game.turnIndex + step) % playerCount + playerCount) % playerCount;
+          game.turnIndex = nextIndex;
+
+          const nextPlayerId = game.players[game.turnIndex].id;
+          io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+        } else if (action === 'play') {
+          //play the card
+          const isWild = card.color === 'wild';
+          if (isWild) {
+            const allowed = ['red', 'green', 'blue', 'yellow'];
+            if (!chosenColor || !allowed.includes(String(chosenColor).toLowerCase())) {
+              chosenColor = 'red';
+            } else {
+              chosenColor = String(chosenColor).toLowerCase();
+            }
+            card.activeColor = chosenColor;
+          } else {
+            card.activeColor = card.color;
+          }
+
+          game.discardPile.push(card);
+          io.to(gameId).emit('cardPlayed', { playerId: player.id, playerName: player.name, card });
+
+          const playerCount = game.players.length;
+          const step = game.direction;
+          let nextIndex = ((playerIndex + step) % playerCount + playerCount) % playerCount;
+
+          const special = String(card.value).toLowerCase();
+
+          //Handles special cards
+          if (special === 'skip' || special === 'skip_2') {
+            nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
+          } else if (
+            special === 'wild draw four' ||
+            special === 'wild_draw_four' ||
+            special.includes('draw four') ||
+            special.includes('draw_four') ||
+            special.includes('wild draw')
+          ) {
+            const victim = game.players[nextIndex]; 
+            const drawnCards = drawFromDeck(game, 4);
+            victim.hand.push(...drawnCards);
+            io.to(victim.socketId).emit('deal', victim.hand);
+            io.to(gameId).emit('playerDrewCards', { playerId: victim.id, count: drawnCards.length });
+            nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
+          } else if (
+            special === 'draw two' ||
+            special === 'draw_two' ||
+            special.includes('draw two') ||
+            special.includes('draw_two')
+          ) {
+            const victim = game.players[nextIndex];
+            const drawnCards = drawFromDeck(game, 2);
+            victim.hand.push(...drawnCards);
+            io.to(victim.socketId).emit('deal', victim.hand);
+            io.to(gameId).emit('playerDrewCards', { playerId: victim.id, count: drawnCards.length });
+            nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
+          } else if (special === 'reverse') {
+            game.direction = -game.direction;
+            if (playerCount === 2) {
+              nextIndex = playerIndex;
+            } else {
+              nextIndex = ((playerIndex + game.direction) % playerCount + playerCount) % playerCount;
+            }
+          }
+
+          game.turnIndex = nextIndex;
+
+          const nextPlayerId = game.players[game.turnIndex].id;
+          io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+          io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+          emitPlayerList(io, game);
+        }
     });
 
     socket.on('startColorChosen', ({ gameId = 'default', color } = {}) => {
@@ -426,7 +629,30 @@ function setupSocketHandlers(io) {
         return;
       }
 
+      // Block playing last card (winning) if player has 1 card and hasn't called ONE
+      if (player.hand.length === 1 && !player.calledOne) {
+        // Penalize: give them 2 cards and reject the play
+        const penaltyCards = drawFromDeck(game, 2);
+        player.hand.push(...penaltyCards);
+        io.to(player.socketId).emit('deal', player.hand);
+        socket.emit('invalidMove', { reason: 'You must call ONE before playing your last card!' });
+        io.to(gameId).emit('playerPenalized', { 
+          playerId: player.id, 
+          playerName: player.name, 
+          count: penaltyCards.length,
+          reason: 'noOneCalled'
+        });
+        io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+        emitPlayerList(io, game);
+        console.log(`Player ${player.name} tried to play last card without calling ONE - drew ${penaltyCards.length} penalty cards`);
+        return;
+      }
+
       const [card] = player.hand.splice(cardIndex, 1);
+      
+      // Reset calledOne after playing a card
+      player.calledOne = false;
+      
       const topCard = game.discardPile.length > 0 ? game.discardPile[game.discardPile.length - 1] : null;
       const topActiveColor = topCard ? (topCard.activeColor || topCard.color) : null;
 
@@ -437,6 +663,8 @@ function setupSocketHandlers(io) {
       if (!isValidPlay) {
         player.hand.push(card);
         socket.emit('invalidMove', { reason: 'Card doesnt match color or value twin' });
+        // Resend the hand so the client has the correct state
+        io.to(player.socketId).emit('deal', player.hand);
         return;
       }
 
@@ -509,42 +737,42 @@ function setupSocketHandlers(io) {
       const nextPlayerId = game.players[game.turnIndex].id;
       io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
       io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+      emitPlayerList(io, game);
 
-      // ONE timer logic
-      try {
-        if (game.onePending && game.onePending.playerId !== player.id) {
-          // keep pending for other player
+      // ONE timer logic - when player goes down to 1 card, start 5 second timer
+      if (player.hand.length === 1) {
+        // Clear any existing pending ONE for this player
+        if (game.onePending && game.onePending.playerId === player.id) {
+          clearOnePending(game);
         }
-        if (player.hand.length === 1) {
-          if (game.onePending && game.onePending.playerId === player.id) {
-            clearOnePending(game);
-          }
-          const penaltyDelayMs = 5000;
-          const timeoutId = setTimeout(() => {
-            if (!game.onePending || game.onePending.playerId !== player.id) return;
-            const drawn = drawFromDeck(game, 2);
-            player.hand.push(...drawn);
-            io.to(player.socketId).emit('deal', player.hand);
-            io.to(gameId).emit('playerPenalized', { playerId: player.id, playerName: player.name, count: drawn.length });
-            io.to(gameId).emit('playerDrew', { playerId: player.id, count: drawn.length });
-            io.to(gameId).emit('drawPileCount', { count: game.deck.length });
-            clearOnePending(game);
-          }, penaltyDelayMs);
+        
+        const penaltyDelayMs = 5000;
+        const timeoutId = setTimeout(() => {
+          if (!game.onePending || game.onePending.playerId !== player.id) return;
+          // Player didn't call ONE in time - penalize
+          const drawn = drawFromDeck(game, 2);
+          player.hand.push(...drawn);
+          io.to(player.socketId).emit('deal', player.hand);
+          io.to(gameId).emit('playerPenalized', { 
+            playerId: player.id, 
+            playerName: player.name, 
+            count: drawn.length,
+            reason: 'timeout'
+          });
+          io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+          emitPlayerList(io, game);
+          clearOnePending(game);
+          console.log(`Player ${player.name} failed to call ONE in time - drew ${drawn.length} penalty cards`);
+        }, penaltyDelayMs);
 
-          game.onePending = {
-            playerId: player.id,
-            timeoutId,
-            expiresAt: Date.now() + penaltyDelayMs
-          };
+        game.onePending = {
+          playerId: player.id,
+          timeoutId,
+          expiresAt: Date.now() + penaltyDelayMs
+        };
 
-          io.to(player.socketId).emit('youHaveOne', { expiresAt: game.onePending.expiresAt });
-        } else {
-          if (game.onePending && game.onePending.playerId === player.id) {
-            clearOnePending(game);
-          }
-        }
-      } catch (e) {
-        console.error('error starting ONE timer', e);
+        // Notify the player they need to call ONE
+        io.to(player.socketId).emit('youHaveOne', { expiresAt: game.onePending.expiresAt });
       }
 
       // Win detection
@@ -583,6 +811,10 @@ function setupSocketHandlers(io) {
         return;
       }
 
+      // Mark that player has called ONE - allows them to play their last card
+      player.calledOne = true;
+
+      // Clear the penalty timer
       if (game.onePending && game.onePending.playerId === player.id) {
         clearOnePending(game);
       }
@@ -612,7 +844,7 @@ function setupSocketHandlers(io) {
 
             console.log(`Removing disconnected player ${player.name} after timeout`);
             const [removed] = game.players.splice(stillThere, 1);
-            io.to(gameId).emit('playerList', game.players.map(p => ({ id: p.id, name: p.name, ready: !!p.ready })));
+            emitPlayerList(io, game);
 
             if (removed && removed.socketId === game.ownerId) {
               if (game.players.length > 0) {

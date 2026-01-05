@@ -1,0 +1,83 @@
+/* Index/Home Page Styles */
+
+.home-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+}
+
+.home-logo {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.home-title {
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: #f0c030;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+}
+
+.home-subtitle {
+    text-align: center;
+    color: var(--secondary-color);
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+}
+
+.home-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+}
+
+.home-nav a {
+    display: block;
+    text-align: center;
+    padding: 14px 28px;
+    min-width: 200px;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.home-nav a:not(.btn) {
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-color);
+}
+
+.home-nav a:not(.btn):hover {
+    background: var(--hover-color);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px var(--shadow);
+    text-decoration: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .home-container {
+        padding: 15px;
+    }
+
+    .home-title {
+        font-size: 2rem;
+    }
+
+    .home-nav a {
+        width: 100%;
+        min-width: unset;
+    }
+}

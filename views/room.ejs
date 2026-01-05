@@ -1,22 +1,46 @@
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Onebar - Rooms</title>
-        <link rel="stylesheet" href="/css/theme.css">
-    </head>
-    <body>
-        <a href="/logout" class="btn logout-button">Logout</a>
-    <h1 id="roomTitle">Room</h1>
-    <div id="roomInfo"></div>
-    <div id="roomPlayerList"></div>
-    <div id="roomControls"></div>
-    <button id="leaveRoomBtn">Leave Room</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onebar - Private Room</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/room.css">
+</head>
+<body>
+    <a href="/logout" class="btn logout-button">Logout</a>
+    <a href="/" class="back-link">Home</a>
+    
+    <div class="room-container">
+        <h1 class="room-title" id="roomTitle"> Private Room</h1>
+        
+        <div class="join-code-container" id="joinCodeContainer">
+            <div class="join-code-box">
+                <span class="join-code-label">Share This Code</span>
+                <span class="join-code" id="roomJoinCodeDisplay" title="Click to copy"></span>
+                <span class="copy-hint">Click to copy</span>
+            </div>
+        </div>
+        
+        <div class="room-panel">
+            <div id="roomInfo"></div>
+            
+            <div class="section-header">
+                <h3> Players</h3>
+            </div>
+            <div id="roomPlayerList">
+                <div class="waiting-indicator">Waiting for players<span class="dots">...</span></div>
+            </div>
+            
+            <div id="roomControls"></div>
+            
+            <button id="leaveRoomBtn">Leave Room</button>
+        </div>
+    </div>
 
     <script>window.CURRENT_USER = "<%= user %>"; window.GAME_ID = "<%= gameId %>"; window.LOBBY_NAME = "<%= (typeof lobbyName !== 'undefined' ? lobbyName : '') %>";</script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
     <script src="/js/room.js"></script>
-    </body>
-    </html>
+</body>
+</html>

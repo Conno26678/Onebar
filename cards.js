@@ -38,8 +38,14 @@ function createDeck() {
 }
 
 function makeCard(color, value, uniqueIndex) {
+    // For display/img paths, replace spaces with underscores
     const safeValue = value.replace(/\s+/g, '_');
-    const id = `${color}_${safeValue}_${uniqueIndex}`;
+    
+    // For CSS sprite matching, we need specific formats:
+    // "Draw Two" -> "DrawTwo", "Wild Draw Four" -> "WildDrawFour"
+    let cssValue = value.replace(/\s+/g, ''); // Remove all spaces for CSS
+    
+    const id = `${color}_${cssValue}_${uniqueIndex}`;
     return {
         id,
         color,

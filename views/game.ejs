@@ -5,75 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Onebar - Game</title>
     <link rel="stylesheet" href="/css/theme.css">
-    <style>
-        #hand img {
-            width: 100px;
-            margin: 5px;
-            cursor: pointer;
-        }
-        #table img {
-            width: 120px;
-            margin: 5px;
-        }
-        #playerList {
-            margin-bottom: 10px;
-        }
-        .current {
-            font-weight: bold;
-        }
-    #tableArea {
-      display: flex;
-      flex-direction: row;
-      align-items: flex-start; 
-      gap: 24px;
-      margin-top: 8px;
-      justify-content: flex-start; 
-      margin-left: 8px;
-      width: calc(100% - 16px);
-    }
-    #drawPile, #table {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-width: 140px;
-    }
-
-        #table .wrapper {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        }
-
-        #drawCount {
-          font-weight: 600;
-          margin-bottom: 6px;
-        }
-        #table .badge {
-          font-weight: 600;
-          margin-top: 6px;
-        }
-          @media (max-width: 600px) {
-          #hand img { width: 72px; }
-          #table img, #drawPile img { width: 96px; }
-          #tableArea { gap: 12px; }
-        }
-    </style>
+    <link rel="stylesheet" href="/css/cards-atlas.css">
+    <link rel="stylesheet" href="/css/game.css">
 </head>
 <body>
   <!-- Logout button (upper-left) -->
   <a href="/logout" class="btn logout-button">Logout</a>
-  <h1>Game</h1>
 
-    <div id="playerList"></div>
-    <div id="status"></div>
-
-    <h3>Your Hand</h3>
-    <div id="hand"></div>
-
-    <h3>Table</h3>
-     <div id="tableArea"></div>
-    
+  <div class="game-container">
+    <h1 class="game-title">ONEBAR</h1>
+    <div id="playerList"><span class="loading" style="width: 200px; height: 20px; display: inline-block;"></span></div>
+    <div id="status">Waiting for game to start...</div>
+    <div id="tableArea"></div>
     <div id="table"></div>
+    <div id="hand"></div>
+  </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
@@ -85,22 +31,259 @@
     let gameActive = true;
 
     const playerName = <%- JSON.stringify(user || 'Anonymous') %>;
+    
+    // Track if this is the initial page load vs a reconnection
+    let isInitialLoad = true;
 
-    // Tell server we've opened the game page so it can re-associate this socket
+    //store lobby ID
+    let currentRommId = gameId;
+
+    function showWinMedal(winnerName, isCurrentUserWinner) {
+      disableGameUI();
+
+      const overlay = document.createElement('div');
+      overlay.className = 'win-modal-overlay';
+
+      const modal = document.createElement('div');
+      modal.className = 'win-modal';
+
+      const trophy = document.createElement('div');
+      trophy.className = 'win-modal-trophy';
+      trophy.textContent = '🏆';
+      modal.appendChild(trophy);
+
+      const title = document.createElement('div');
+      title.className = 'win-modal-title';
+      title.textContent = isCurrentUserWinner ? 'Congratulations! You Won!' : `Game Over!`;
+      modal.appendChild(title);
+
+      const winner = document.createElement('div');
+      winner.className = 'win-modal-winner';
+      winner.textContent = winnerName;
+      modal.appendChild(winner);
+
+      const subtitle = document.createElement('div');
+      subtitle.className = 'win-modal-subtitle';
+      subtitle.textContent = isCurrentUserWinner ? 'Congrats on your win' : `${winnerName} has won the game!`;
+      modal.appendChild(subtitle);
+
+      const buttons = document.createElement('div');
+      buttons.className = 'win-modal-buttons';
+
+      const playAgainBtn = document.createElement('button');
+      playAgainBtn.className = 'win-modal-btn play-again';
+      playAgainBtn.textContent = 'Play Again';
+      playAgainBtn.addEventListener('click', () => {
+        window.location.href = '/room/' + encodeURIComponent(currentRommId);
+      });
+      buttons.appendChild(playAgainBtn);
+
+      const goHomeBtn = document.createElement('button');
+      goHomeBtn.className = 'win-modal-btn go-home';
+      goHomeBtn.textContent = 'Go to Home';
+      goHomeBtn.addEventListener('click', () => {
+        window.location.href = '/';
+      });
+      buttons.appendChild(goHomeBtn);
+
+      modal.appendChild(buttons);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+
+      //Prevent clicking through overlay
+      overlay.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+    
+    // Helper function to fix card IDs for CSS sprite matching
+    function fixCardId(id) {
+      if (!id) return id;
+      // These replacements handle any old-format IDs that might still exist
+      return id
+        .split('Wild_Draw_Four').join('WildDrawFour')
+        .split('Draw_Two').join('DrawTwo');
+    }
+
+    // Color Picker Function
+    function showColorPicker(callback, title = 'Choose a Color') {
+      // Create overlay
+      const overlay = document.createElement('div');
+      overlay.className = 'color-picker-overlay';
+      
+      // Create container
+      const container = document.createElement('div');
+      container.className = 'color-picker-container';
+      
+      // Create color segments
+      const colors = ['red', 'blue', 'green', 'yellow'];
+      colors.forEach(color => {
+        const segment = document.createElement('div');
+        segment.className = `color-picker-segment ${color}`;
+        segment.innerHTML = `<span>${color}</span>`;
+        segment.addEventListener('click', () => {
+          overlay.remove();
+          callback(color);
+        });
+        container.appendChild(segment);
+      });
+      
+      // Create center circle with title
+      const center = document.createElement('div');
+      center.className = 'color-picker-center';
+      center.innerHTML = `<span>${title}</span>`;
+      container.appendChild(center);
+      
+      overlay.appendChild(container);
+      document.body.appendChild(overlay);
+      
+      // Close on overlay click (outside the picker)
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          overlay.remove();
+          callback('red'); // Default to red if closed without selection
+        }
+      });
+    }
+
+    //Drawn Card choice
+    function showDrawnCardChoice(card, isWild, callback) {
+      const overlay = document.createElement('div');
+      overlay.className = 'color-picker-overlay';
+      overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+
+      const container = document.createElement('div');
+      container.style.background = 'var(--surface-color, #2a2a2a)';
+      container.style.padding = '24px';
+      container.style.borderRadius = '16px';
+      container.style.textAlign = 'center';
+      container.style.maxWidth = '300px';
+      container.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+
+      //title
+      const title = document.createElement('h2');
+      title.innerText = 'You drew a playable card!';
+      title.style.marginBottom = '10px';
+      title.style.color = 'var(--text-color, white)';
+      container.appendChild(title);
+
+      //show card
+      const cardPreview = document.createElement('div');
+      cardPreview.className = 'card';
+      cardPreview.dataset.cardId = fixCardId(card.id);
+      cardPreview.style.margin = '0 auto 20px auto';
+      cardPreview.style.transform = 'scale(1.2)';
+      container.appendChild(cardPreview);
+
+      //buttons container
+      const btnContainer = document.createElement('div');
+      btnContainer.style.display = 'flex';
+      btnContainer.style.justifyContent = 'center';
+      btnContainer.style.gap = '12px';
+
+      //Play button
+      const playBtn = document.createElement('button');
+      playBtn.innerText = 'Play It';
+      playBtn.className = 'btn';
+      playBtn.style.padding = '12px 24px';
+      playBtn.style.background = '#4CAF50';
+      playBtn.style.color = 'white';
+      playBtn.style.border = 'none';
+      playBtn.style.borderRadius = '8px';
+      playBtn.style.cursor = 'pointer';
+      playBtn.addEventListener('click', () => {
+        overlay.remove();
+        if (isWild) {
+          showColorPicker((chosenColor) => {
+            callback('play', chosenColor);
+          }, 'Choose color for Wild card');
+        } else {
+          callback('play', null);
+        }
+      });
+      btnContainer.appendChild(playBtn);
+
+      //keep button
+      const keepBtn = document.createElement('button');
+      keepBtn.innerText = 'Keep It';
+      keepBtn.className = 'btn';
+      keepBtn.style.padding = '12px 24px';
+      keepBtn.style.background = '#2196F3';
+      keepBtn.style.color = 'white';
+      keepBtn.style.fontSize = '16px';
+      keepBtn.style.border = 'none';
+      keepBtn.style.borderRadius = '8px';
+      keepBtn.style.cursor = 'pointer';
+      keepBtn.addEventListener('click', () => {
+        overlay.remove();
+        callback('keep', null);
+      });
+      btnContainer.appendChild(keepBtn);
+
+      container.appendChild(btnContainer);
+      overlay.appendChild(container);
+      document.body.appendChild(overlay);
+    }
+
+    socket.on('drawnCardPlayable', ({ card, gameId: gid, isWild }) => {
+      showDrawnCardChoice(card, isWild, (action, chosenColor) => {
+        socket.emit('drawnCardChoice', {
+          gameId: gameId,
+          action,
+          chosenColor
+        });
+      });
+    });
+
+    // Tell server we've opened the game page
     socket.emit('joinGame', { playerName, gameId });
+
+    // Handle socket reconnection - automatically rejoin the game
+    socket.on('connect', () => {
+        console.log('Socket connected/reconnected');
+        // Re-emit joinGame on reconnection to restore state
+        socket.emit('joinGame', { playerName, gameId });
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Socket disconnected');
+        document.getElementById('status').innerText = 'Connection lost. Reconnecting...';
+    });
 
     socket.on('joined', ({ playerId, gameId }) => {
         console.log('joined', playerId, gameId);
         document.getElementById('status').innerText = `Joined game ${gameId} as ${playerName}`;
+        // After first join, subsequent deals are reconnections - don't animate
+        isInitialLoad = false;
+    });
+
+    socket.on('joinFailed', ({ reason }) => {
+        console.error('Failed to join game:', reason);
+        document.getElementById('status').innerText = `Failed to join: ${reason}`;
+        alert('Failed to join game: ' + reason);
+        // Redirect to lobby after a short delay
+        setTimeout(() => {
+            window.location.href = '/lobby';
+        }, 2000);
     });
 
     socket.on('playerList', (players) => {
         const el = document.getElementById('playerList');
-        el.innerHTML = 'Players:' + players.map(p => `<span id="p_${p.id}">${p.name}</span>`).join(' | ');
+        if (el) el.innerHTML = 'Players: ' + players.map(p =>
+          `<span id="p_${p.id}">${p.name} (${p.cardCount ?? '?'})</span>`
+        ).join(' | ');
     });
+
+    let isInitialDeal = true;
+    let currentHand = []; // Track current hand for restoring on invalid moves
+    
     socket.on('deal', (hand) => {
-        renderHand(hand);
-        console.log('received deal', hand);
+        // Only animate on initial deal, not on reconnections
+        const shouldAnimate = isInitialDeal && isInitialLoad;
+        currentHand = hand; // Store the hand
+        renderHand(hand, shouldAnimate);
+        isInitialDeal = false;
+        console.log('received deal', hand, 'animated:', shouldAnimate);
     });
     
     socket.on('gameStarted', ({currentPlayerId, players}) => {
@@ -119,24 +302,25 @@
     socket.on('cardPlayed', ({ playerId, playerName, card }) => {
         addCardToTable(card, playerId, playerName);
         removeCardFromHand(card.id);
+        // Update local hand tracking
+        currentHand = currentHand.filter(c => c.id !== card.id);
     });
 
     socket.on('invalidMove', ({ reason }) => {
         alert('Invalid move: ' + reason);
+        // Re-render hand to restore any cards that were hidden during animation
+        renderHand(currentHand, false);
     });
 
-      // only the player who receives this should be prompted (server sends to one socket)
         socket.on('requestStartColor', ({ gameId: gid, card }) => {
-        const allowed = ['red', 'blue', 'green', 'yellow'];
-        let chosen = prompt('The starting card is a Wild. Choose the starting color: red, blue, green, yellow');
-        chosen = chosen ? chosen.toLowerCase() : 'red';
-        if (!allowed.includes(chosen)) chosen = 'red';
-        socket.emit('startColorChosen', { gameId: gameId || 'default', color: chosen });
+        showColorPicker((chosen) => {
+          socket.emit('startColorChosen', { gameId: gameId || 'default', color: chosen });
+        }, 'Starting card is Wild!');
     });
 
     socket.on('playerWon', ({ playerId, playerName }) => {
-        alert(`${playerName} has won the game!`);
-        disableGameUI();
+        const isCurrentUserWinner = (playerName === <%- JSON.stringify(user || 'Anonymous') %>);
+        showWinMedal(playerName, isCurrentUserWinner);
     });
 
     socket.on('gameEnded', (data) => {
@@ -146,50 +330,157 @@
       if (winner) {
         const status = document.getElementById('status');
         status.innerText = `Game over! Winner: ${winner.name || winner.id}`;
+        if (!document.querySelector('.wub-medal-overlay')) {
+          const isCurrentUserWinner = (winner.name === <%- JSON.stringify(user || 'Anonymous') %>);
+          showWinMedal(winner.name || winner.id, isCurrentUserWinner);
+        }
       }
-    });
+    })
 
-    function disableGameUI() {
+     function disableGameUI() {
       gameActive = false;
+      
+      // Disable draw pile
       const drawImg = document.getElementById('drawPileImg');
       if (drawImg) {
         drawImg.style.opacity = '0.5';
         drawImg.style.pointerEvents = 'none';
+        drawImg.style.cursor = 'not-allowed';
       }
-      //remove hand click events
-      document.querySelectorAll('#hand img').forEach(img => {
-        img.style.opacity = '0.5';
-        img.style.pointerEvents = 'none';
+      
+      // Disable all hand cards
+      document.querySelectorAll('#hand .card, #hand div[data-card-id]').forEach(card => {
+        card.style.opacity = '0.5';
+        card.style.pointerEvents = 'none';
+        card.style.cursor = 'not-allowed';
       });
-        // optionally hide or disable Start Game button
-      const startBtn = document.querySelector('button');
-      if (startBtn) {
-        startBtn.disabled = false; // keep available to start a new game if server supports it
+      
+      // Disable ONE button
+      const oneBtn = document.getElementById('oneBtn');
+      if (oneBtn) {
+        oneBtn.style.opacity = '0.5';
+        oneBtn.style.pointerEvents = 'none';
+        oneBtn.style.cursor = 'not-allowed';
       }
+      
+      // Disable any other interactive elements
+      document.querySelectorAll('button').forEach(btn => {
+        if (!btn.closest('.win-modal')) {
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+        }
+      });
     }
 
-    function renderHand(hand) {
+
+    // Card Animation Functions
+    function animateCardToDiscard(cardElement, cardImg) {
+      return new Promise((resolve) => {
+        const startRect = cardElement.getBoundingClientRect();
+        const tableEl = document.getElementById('table');
+        const endRect = tableEl.getBoundingClientRect();
+
+        // Create flying card clone
+        const flyingCard = document.createElement('img');
+        flyingCard.src = cardImg;
+        flyingCard.className = 'card-flying';
+        flyingCard.style.width = cardElement.offsetWidth + 'px';
+        flyingCard.style.left = startRect.left + 'px';
+        flyingCard.style.top = startRect.top + 'px';
+        flyingCard.style.borderRadius = '8px';
+        flyingCard.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+        document.body.appendChild(flyingCard);
+
+        // Hide original card
+        cardElement.style.opacity = '0';
+
+        // Trigger animation on next frame
+        requestAnimationFrame(() => {
+          flyingCard.style.left = (endRect.left + endRect.width / 2 - cardElement.offsetWidth / 2) + 'px';
+          flyingCard.style.top = (endRect.top + endRect.height / 2 - cardElement.offsetHeight / 2) + 'px';
+          flyingCard.style.transform = 'scale(1.3) rotate(5deg)';
+        });
+
+        // Cleanup after animation
+        setTimeout(() => {
+          flyingCard.remove();
+          resolve();
+        }, 500);
+      });
+    }
+
+    function animateCardFromDeck() {
+      return new Promise((resolve) => {
+        const drawPile = document.getElementById('drawPileImg');
+        const handEl = document.getElementById('hand');
+        
+        if (!drawPile || !handEl) {
+          resolve();
+          return;
+        }
+
+        const startRect = drawPile.getBoundingClientRect();
+        const endRect = handEl.getBoundingClientRect();
+
+        // Create flying card clone (card back)
+        const flyingCard = document.createElement('img');
+        flyingCard.src = '/img/cards/bing.png';
+        flyingCard.className = 'card-flying';
+        flyingCard.style.width = '85px';
+        flyingCard.style.left = startRect.left + 'px';
+        flyingCard.style.top = startRect.top + 'px';
+        flyingCard.style.borderRadius = '8px';
+        flyingCard.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+        document.body.appendChild(flyingCard);
+
+        // Trigger animation on next frame
+        requestAnimationFrame(() => {
+          flyingCard.style.left = (endRect.left + endRect.width / 2 - 42) + 'px';
+          flyingCard.style.top = (endRect.top + 10) + 'px';
+          flyingCard.style.transform = 'scale(1.1) rotate(-3deg)';
+        });
+
+        // Cleanup after animation
+        setTimeout(() => {
+          flyingCard.remove();
+          resolve();
+        }, 500);
+      });
+    }
+
+    function renderHand(hand, animateAll = false) {
       const container = document.getElementById('hand');
       container.innerHTML = '';
-      hand.forEach(card => {
-        const img = document.createElement('img');
-        img.src = card.img;
-        img.alt = card.name || card.value;
-        img.dataset.cardId = card.id;
-        img.title = `${card.name} (value ${card.value})`;
-        img.addEventListener('click', () => {
+      hand.forEach((card, index) => {
+        const cardEl = document.createElement('div');
+        cardEl.classList.add('card');
+        // Fix the card id format for CSS sprite
+        const fixedId = fixCardId(card.id);
+        cardEl.dataset.cardId = fixedId;
+        cardEl.title = `${card.name} (value ${card.value})`;
+        
+        // Only animate all cards on initial deal
+        if (animateAll) {
+          cardEl.classList.add('card-slide-in');
+          cardEl.style.animationDelay = `${index * 0.05}s`;
+        }
+        
+        cardEl.addEventListener('click', async () => {
           if (!gameActive) return;
+          
+          // Animate card to discard pile
+          await animateCardToDiscard(cardEl, card.img);
+          
           // play the card
           if (card.color === 'wild') {
-            const chosen = prompt('Choose a color: red, blue, green, yellow');
-            const allowed = ['red', 'blue', 'green', 'yellow'];
-            const chosenColor = (chosen && allowed.includes(chosen.toLowerCase())) ? chosen.toLowerCase() : 'red';
-            socket.emit('playCard', { gameId: gameId, cardId: card.id, chosenColor });
+            showColorPicker((chosenColor) => {
+              socket.emit('playCard', { gameId: gameId, cardId: card.id, chosenColor });
+            });
           } else {
             socket.emit('playCard', { gameId, cardId: card.id });
           }
         });
-        container.appendChild(img);
+        container.appendChild(cardEl);
       });
     }
 
@@ -209,11 +500,12 @@
       who.style.marginBottom = '4px';
       wrapper.appendChild(who);
 
-      const img = document.createElement('img');
-      img.src = card.img;
-      img.alt = card.name || card.value;
-      img.style.width = '120px';
-      wrapper.appendChild(img);
+      const cardEl = document.createElement('div');
+      // Fix the card id format for CSS sprite
+      const fixedId = fixCardId(card.id);
+      cardEl.dataset.cardId = fixedId;
+      cardEl.classList.add('card-pop', 'card'); // Add pop animation
+      wrapper.appendChild(cardEl);
 
       const active = card.activeColor || card.chosenColor;
       if (active) {
@@ -228,9 +520,11 @@
     }
 
     function removeCardFromHand(cardId) {
-      const imgs = document.querySelectorAll('#hand img');
-      imgs.forEach(img => {
-        if (img.dataset.cardId === cardId) img.remove();
+      // Fix the card id format for matching
+      const fixedId = fixCardId(cardId);
+      const cards = document.querySelectorAll('#hand div[data-card-id]');
+      cards.forEach(card => {
+        if (card.dataset.cardId === fixedId) card.remove();
       });
     }
 
@@ -241,63 +535,86 @@
       // Highlight the player's name in playerList here
     }
 
-    socket.on('playerList', (players) => {
-      const el = document.getElementById('playerList');
-      if (el) el.innerHTML = 'Players:' + players.map(p => `<span id="p_${p.id}">${p.name}${p.ready ? ' ✅' : ''}</span>`).join(' | ');
-    });
-
     // ONE button: shows a "1" image and allows calling ONE
     const oneBtn = document.createElement('button');
     oneBtn.id = 'oneBtn';
-    oneBtn.style.marginLeft = '8px';
+    // Make the ONE button
+    oneBtn.style.position = 'fixed';
+    oneBtn.style.width = '160px';
+    oneBtn.style.height = '160px';
+    oneBtn.style.padding = '12px';
+    oneBtn.style.display = 'flex';
+    oneBtn.style.alignItems = 'center';
+    oneBtn.style.justifyContent = 'center';
+    oneBtn.style.borderRadius = '12px';
+    // border and drop shadow so it appears cleaner
+    oneBtn.style.border = 'none';
+    oneBtn.style.background = 'transparent';
+    oneBtn.style.boxShadow = 'none';
+    oneBtn.style.cursor = 'pointer';
+    oneBtn.style.zIndex = '9999';
+    // place fixed in bottom-right corner 
+    oneBtn.style.right = '12px';
+    oneBtn.style.bottom = '12px';
+    oneBtn.style.transform = 'none';
+    oneBtn.style.transition = 'none';
     // If you don't have a "one" image, you can use text or a card image that represents "1".
     const oneImg = document.createElement('img');
     oneImg.src = '/img/ONElogo.png';
     oneImg.alt = 'ONE';
-    oneImg.style.width = '48px';
-    oneImg.style.height = 'auto';
-    oneImg.style.verticalAlign = 'middle';
+    oneImg.style.width = '140px';
+    oneImg.style.height = '140px';
+    oneImg.style.objectFit = 'contain';
     oneBtn.appendChild(oneImg);
-    oneBtn.title = 'Press when you have one card';
+    oneBtn.title = 'Press when you have ONE card left!';
 
     oneBtn.addEventListener('click', () => {
-      const handCount = document.querySelectorAll('#hand img').length;
+      const handCount = document.querySelectorAll('#hand div[data-card-id]').length;
       if (handCount !== 1) {
-        // yell at them for clicking incorrectly
-        alert("You don't have exactly one card — don't press ONE!");
-        // socket.emit('falseOnePressed', { gameId: 'default' });
         return;
       }
-      // If they have one card locally, send to server to validate & broadcast
+      // Send to server to validate and broadcast
       socket.emit('callOne', { gameId: gameId });
     });
 
-    document.body.appendChild(oneBtn);
+    // Append the ONE button to the controls container (right of piles) when available,
+    // otherwise try the draw pile, and finally fallback to body.
+    function placeOneBtn() {
+      // Always append to body when using fixed positioning so placement is predictable
+      if (!document.body.contains(oneBtn)) document.body.appendChild(oneBtn);
+    }
+    placeOneBtn();
 
     // Listen for server confirmation / errors
     socket.on('playerCalledOne', ({ playerId, playerName }) => {
-      alert(`${playerName || playerId} called ONE!`);
+      const name = playerName || document.getElementById('p_' + playerId)?.textContent || playerId;
+      alert(name + ' called ONE!');
     });
 
     socket.on('invalidOneCall', ({ reason }) => {
-      alert(`Invalid ONE call: ${reason || ''}`);
+      alert('Invalid ONE call: ' + reason);
     });
 
-    socket.on('playerPenalized', ({ playerId, playerName, count }) => {
+    socket.on('playerPenalized', ({ playerId, playerName, count, reason }) => {
       const name = playerName || document.getElementById('p_' + playerId)?.textContent || playerId;
-      alert(`${name} failed to call ONE in time and drew ${count} card${count !== 1 ? 's' : ''}`);
+      if (reason === 'noOneCalled') {
+        alert(name + ' tried to play without calling ONE! +' + count + ' cards as penalty!');
+      } else if (reason === 'timeout') {
+        alert(name + ' failed to call ONE in time and drew ' + count + ' card' + (count !== 1 ? 's' : ''));
+      } else {
+        alert(name + ' drew ' + count + ' penalty card' + (count !== 1 ? 's' : ''));
+      }
     });
 
-    // notify the player locally when server expects them to call ONE
+    // Notify the player when they have ONE card and need to call it
     socket.on('youHaveOne', ({ expiresAt }) => {
       const remainMs = Math.max(0, expiresAt - Date.now());
       const secs = Math.ceil(remainMs / 1000);
-      // small hint to the player that they should press ONE
       const s = document.getElementById('status');
-      s.innerText = `You have ONE! Call it within ${secs} sec${secs !== 1 ? 's' : ''}.`;
-      // clear this message after the timeout
+      s.innerText = 'You have ONE card! Press the ONE button within ' + secs + ' seconds!';
+      // Clear this message after the timeout
       setTimeout(() => {
-        if (s && s.innerText && s.innerText.startsWith('You have ONE')) {
+        if (s && s.innerText && s.innerText.includes('ONE card')) {
           s.innerText = '';
         }
       }, remainMs + 100);
@@ -319,33 +636,43 @@ drawCount.style.fontWeight = '600';
 drawCount.innerText = ''; 
 drawContainer.appendChild(drawCount);
 
-// draw pile image
+// draw pile image - using card back
 const drawImg = document.createElement('img');
 drawImg.id = 'drawPileImg';
-drawImg.src = '/img/cards/card_Back.png';
+drawImg.src = '/img/cards/bing.png';
 drawImg.alt = 'Draw Pile';
-drawImg.style.width = '120px';
-drawImg.style.cursor = 'pointer';
+drawImg.title = 'Click to draw a card';
 drawContainer.appendChild(drawImg);
 
 // Place the draw pile and ensure the discard #table sit together inside #tableArea
 const tableArea = document.getElementById('tableArea');
 const tableEl = document.getElementById('table');
 
-// Append draw pile first, then the table (discard). This keeps a consistent order.
-tableArea.appendChild(drawContainer);
+// Create a controls column (right side) to hold buttons like ONE
+const controlContainer = document.createElement('div');
+controlContainer.id = 'tableControls';
+controlContainer.style.display = 'flex';
+controlContainer.style.flexDirection = 'column';
+controlContainer.style.alignItems = 'center';
+controlContainer.style.minWidth = '80px';
+controlContainer.style.margin = '8px';
 
-// If the #table element isn't already a child of #tableArea, move it in.
+// Append draw pile, table (discard), then controls to tableArea to form left->center->right
+tableArea.appendChild(drawContainer);
 if (tableEl.parentNode !== tableArea) {
   tableArea.appendChild(tableEl);
 }
+tableArea.appendChild(controlContainer);
 
-// Force ordering  so draw pile is left and discard is right
-drawContainer.style.order = '1';
-tableEl.style.order = '2';
+// Force ordering: discard (table) left, draw pile center, controls right
+tableEl.style.order = '1';
+drawContainer.style.order = '2';
+controlContainer.style.order = '3';
 
 // Clicking the draw pile
-drawImg.addEventListener('click', () => {
+drawImg.addEventListener('click', async () => {
+  // Animate card from deck to hand
+  await animateCardFromDeck();
   socket.emit('drawCard', { gameId: gameId });
 });
 

@@ -8,6 +8,7 @@ const {
   getLobbyList,
   shuffle
 } = require('./game');
+const { processWinnerPayout } = require('./payment');
 
 function broadcastLobbyList(io) {
   io.emit('lobbyList', getLobbyList());
@@ -33,47 +34,83 @@ function setupSocketHandlers(io) {
 
     // Client current lobby list
     socket.emit('lobbyList', getLobbyList());
+    
+    // Send payment status on connect
+    socket.emit('paymentStatus', { hasPaid: !!(sess && sess.hasPaid) });
+    
+    // Listen for payment status updates from HTTP routes
+    socket.on('refreshPaymentStatus', () => {
+      // Reload session to get latest hasPaid value
+      socket.request.session.reload((err) => {
+        if (err) {
+          console.error('Session reload error:', err);
+          return;
+        }
+        const updatedSess = socket.request.session;
+        socket.emit('paymentStatus', { hasPaid: !!(updatedSess && updatedSess.hasPaid) });
+      });
+    });
 
     // =====================
     // LOBBY HANDLERS
     // =====================
 
     socket.on('createLobby', ({ lobbyName = null, maxPlayers = 8, playerName: clientName = 'Host', isPrivate = false } = {}) => {
-      const playerName = sessUser || clientName || 'Player';
-      const gameId = uuidv4();
-      const game = initGame(gameId);
-      game.ownerId = socket.id;
-      game.ownerName = playerName || 'Host';
-      game.lobbyName = lobbyName || `${game.ownerName}'s Lobby`;
-      game.maxPlayers = Math.max(2, Math.min(32, Number(maxPlayers) || 8));
-      game.createdAt = Date.now();
-      game.status = 'waiting';
+      // Reload session to get latest payment status
+      socket.request.session.reload((reloadErr) => {
+        if (reloadErr) {
+          console.error('Session reload error in createLobby:', reloadErr);
+          // Fall back to existing session if reload fails
+        }
+        
+        const currentSess = socket.request.session;
+        
+        // Check payment status
+        const hasPaid = currentSess && currentSess.hasPaid;
+        if (!hasPaid) {
+          socket.emit('createLobbyError', { 
+            reason: 'Payment required to create lobbies',
+            requiresPayment: true 
+          });
+          return;
+        }
+        
+        const playerName = sessUser || clientName || 'Player';
+        const gameId = uuidv4();
+        const game = initGame(gameId);
+        game.ownerId = socket.id;
+        game.ownerName = playerName || 'Host';
+        game.lobbyName = lobbyName || `${game.ownerName}'s Lobby`;
+        game.maxPlayers = Math.max(2, Math.min(32, Number(maxPlayers) || 8));
+        game.createdAt = Date.now();
+        game.status = 'waiting';
 
-      if (isPrivate) {
-        game.private = true;
-        game.joinCode = generateJoinCode(6);
-      }
+        if (isPrivate) {
+          game.private = true;
+          game.joinCode = generateJoinCode(6);
+        }
 
-      // Creator auto-joins
-      const player = {
-        socketId: socket.id,
-        id: socket.id,
-        name: playerName || 'Host',
-        hand: [],
-        ready: false
-      };
-      game.players.push(player);
-      socket.join(gameId);
+        // Creator auto-joins
+        const player = {
+          socketId: socket.id,
+          id: socket.id,
+          name: playerName || 'Host',
+          hand: [],
+          ready: false
+        };
+        game.players.push(player);
+        socket.join(gameId);
 
-      // Notify creator
-      socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName, isPrivate: game.private, joinCode: game.joinCode });
-      emitPlayerList(io, game);
-      io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
-      // Broadcast join code to all players in the room
-      io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
-      broadcastLobbyList(io);
+        // Notify creator
+        socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName, isPrivate: game.private, joinCode: game.joinCode });
+        emitPlayerList(io, game);
+        io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+        // Broadcast join code to all players in the room
+        io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
+        broadcastLobbyList(io);
 
-      console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
+        console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
+      });
     });
 
     // Join by code handler
@@ -202,7 +239,15 @@ function setupSocketHandlers(io) {
       const existing = game.players.find(p => p.socketId === socket.id);
       if (existing) {
         socket.join(gameId);
-        socket.emit('joined', { playerId: existing.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: game.joinCode || null });
+        socket.emit('joined', { 
+          playerId: existing.id, 
+          gameId, 
+          lobbyName: game.lobbyName, 
+          isPrivate: !!game.private, 
+          joinCode: game.joinCode || null,
+          ownerId: game.ownerId,
+          ownerName: game.ownerName
+        });
         emitPlayerList(io, game);
         io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
         // Broadcast join code to all players in the room
@@ -225,6 +270,7 @@ function setupSocketHandlers(io) {
 
         existingByName.socketId = socket.id;
         existingByName.id = socket.id;
+        existingByName.userId = socket.request.session.token?.id || existingByName.userId || null;
         existingByName.ready = wasReady;
 
         // Update owner socket id BEFORE sending events
@@ -260,12 +306,21 @@ function setupSocketHandlers(io) {
         socketId: socket.id,
         id: socket.id,
         name: playerName || 'Player',
+        userId: socket.request.session.token?.id || null,
         hand: [],
         ready: false
       };
       game.players.push(player);
       socket.join(gameId);
-      socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: (socket.id === game.ownerId ? game.joinCode : null) });
+      socket.emit('joined', { 
+        playerId: player.id, 
+        gameId, 
+        lobbyName: game.lobbyName, 
+        isPrivate: !!game.private, 
+        joinCode: (socket.id === game.ownerId ? game.joinCode : null),
+        ownerId: game.ownerId,
+        ownerName: game.ownerName
+      });
       console.log(`${player.name} joined as NEW player with ready=false`);
       console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
       emitPlayerList(io, game);
@@ -790,6 +845,46 @@ function setupSocketHandlers(io) {
         });
 
         console.log(`Player ${player.name} (${player.id}) won game ${gameId}`);
+        
+        // Process winner payout with dynamic amount calculation
+        const winnerId = player.userId;
+        const playerCount = game.players.length;
+        
+        if (winnerId) {
+          console.log(`Initiating payout: winner userId=${winnerId}, players=${playerCount}`);
+          
+          processWinnerPayout(winnerId, playerCount, gameId)
+            .then(result => {
+              if (result.ok) {
+                console.log(`Payout success: ${result.amount} Digipogs to user ${winnerId}`);
+                io.to(player.socketId).emit('payoutSuccess', {
+                  amount: result.amount,
+                  playerCount: playerCount,
+                  message: `You won ${result.amount} Digipogs! (${playerCount} players)`
+                });
+              } else {
+                console.error(`Payout failed for user ${winnerId}:`, result.error);
+                io.to(player.socketId).emit('payoutFailed', {
+                  error: result.error,
+                  message: 'Failed to process winner payout. Please contact support.'
+                });
+              }
+            })
+            .catch(err => {
+              console.error('Payout processing error:', err);
+              io.to(player.socketId).emit('payoutFailed', {
+                error: 'Unexpected error',
+                message: 'Failed to process payout. Please contact support.'
+              });
+            });
+        } else {
+          console.warn(`Winner ${player.name} has no userId, cannot process payout`);
+          io.to(player.socketId).emit('payoutFailed', {
+            error: 'No user ID',
+            message: 'Cannot process payout: user not authenticated'
+          });
+        }
+        
         return;
       }
     });

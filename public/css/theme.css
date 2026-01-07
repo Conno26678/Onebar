@@ -206,14 +206,8 @@ a:hover {
   padding: 24px;
   margin: 15px 0;
   box-shadow: 0 4px 20px var(--shadow);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-}
-
-.card:hover {
-  transform: translateY(-8px) scale(1.03);
-  box-shadow: 0 12px 40px var(--shadow);
 }
 
 /* Game elements */
@@ -395,9 +389,9 @@ a:hover {
 }
 
 .logout-button:hover {
-  background: var(--gradient-accent);
+  background: linear-gradient(135deg, #c53030 0%, #9b2c2c 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 25px var(--shadow), var(--glow-accent);
+  box-shadow: 0 6px 25px var(--shadow), 0 0 30px rgba(197, 48, 48, 0.3);
 }
 
 /* Scrollbar styling */

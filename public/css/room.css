@@ -294,9 +294,9 @@
 }
 
 #roomControls button:hover {
-    background: var(--gradient-accent);
+    background: linear-gradient(135deg, #c53030 0%, #9b2c2c 100%);
     transform: translateY(-3px);
-    box-shadow: 0 8px 25px var(--shadow), var(--glow-accent);
+    box-shadow: 0 8px 25px var(--shadow), 0 0 30px rgba(197, 48, 48, 0.3);
 }
 
 #roomControls button.start-btn {
@@ -404,9 +404,9 @@
 }
 
 .back-link:hover {
-    background: var(--gradient-accent);
+    background: linear-gradient(135deg, #c53030 0%, #9b2c2c 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 25px var(--shadow), var(--glow-accent);
+    box-shadow: 0 6px 25px var(--shadow), 0 0 30px rgba(197, 48, 48, 0.3);
     color: #fff;
     text-decoration: none;
 }

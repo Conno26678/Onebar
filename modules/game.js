@@ -1,6 +1,6 @@
 const { createDeck, shuffle } = require('../cards');
 
-// In-memory storage for all active games
+// storage for all active games
 const games = {};
 
 /**

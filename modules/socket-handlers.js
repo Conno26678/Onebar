@@ -239,7 +239,15 @@ function setupSocketHandlers(io) {
       const existing = game.players.find(p => p.socketId === socket.id);
       if (existing) {
         socket.join(gameId);
-        socket.emit('joined', { playerId: existing.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: game.joinCode || null });
+        socket.emit('joined', { 
+          playerId: existing.id, 
+          gameId, 
+          lobbyName: game.lobbyName, 
+          isPrivate: !!game.private, 
+          joinCode: game.joinCode || null,
+          ownerId: game.ownerId,
+          ownerName: game.ownerName
+        });
         emitPlayerList(io, game);
         io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
         // Broadcast join code to all players in the room
@@ -304,7 +312,15 @@ function setupSocketHandlers(io) {
       };
       game.players.push(player);
       socket.join(gameId);
-      socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName, isPrivate: !!game.private, joinCode: (socket.id === game.ownerId ? game.joinCode : null) });
+      socket.emit('joined', { 
+        playerId: player.id, 
+        gameId, 
+        lobbyName: game.lobbyName, 
+        isPrivate: !!game.private, 
+        joinCode: (socket.id === game.ownerId ? game.joinCode : null),
+        ownerId: game.ownerId,
+        ownerName: game.ownerName
+      });
       console.log(`${player.name} joined as NEW player with ready=false`);
       console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
       emitPlayerList(io, game);

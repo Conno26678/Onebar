@@ -35,18 +35,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // remember privacy state and join code
     currentRoomIsPrivate = !!isPrivate;
     if (joinCode) currentJoinCode = joinCode;
+    
+    // Set owner info from server immediately
+    currentOwnerId = ownerId;
+    currentOwnerName = ownerName;
+
     updateJoinCodeDisplay();
     renderRoomControls();
-
-    if (ownerId) {
-      currentOwnerId = ownerId;
-      if (ownerName) currentOwnerName = ownerName;
-    } else if (!currentOwnerId && currentPlayerId && currentPlayerId === socket.id) {
-        currentOwnerId = currentPlayerId;
-      }
-
-      updateJoinCodeDisplay();
-      renderRoomControls();
   });
 
   // If join failed because lobby is private, show join code input and retry

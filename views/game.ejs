@@ -571,6 +571,7 @@
     oneBtn.addEventListener('click', () => {
       const handCount = document.querySelectorAll('#hand div[data-card-id]').length;
       if (handCount !== 1) {
+        alert('You can only call ONE when you have exactly 1 card left!');
         return;
       }
       // Send to server to validate and broadcast
@@ -607,17 +608,47 @@
     });
 
     // Notify the player when they have ONE card and need to call it
+    let oneCountdownInterval = null;
     socket.on('youHaveOne', ({ expiresAt }) => {
-      const remainMs = Math.max(0, expiresAt - Date.now());
-      const secs = Math.ceil(remainMs / 1000);
       const s = document.getElementById('status');
-      s.innerText = 'You have ONE card! Press the ONE button within ' + secs + ' seconds!';
-      // Clear this message after the timeout
-      setTimeout(() => {
-        if (s && s.innerText && s.innerText.includes('ONE card')) {
+      
+      // Clear any existing countdown
+      if (oneCountdownInterval) {
+        clearInterval(oneCountdownInterval);
+        oneCountdownInterval = null;
+      }
+      
+      // Create a span for the number so we can update just the number
+      const baseText = 'You have ONE card! Press the ONE button within ';
+      const endText = ' seconds!';
+      
+      // Update countdown every 1 second for easier readability
+      function updateCountdown() {
+        const remainMs = Math.max(0, expiresAt - Date.now());
+        const secs = Math.ceil(remainMs / 1000);
+        
+        if (secs > 0) {
+          s.innerHTML = baseText + '<span id="oneCountdown" style="font-size: 1.4em; font-weight: bold;">' + secs + '</span>' + endText;
+          s.style.color = secs <= 2 ? '#ff4444' : '#ffaa00';
+          s.style.fontWeight = 'bold';
+          s.style.fontSize = '1.2em';
+        } else {
           s.innerText = '';
+          s.style.color = '';
+          s.style.fontWeight = '';
+          s.style.fontSize = '';
+          if (oneCountdownInterval) {
+            clearInterval(oneCountdownInterval);
+            oneCountdownInterval = null;
+          }
         }
-      }, remainMs + 100);
+      }
+      
+      // Initial update
+      updateCountdown();
+      
+      // Update every 1 second (1000ms)
+      oneCountdownInterval = setInterval(updateCountdown, 1000);
     });
 
 

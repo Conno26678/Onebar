@@ -248,9 +248,9 @@
 }
 
 .lobby-form button:hover {
-    background: var(--gradient-accent);
+    background: linear-gradient(135deg, #c53030 0%, #9b2c2c 100%);
     transform: translateY(-3px);
-    box-shadow: 0 8px 25px var(--shadow), var(--glow-accent);
+    box-shadow: 0 8px 25px var(--shadow), 0 0 30px rgba(197, 48, 48, 0.3);
 }
 
 /* Current Room Panel */
@@ -497,9 +497,9 @@
 }
 
 .back-link:hover {
-    background: var(--gradient-accent);
+    background: linear-gradient(135deg, #c53030 0%, #9b2c2c 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 25px var(--shadow), var(--glow-accent);
+    box-shadow: 0 6px 25px var(--shadow), 0 0 30px rgba(197, 48, 48, 0.3);
     color: #fff;
     text-decoration: none;
 }
@@ -525,14 +525,10 @@
 }
 
 .payment-modal-content {
-    background: linear-gradient(135deg, var(--card-bg) 0%, var(--hover-color) 100%);
     margin: 5% auto;
-    padding: 30px;
-    border: 2px solid var(--border-color);
-    border-radius: 20px;
+    padding: 0;
     width: 90%;
     max-width: 500px;
-    box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5), var(--glow-primary);
     position: relative;
     animation: slideIn 0.3s ease-out;
 }

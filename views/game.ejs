@@ -145,7 +145,134 @@
         }
       });
     }
-
+    socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError }) => {
+  const overlay = document.createElement('div');
+  overlay.id = 'winnerModal';
+  overlay.style.display = 'block';
+  overlay.style.position = 'fixed';
+  overlay.style.zIndex = '10000';
+  overlay.style.left = '0';
+  overlay.style.top = '0';
+  overlay.style.width = '100%';
+  overlay.style.height = '100%';
+  overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+  
+  const content = document.createElement('div');
+  content.className = 'winner-content';
+  content.style.position = 'relative';
+  content.style.background = '#0d1117';
+  content.style.margin = '10% auto';
+  content.style.padding = '40px';
+  content.style.borderRadius = '20px';
+  content.style.width = '90%';
+  content.style.maxWidth = '500px';
+  content.style.textAlign = 'center';
+  content.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.5)';
+  content.style.border = '1px solid #30363d';
+  
+  const title = document.createElement('h2');
+  title.textContent = '🏆 Winner!';
+  title.style.color = '#ffd700';
+  title.style.fontSize = '2.5em';
+  title.style.marginBottom = '20px';
+  title.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.5)';
+  content.appendChild(title);
+  
+  const name = document.createElement('div');
+  name.className = 'winner-name';
+  name.textContent = winnerName;
+  name.style.fontSize = '2em';
+  name.style.color = '#fff';
+  name.style.margin = '20px 0';
+  name.style.fontWeight = 'bold';
+  content.appendChild(name);
+  
+  const amount = document.createElement('div');
+  amount.className = 'winner-amount';
+  if (payoutError) {
+    amount.textContent = 'Payout Error - Contact Support';
+    amount.style.color = '#ff6b6b';
+  } else {
+    amount.textContent = `Won ${digipogs} Digipogs!`;
+    amount.style.color = '#ffd700';
+  }
+  amount.style.fontSize = '1.8em';
+  amount.style.margin = '20px 0';
+  amount.style.fontWeight = 'bold';
+  content.appendChild(amount);
+  
+  const playerInfo = document.createElement('div');
+  playerInfo.textContent = `${playerCount} players competed`;
+  playerInfo.style.color = '#fff';
+  playerInfo.style.fontSize = '1.2em';
+  playerInfo.style.marginBottom = '30px';
+  content.appendChild(playerInfo);
+  
+  const buttons = document.createElement('div');
+  buttons.className = 'winner-buttons';
+  buttons.style.display = 'flex';
+  buttons.style.gap = '20px';
+  buttons.style.justifyContent = 'center';
+  buttons.style.marginTop = '30px';
+  
+  const playAgainBtn = document.createElement('button');
+  playAgainBtn.textContent = 'Play Again';
+  playAgainBtn.className = 'play-again-btn';
+  playAgainBtn.style.padding = '15px 30px';
+  playAgainBtn.style.fontSize = '1.2em';
+  playAgainBtn.style.border = 'none';
+  playAgainBtn.style.borderRadius = '10px';
+  playAgainBtn.style.cursor = 'pointer';
+  playAgainBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
+  playAgainBtn.style.color = 'white';
+  playAgainBtn.style.fontWeight = 'bold';
+  playAgainBtn.style.transition = 'all 0.3s ease';
+  playAgainBtn.addEventListener('mouseover', () => {
+    playAgainBtn.style.background = 'linear-gradient(135deg, #c53030 0%, #e53e3e 100%)';
+    playAgainBtn.style.transform = 'translateY(-2px)';
+    playAgainBtn.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
+  });
+  playAgainBtn.addEventListener('mouseout', () => {
+    playAgainBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
+    playAgainBtn.style.transform = 'translateY(0)';
+    playAgainBtn.style.boxShadow = 'none';
+  });
+  playAgainBtn.addEventListener('click', () => {
+    window.location.href = '/room/' + encodeURIComponent(currentRommId);
+  });
+  buttons.appendChild(playAgainBtn);
+  
+  const lobbyBtn = document.createElement('button');
+  lobbyBtn.textContent = 'Back to Lobby';
+  lobbyBtn.className = 'back-lobby-btn';
+  lobbyBtn.style.padding = '15px 30px';
+  lobbyBtn.style.fontSize = '1.2em';
+  lobbyBtn.style.border = 'none';
+  lobbyBtn.style.borderRadius = '10px';
+  lobbyBtn.style.cursor = 'pointer';
+  lobbyBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
+  lobbyBtn.style.color = 'white';
+  lobbyBtn.style.fontWeight = 'bold';
+  lobbyBtn.style.transition = 'all 0.3s ease';
+  lobbyBtn.addEventListener('mouseover', () => {
+    lobbyBtn.style.background = 'linear-gradient(135deg, #c53030 0%, #e53e3e 100%)';
+    lobbyBtn.style.transform = 'translateY(-2px)';
+    lobbyBtn.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
+  });
+  lobbyBtn.addEventListener('mouseout', () => {
+    lobbyBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
+    lobbyBtn.style.transform = 'translateY(0)';
+    lobbyBtn.style.boxShadow = 'none';
+  });
+  lobbyBtn.addEventListener('click', () => {
+    window.location.href = '/lobby';
+  });
+  buttons.appendChild(lobbyBtn);
+  
+  content.appendChild(buttons);
+  overlay.appendChild(content);
+  document.body.appendChild(overlay);
+});
     //Drawn Card choice
     function showDrawnCardChoice(card, isWild, callback) {
       const overlay = document.createElement('div');
@@ -574,6 +701,17 @@
         alert('You can only call ONE when you have exactly 1 card left!');
         return;
       }
+      // Clear the countdown timer when ONE is pressed
+      if (oneCountdownInterval) {
+        clearInterval(oneCountdownInterval);
+        oneCountdownInterval = null;
+      }
+      // Clear the status message
+      const s = document.getElementById('status');
+      s.innerText = '';
+      s.style.color = '';
+      s.style.fontWeight = '';
+      s.style.fontSize = '';
       // Send to server to validate and broadcast
       socket.emit('callOne', { gameId: gameId });
     });

@@ -323,4 +323,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (createdId === gameId) {
     }
   });
+
+  // Winner screen handler
+  socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError = false }) => {
+    const modal = document.getElementById('winnerModal');
+    const nameDisplay = document.getElementById('winnerNameDisplay');
+    const earningsDisplay = document.getElementById('winnerEarningsDisplay');
+    
+    nameDisplay.textContent = `${winnerName} Wins!`;
+    
+    if (payoutError) {
+      earningsDisplay.innerHTML = `<strong>Winner!</strong><br><small>Payout processing failed</small>`;
+    } else {
+      earningsDisplay.innerHTML = `Won <strong>${digipogs}</strong> Digipogs!<br><small>${playerCount} players</small>`;
+    }
+    
+    modal.style.display = 'flex';
+  });
+
+  // Play Again button handler
+  document.getElementById('playAgainBtn').addEventListener('click', () => {
+    socket.emit('playAgain', { gameId });
+  });
+
+  // Back to Lobby button handler
+  document.getElementById('backToLobbyBtn').addEventListener('click', () => {
+    window.location.href = '/lobby';
+  });
 });

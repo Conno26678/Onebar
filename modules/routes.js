@@ -21,6 +21,20 @@ function setupRoutes(app) {
     res.render('lobby.ejs', { user: req.session.user });
   });
 
+  app.get('/leaderboard', isAuthenticated, (req, res) => {
+    db.all(
+      "SELECT username, wins, gamesPlayed FROM users WHERE gamesPlayed > 0 ORDER BY wins DESC LIMIT 100",
+      [],
+      (err, rows) => {
+        if (err) {
+          console.error("Error fetching leaderboard:", err);
+          return res.status(500).send("error loading leaderboard")
+        }
+        res.render('leaderboard', { players: rows } );
+      }
+    );
+  });
+
   app.get('/room/:gameId', isAuthenticated, (req, res) => {
     const param = req.params.gameId;
     let game = games[param];

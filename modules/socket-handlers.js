@@ -857,6 +857,15 @@ function setupSocketHandlers(io) {
             .then(result => {
               if (result.ok) {
                 console.log(`Payout success: ${result.amount} Digipogs to user ${winnerId}`);
+                
+                // Emit winner screen to all players in the room
+                io.to(gameId).emit('showWinnerScreen', {
+                  winnerName: player.name,
+                  winnerId: player.id,
+                  digipogs: result.amount,
+                  playerCount: playerCount
+                });
+                
                 io.to(player.socketId).emit('payoutSuccess', {
                   amount: result.amount,
                   playerCount: playerCount,
@@ -864,6 +873,16 @@ function setupSocketHandlers(io) {
                 });
               } else {
                 console.error(`Payout failed for user ${winnerId}:`, result.error);
+                
+                // Still show winner screen even if payout failed
+                io.to(gameId).emit('showWinnerScreen', {
+                  winnerName: player.name,
+                  winnerId: player.id,
+                  digipogs: 0,
+                  playerCount: playerCount,
+                  payoutError: true
+                });
+                
                 io.to(player.socketId).emit('payoutFailed', {
                   error: result.error,
                   message: 'Failed to process winner payout. Please contact support.'
@@ -872,6 +891,16 @@ function setupSocketHandlers(io) {
             })
             .catch(err => {
               console.error('Payout processing error:', err);
+              
+              // Still show winner screen even if payout failed
+              io.to(gameId).emit('showWinnerScreen', {
+                winnerName: player.name,
+                winnerId: player.id,
+                digipogs: 0,
+                playerCount: playerCount,
+                payoutError: true
+              });
+              
               io.to(player.socketId).emit('payoutFailed', {
                 error: 'Unexpected error',
                 message: 'Failed to process payout. Please contact support.'
@@ -879,6 +908,16 @@ function setupSocketHandlers(io) {
             });
         } else {
           console.warn(`Winner ${player.name} has no userId, cannot process payout`);
+          
+          // Show winner screen without payout info
+          io.to(gameId).emit('showWinnerScreen', {
+            winnerName: player.name,
+            winnerId: player.id,
+            digipogs: 0,
+            playerCount: playerCount,
+            payoutError: true
+          });
+          
           io.to(player.socketId).emit('payoutFailed', {
             error: 'No user ID',
             message: 'Cannot process payout: user not authenticated'

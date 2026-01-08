@@ -47,8 +47,18 @@ function handleLogin(req, res) {
         if (err) {
           console.error('Error loading payment status:', err.message);
         } else if (row) {
-          req.session.hasPaid = !!row.hasPaid;
-          console.log(`Loaded payment status for user ${tokenData.id}: hasPaid=${req.session.hasPaid}`);
+          // Owner (ID 33) always has paid access
+          if (tokenData.id === 33) {
+            req.session.hasPaid = true;
+            console.log(`Owner (ID 33) granted permanent paid access`);
+            // Ensure database reflects this
+            db.run("UPDATE users SET hasPaid = 1 WHERE id = 33", (err) => {
+              if (err) console.error('Error setting owner hasPaid:', err);
+            });
+          } else {
+            req.session.hasPaid = !!row.hasPaid;
+            console.log(`Loaded payment status for user ${tokenData.id}: hasPaid=${req.session.hasPaid}`);
+          }
         }
         
         req.session.save((saveErr) => {

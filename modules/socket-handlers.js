@@ -8,7 +8,9 @@ const {
   getLobbyList,
   shuffle
 } = require('./game');
+const { createDeck } = require('../cards');
 const { processWinnerPayout } = require('./payment');
+const db = require('../util/database');
 
 function broadcastLobbyList(io) {
   io.emit('lobbyList', getLobbyList());
@@ -96,7 +98,8 @@ function setupSocketHandlers(io) {
           id: socket.id,
           name: playerName || 'Host',
           hand: [],
-          ready: false
+          ready: false,
+          userId: currentSess && currentSess.token ? currentSess.token.id : null
         };
         game.players.push(player);
         socket.join(gameId);
@@ -200,9 +203,11 @@ function setupSocketHandlers(io) {
         io.to(player.socketId).emit('cardPlacedOnTable', top);
         
         // If it's a wild card without an activeColor and it's this player's turn, ask for color
-        if (top.color === 'wild' && !top.activeColor && game.started) {
+        // Add a flag to prevent duplicate requests
+        if (top.color === 'wild' && !top.activeColor && game.started && !game.awaitingStartColor) {
           const currentPlayer = game.players[game.turnIndex];
           if (currentPlayer && currentPlayer.socketId === socket.id) {
+            game.awaitingStartColor = true;
             io.to(socket.id).emit('requestStartColor', { gameId, card: top });
             console.log('Re-requesting starting color after join for', player.name);
           }
@@ -456,6 +461,7 @@ function setupSocketHandlers(io) {
         io.to(gameId).emit('cardPlacedOnTable', top);
 
         if (top.color === 'wild') {
+          game.awaitingStartColor = true;
           io.to(currentSocketId).emit('requestStartColor', { gameId, card: top });
           console.log('requesting starting color', currentSocketId);
         }
@@ -470,6 +476,13 @@ function setupSocketHandlers(io) {
         socket.emit('invalidMove', { reason: 'Game not started' });
         return;
       }
+      
+      // Block moves if awaiting start color selection
+      if (game.awaitingStartColor) {
+        socket.emit('invalidMove', { reason: 'Waiting for starting color to be chosen' });
+        return;
+      }
+      
       const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
       if (playerIndex === -1) {
         socket.emit('invalidMove', { reason: 'Not in game' });
@@ -654,6 +667,7 @@ function setupSocketHandlers(io) {
 
       top.activeColor = color;
       game.started = true;
+      game.awaitingStartColor = false;
 
       io.to(gameId).emit('cardPlacedOnTable', top);
       io.to(gameId).emit('turnChanged', { currentPlayerId: currentPlayer.id });
@@ -665,6 +679,12 @@ function setupSocketHandlers(io) {
       const game = games[gameId];
       if (!game || !game.started) {
         socket.emit('invalidMove', { reason: 'Game not started' });
+        return;
+      }
+
+      // Block moves if awaiting start color selection
+      if (game.awaitingStartColor) {
+        socket.emit('invalidMove', { reason: 'Waiting for starting color to be chosen' });
         return;
       }
 
@@ -846,6 +866,39 @@ function setupSocketHandlers(io) {
 
         console.log(`Player ${player.name} (${player.id}) won game ${gameId}`);
         
+        // Update game statistics for all players
+        game.players.forEach(p => {
+          if (p.userId) {
+            const isWinner = p.id === player.id;
+            
+            // Update wins/losses/games played
+            if (isWinner) {
+              db.run("UPDATE users SET wins = COALESCE(wins, 0) + 1, gamesPlayed = COALESCE(gamesPlayed, 0) + 1 WHERE id = ?", [p.userId], (err) => {
+                if (err) console.error('Database error updating winner stats:', err);
+              });
+            } else {
+              db.run("UPDATE users SET losses = COALESCE(losses, 0) + 1, gamesPlayed = COALESCE(gamesPlayed, 0) + 1 WHERE id = ?", [p.userId], (err) => {
+                if (err) console.error('Database error updating loser stats:', err);
+              });
+            }
+            
+            // Reset payment status for all players EXCEPT owner (ID 33)
+            if (p.userId !== 33) {
+              const socketForPlayer = io.sockets.sockets.get(p.socketId);
+              if (socketForPlayer && socketForPlayer.request && socketForPlayer.request.session) {
+                socketForPlayer.request.session.hasPaid = false;
+                socketForPlayer.request.session.save((err) => {
+                  if (err) console.error('Session save error for player:', err);
+                });
+              }
+              // Also reset in database
+              db.run("UPDATE users SET hasPaid = 0 WHERE id = ?", [p.userId], (err) => {
+                if (err) console.error('Database error resetting hasPaid:', err);
+              });
+            }
+          }
+        });
+        
         // Process winner payout with dynamic amount calculation
         const winnerId = player.userId;
         const playerCount = game.players.length;
@@ -880,7 +933,8 @@ function setupSocketHandlers(io) {
                   winnerId: player.id,
                   digipogs: 0,
                   playerCount: playerCount,
-                  payoutError: true
+                  payoutError: true,
+                  payoutErrorMessage: result.error || 'Failed to process winner payout'
                 });
                 
                 io.to(player.socketId).emit('payoutFailed', {
@@ -898,7 +952,8 @@ function setupSocketHandlers(io) {
                 winnerId: player.id,
                 digipogs: 0,
                 playerCount: playerCount,
-                payoutError: true
+                payoutError: true,
+                payoutErrorMessage: err?.message || 'Unexpected error processing payout'
               });
               
               io.to(player.socketId).emit('payoutFailed', {
@@ -915,7 +970,8 @@ function setupSocketHandlers(io) {
             winnerId: player.id,
             digipogs: 0,
             playerCount: playerCount,
-            payoutError: true
+            payoutError: true,
+            payoutErrorMessage: 'Winner has no user account linked'
           });
           
           io.to(player.socketId).emit('payoutFailed', {
@@ -954,6 +1010,43 @@ function setupSocketHandlers(io) {
       }
 
       io.to(gameId).emit('playerCalledOne', { playerId: player.id, playerName: player.name });
+    });
+
+    // =====================
+    // PLAY AGAIN HANDLER
+    // =====================
+
+    socket.on('playAgain', ({ gameId } = {}) => {
+      const game = games[gameId];
+      if (!game) {
+        socket.emit('invalidMove', { reason: 'Game not found' });
+        return;
+      }
+
+      console.log(`Play Again requested for game ${gameId}`);
+
+      // Reset game state while keeping players
+      game.deck = createDeck();
+      game.discardPile = [];
+      game.turnIndex = 0;
+      game.direction = 1;
+      game.started = false;
+      game.status = 'waiting';
+      game.onePending = null;
+      game.winner = null;
+
+      // Reset player states
+      game.players.forEach(player => {
+        player.hand = [];
+        player.ready = false;
+      });
+
+      // Notify all players that game was reset
+      io.to(gameId).emit('gameReset', { message: 'Starting new game' });
+      emitPlayerList(io, game);
+      broadcastLobbyList(io);
+
+      console.log(`Game ${gameId} reset for new round`);
     });
 
     // =====================

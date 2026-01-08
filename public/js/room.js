@@ -330,12 +330,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const nameDisplay = document.getElementById('winnerNameDisplay');
     const earningsDisplay = document.getElementById('winnerEarningsDisplay');
     
-    nameDisplay.textContent = `${winnerName} Wins!`;
+    const isCurrentUserWinner = winnerName === currentUser;
     
-    if (payoutError) {
-      earningsDisplay.innerHTML = `<strong>Winner!</strong><br><small>Payout processing failed</small>`;
+    if (isCurrentUserWinner) {
+      nameDisplay.textContent = 'You are the winner!';
+      if (payoutError) {
+        // Only show error to the winner
+        earningsDisplay.innerHTML = `<strong>Winner!</strong><br><small>Payout processing failed</small>`;
+      } else {
+        earningsDisplay.innerHTML = `You won <strong>${digipogs}</strong> Digipogs!<br><small>${playerCount} players</small>`;
+      }
     } else {
-      earningsDisplay.innerHTML = `Won <strong>${digipogs}</strong> Digipogs!<br><small>${playerCount} players</small>`;
+      // Non-winners always see regular message, even if there was a payout error
+      nameDisplay.textContent = `${winnerName} won`;
+      earningsDisplay.innerHTML = `${winnerName} won <strong>${digipogs}</strong> Digipogs!<br><small>Try to win next time to earn some!</small>`;
     }
     
     modal.style.display = 'flex';
@@ -344,6 +352,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Play Again button handler
   document.getElementById('playAgainBtn').addEventListener('click', () => {
     socket.emit('playAgain', { gameId });
+    // Close the winner modal
+    document.getElementById('winnerModal').style.display = 'none';
+  });
+
+  // Handle game reset (from play again)
+  socket.on('gameReset', ({ message }) => {
+    console.log('Game reset:', message);
+    // Close winner modal if still open
+    document.getElementById('winnerModal').style.display = 'none';
+    // The playerList update will refresh the UI automatically
   });
 
   // Back to Lobby button handler

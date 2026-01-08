@@ -2,6 +2,7 @@ const express = require('express');
 const { isAuthenticated, handleLogin } = require('./middleware');
 const { games } = require('./game');
 const paymentRouter = require('./payment');
+const db = require('../util/database');
 
 function setupRoutes(app) {
   // Mount payment routes (must be before other routes to handle POST requests)
@@ -23,14 +24,14 @@ function setupRoutes(app) {
 
   app.get('/leaderboard', isAuthenticated, (req, res) => {
     db.all(
-      "SELECT username, wins, gamesPlayed FROM users WHERE gamesPlayed > 0 ORDER BY wins DESC LIMIT 100",
+      "SELECT displayName, wins, losses, gamesPlayed FROM users WHERE gamesPlayed > 0 ORDER BY wins DESC LIMIT 100",
       [],
       (err, rows) => {
         if (err) {
           console.error("Error fetching leaderboard:", err);
           return res.status(500).send("error loading leaderboard")
         }
-        res.render('leaderboard', { players: rows } );
+        res.render('leaderboard', { leaderboard: rows } );
       }
     );
   });

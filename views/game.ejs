@@ -37,6 +37,11 @@
 
     //store lobby ID
     let currentRommId = gameId;
+    
+    // Track current turn player
+    let currentTurnPlayerId = null;
+    let myPlayerId = null;
+    let currentTableCard = null; // Track the card on top of discard pile
 
     function showWinMedal(winnerName, isCurrentUserWinner) {
       disableGameUI();
@@ -145,7 +150,7 @@
         }
       });
     }
-    socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError }) => {
+    socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError, payoutErrorMessage }) => {
   const overlay = document.createElement('div');
   overlay.id = 'winnerModal';
   overlay.style.display = 'block';
@@ -170,6 +175,8 @@
   content.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.5)';
   content.style.border = '1px solid #30363d';
   
+  const isCurrentUserWinner = (winnerName === playerName);
+  
   const title = document.createElement('h2');
   title.textContent = '🏆 Winner!';
   title.style.color = '#ffd700';
@@ -180,7 +187,7 @@
   
   const name = document.createElement('div');
   name.className = 'winner-name';
-  name.textContent = winnerName;
+  name.textContent = isCurrentUserWinner ? 'You are the winner!' : `${winnerName} won`;
   name.style.fontSize = '2em';
   name.style.color = '#fff';
   name.style.margin = '20px 0';
@@ -189,17 +196,46 @@
   
   const amount = document.createElement('div');
   amount.className = 'winner-amount';
-  if (payoutError) {
-    amount.textContent = 'Payout Error - Contact Support';
+  if (payoutError && isCurrentUserWinner) {
+    // Only show error to the winner
+    amount.textContent = 'Payout Error';
     amount.style.color = '#ff6b6b';
+    amount.style.fontSize = '1.8em';
+    amount.style.margin = '20px 0';
+    amount.style.fontWeight = 'bold';
+    content.appendChild(amount);
+    
+    const errorMessage = document.createElement('div');
+    errorMessage.className = 'payout-error-message';
+    errorMessage.textContent = payoutErrorMessage || 'Failed to process payout - Contact Support';
+    errorMessage.style.color = '#ff8585';
+    errorMessage.style.fontSize = '1.1em';
+    errorMessage.style.margin = '15px 0';
+    errorMessage.style.padding = '10px';
+    errorMessage.style.backgroundColor = 'rgba(255, 107, 107, 0.1)';
+    errorMessage.style.borderRadius = '8px';
+    errorMessage.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+    content.appendChild(errorMessage);
   } else {
-    amount.textContent = `Won ${digipogs} Digipogs!`;
+    // Normal winner/loser display
+    if (isCurrentUserWinner) {
+      amount.textContent = `You won ${digipogs} Digipogs!`;
+    } else {
+      amount.textContent = `${winnerName} won ${digipogs} Digipogs!`;
+      
+      const encouragement = document.createElement('div');
+      encouragement.style.color = '#a0aec0';
+      encouragement.style.fontSize = '1.1em';
+      encouragement.style.marginTop = '10px';
+      encouragement.textContent = 'Try to win next time to earn some!';
+      content.appendChild(encouragement);
+    }
     amount.style.color = '#ffd700';
+    amount.style.fontSize = '1.8em';
+    amount.style.margin = '20px 0';
+    amount.style.fontWeight = 'bold';
+    content.appendChild(amount);
   }
-  amount.style.fontSize = '1.8em';
-  amount.style.margin = '20px 0';
-  amount.style.fontWeight = 'bold';
-  content.appendChild(amount);
   
   const playerInfo = document.createElement('div');
   playerInfo.textContent = `${playerCount} players competed`;
@@ -379,6 +415,7 @@
 
     socket.on('joined', ({ playerId, gameId }) => {
         console.log('joined', playerId, gameId);
+        myPlayerId = playerId; // Store our player ID
         document.getElementById('status').innerText = `Joined game ${gameId} as ${playerName}`;
         // After first join, subsequent deals are reconnections - don't animate
         isInitialLoad = false;
@@ -415,18 +452,22 @@
     
     socket.on('gameStarted', ({currentPlayerId, players}) => {
       gameActive = true;
+        currentTurnPlayerId = currentPlayerId;
         updateCurrentPlayer(currentPlayerId);
     });
 
     socket.on('turnChanged', ({ currentPlayerId }) => {
+        currentTurnPlayerId = currentPlayerId;
         updateCurrentPlayer(currentPlayerId);
     });
 
     socket.on('cardPlacedOnTable', (card) => {
+      currentTableCard = card; // Store current table card
       addCardToTable(card, null, 'Top of Discard Pile');
     });
 
     socket.on('cardPlayed', ({ playerId, playerName, card }) => {
+        currentTableCard = card; // Store current table card
         addCardToTable(card, playerId, playerName);
         removeCardFromHand(card.id);
         // Update local hand tracking
@@ -595,6 +636,18 @@
         cardEl.addEventListener('click', async () => {
           if (!gameActive) return;
           
+          // Check if it's the player's turn BEFORE animation
+          if (currentTurnPlayerId !== myPlayerId) {
+            alert("It's not your turn! Wait for your turn to play.");
+            return;
+          }
+          
+          // Check if the card can be played BEFORE animation
+          if (!canPlayCard(card)) {
+            alert("You can't play that card! It doesn't match the color or value.");
+            return;
+          }
+          
           // Animate card to discard pile
           await animateCardToDiscard(cardEl, card.img);
           
@@ -609,6 +662,21 @@
         });
         container.appendChild(cardEl);
       });
+    }
+
+    // Validate if a card can be played on the current table card
+    function canPlayCard(card) {
+      if (!currentTableCard) return true; // No table card yet, any card is valid
+      
+      // Wild cards can always be played
+      if (card.color === 'wild') return true;
+      
+      // Get the active color (for wild cards that were played)
+      const tableColor = currentTableCard.activeColor || currentTableCard.chosenColor || currentTableCard.color;
+      const tableValue = currentTableCard.value;
+      
+      // Card matches if same color OR same value
+      return card.color === tableColor || card.value === tableValue;
     }
 
     function addCardToTable(card, playerId, playerName) {
@@ -840,6 +908,12 @@ controlContainer.style.order = '3';
 
 // Clicking the draw pile
 drawImg.addEventListener('click', async () => {
+  // Check if it's the player's turn BEFORE animation
+  if (currentTurnPlayerId !== myPlayerId) {
+    alert("It's not your turn! Wait for your turn to draw.");
+    return;
+  }
+  
   // Animate card from deck to hand
   await animateCardFromDeck();
   socket.emit('drawCard', { gameId: gameId });

@@ -167,6 +167,7 @@ async function processWinnerPayout(winnerId, playerCount, gameId = 'unknown') {
         const amount = 100 + (playerCount * 10);
         
         console.log(`Processing payout for game ${gameId}: winner ID ${winnerId}, ${playerCount} players, amount: ${amount} Digipogs`);
+        console.log(`OWNER_PIN is set: ${ownerPin ? 'yes' : 'no'}, PIN value: ${ownerPin ? '[REDACTED]' : 'undefined'}`);
 
         const payload = {
             from: 33, // Owner pays out
@@ -175,6 +176,8 @@ async function processWinnerPayout(winnerId, playerCount, gameId = 'unknown') {
             pin: Number(ownerPin),
             reason: `Winner payout for game ${gameId} (${playerCount} players)`,
         };
+        
+        console.log(`Payout payload (PIN redacted):`, { ...payload, pin: '[REDACTED]' });
 
         const transferResult = await fetch(`${FORMBAR_ADDRESS}/api/digipogs/transfer`, {
             method: 'POST',

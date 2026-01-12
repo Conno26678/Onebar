@@ -19,9 +19,40 @@
             <a href="/lobby">Enter Lobby List</a>
             <a href="/about">About / Rules</a>
             <a href="/leaderboard">Leaderboard</a>
+            <a href="/profile">Profile</a>
         </nav>
     </div>
     
     <script src="/js/theme.js"></script>
+    <script>
+        // Play hello there sound only on first visit
+        const hasPlayedHello = sessionStorage.getItem('helloPlayed');
+        
+        if (!hasPlayedHello) {
+            let audioPlayed = false;
+            const audio = new Audio('/sfx/hellothere.mp3');
+            audio.volume = 0.5;
+            
+            // Try to play immediately
+            audio.play().then(() => {
+                sessionStorage.setItem('helloPlayed', 'true');
+            }).catch(err => {
+                console.log('Audio autoplay prevented, waiting for user interaction');
+                // If autoplay fails, play on first user interaction
+                const playOnInteraction = () => {
+                    if (!audioPlayed) {
+                        audio.play().then(() => {
+                            sessionStorage.setItem('helloPlayed', 'true');
+                        }).catch(e => console.log('Audio play failed:', e));
+                        audioPlayed = true;
+                        document.removeEventListener('click', playOnInteraction);
+                        document.removeEventListener('keydown', playOnInteraction);
+                    }
+                };
+                document.addEventListener('click', playOnInteraction, { once: true });
+                document.addEventListener('keydown', playOnInteraction, { once: true });
+            });
+        }
+    </script>
 </body>
 </html>

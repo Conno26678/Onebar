@@ -7,6 +7,18 @@
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/cards-atlas.css">
     <link rel="stylesheet" href="/css/game.css">
+    <style>
+        @keyframes popIn {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 0;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
 </head>
 <body>
   <!-- Logout button (upper-left) -->
@@ -21,10 +33,27 @@
     <div id="hand"></div>
   </div>
 
+  <!-- Payment Modal -->
+  <div id="paymentModal" class="payment-modal" style="display: none;">
+    <div class="payment-modal-content">
+      <span class="payment-modal-close" onclick="hidePaymentModal()">&times;</span>
+      <%- include('partials/pay') %>
+    </div>
+  </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
 </body>
 <script>
+    // Override alert to play loading sound
+    const originalAlert = window.alert;
+    window.alert = function(message) {
+        const loadingSound = new Audio('/sfx/loading.mp3');
+        loadingSound.volume = 0.5;
+        loadingSound.play().catch(err => console.log('Sound play failed:', err));
+        originalAlert.call(window, message);
+    };
+
     const socket = io();
 
     const gameId = <%- JSON.stringify(gameId || 'default') %>;
@@ -38,6 +67,15 @@
     //store lobby ID
     let currentRommId = gameId;
     
+    // Track payment status
+    let hasPaid = false;
+    
+    // Listen for payment status updates
+    socket.on('paymentStatus', ({ hasPaid: paid }) => {
+        hasPaid = paid;
+        console.log('💰 Payment status updated in game:', hasPaid);
+    });
+    
     // Track current turn player
     let currentTurnPlayerId = null;
     let myPlayerId = null;
@@ -45,6 +83,17 @@
 
     function showWinMedal(winnerName, isCurrentUserWinner) {
       disableGameUI();
+      
+      // Play appropriate sound based on win/lose
+      if (isCurrentUserWinner) {
+        const winSound = new Audio('/sfx/yippie.mp3');
+        winSound.volume = 0.5;
+        winSound.play().catch(err => console.log('Sound play failed:', err));
+      } else {
+        const loseSound = new Audio('/sfx/spongebobfail.mp3');
+        loseSound.volume = 0.5;
+        loseSound.play().catch(err => console.log('Sound play failed:', err));
+      }
 
       const overlay = document.createElement('div');
       overlay.className = 'win-modal-overlay';
@@ -54,12 +103,12 @@
 
       const trophy = document.createElement('div');
       trophy.className = 'win-modal-trophy';
-      trophy.textContent = '🏆';
-      modal.appendChild(trophy);
+      trophy.textContent = isCurrentUserWinner ? '🏆' : '';
+      if (trophy.textContent) modal.appendChild(trophy);
 
       const title = document.createElement('div');
       title.className = 'win-modal-title';
-      title.textContent = isCurrentUserWinner ? 'Congratulations! You Won!' : `Game Over!`;
+      title.textContent = isCurrentUserWinner ? 'Congratulations! You Won!' : `get gud`;
       modal.appendChild(title);
 
       const winner = document.createElement('div');
@@ -178,8 +227,8 @@
   const isCurrentUserWinner = (winnerName === playerName);
   
   const title = document.createElement('h2');
-  title.textContent = '🏆 Winner!';
-  title.style.color = '#ffd700';
+  title.textContent = isCurrentUserWinner ? '🏆 Winner!' : 'get gud';
+  title.style.color = isCurrentUserWinner ? '#ffd700' : '#ff6b6b';
   title.style.fontSize = '2.5em';
   title.style.marginBottom = '20px';
   title.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.5)';
@@ -274,7 +323,17 @@
     playAgainBtn.style.boxShadow = 'none';
   });
   playAgainBtn.addEventListener('click', () => {
-    window.location.href = '/room/' + encodeURIComponent(currentRommId);
+    console.log('🎮 Play Again clicked, checking payment status...');
+    console.log('💰 Current hasPaid status:', hasPaid);
+    
+    // Check payment status before allowing play again
+    if (!hasPaid) {
+      console.log('⚠️ Payment required, showing modal...');
+      showPaymentModal();
+    } else {
+      console.log('✅ Payment verified, redirecting to room...');
+      window.location.href = '/room/' + encodeURIComponent(currentRommId);
+    }
   });
   buttons.appendChild(playAgainBtn);
   
@@ -388,6 +447,15 @@
       document.body.appendChild(overlay);
     }
 
+    // Register requestStartColor handler BEFORE joining game to avoid race condition
+    socket.on('requestStartColor', ({ gameId: gid, card }) => {
+        console.log('🎨 requestStartColor received, showing color picker...');
+        showColorPicker((chosen) => {
+          console.log('Color chosen:', chosen);
+          socket.emit('startColorChosen', { gameId: gameId || 'default', color: chosen });
+        }, 'Starting card is Wild!');
+    });
+
     socket.on('drawnCardPlayable', ({ card, gameId: gid, isWild }) => {
       showDrawnCardChoice(card, isWild, (action, chosenColor) => {
         socket.emit('drawnCardChoice', {
@@ -472,18 +540,27 @@
         removeCardFromHand(card.id);
         // Update local hand tracking
         currentHand = currentHand.filter(c => c.id !== card.id);
+        
+        // Play sound effects based on card type
+        if (card.value === 'Skip') {
+          const slapSound = new Audio('/sfx/slap.mp3');
+          slapSound.volume = 0.4;
+          slapSound.play().catch(err => console.log('Sound play failed:', err));
+        } else if (card.value === 'Reverse') {
+          const reverseSound = new Audio('/sfx/reverse.mp3');
+          reverseSound.volume = 0.4;
+          reverseSound.play().catch(err => console.log('Sound play failed:', err));
+        } else if (card.value === 'Draw Two' || card.value === 'Wild Draw Four' || card.id?.includes('DrawTwo') || card.id?.includes('WildDrawFour')) {
+          const pluhSound = new Audio('/sfx/pluh.mp3');
+          pluhSound.volume = 0.4;
+          pluhSound.play().catch(err => console.log('Sound play failed:', err));
+        }
     });
 
     socket.on('invalidMove', ({ reason }) => {
         alert('Invalid move: ' + reason);
         // Re-render hand to restore any cards that were hidden during animation
         renderHand(currentHand, false);
-    });
-
-        socket.on('requestStartColor', ({ gameId: gid, card }) => {
-        showColorPicker((chosen) => {
-          socket.emit('startColorChosen', { gameId: gameId || 'default', color: chosen });
-        }, 'Starting card is Wild!');
     });
 
     socket.on('playerWon', ({ playerId, playerName }) => {
@@ -769,6 +846,11 @@
         alert('You can only call ONE when you have exactly 1 card left!');
         return;
       }
+      // Play yeahoo sound
+      const yeahooSound = new Audio('/sfx/yeahoo.mp3');
+      yeahooSound.volume = 0.5;
+      yeahooSound.play().catch(err => console.log('Sound play failed:', err));
+      
       // Clear the countdown timer when ONE is pressed
       if (oneCountdownInterval) {
         clearInterval(oneCountdownInterval);
@@ -792,10 +874,133 @@
     }
     placeOneBtn();
 
+    // Create custom notification function for ONE calls (doesn't trigger alert sound)
+    function showOneNotification(message) {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #f0c030 0%, #f39c12 100%);
+            color: #1a1a1a;
+            padding: 20px 40px;
+            border-radius: 16px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            z-index: 10000;
+            animation: popIn 0.3s ease-out;
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 2000);
+    }
+
+    // Payment modal functions
+    window.showPaymentModal = function () {
+        const modal = document.getElementById('paymentModal');
+        if (modal) {
+            modal.style.display = 'block';
+            console.log('💳 Payment modal shown');
+            
+            // Ensure the transfer button is clickable by re-attaching event listener
+            setTimeout(() => {
+                const transferBtn = document.getElementById('transferBtn');
+                if (transferBtn) {
+                    console.log('✅ Transfer button found:', transferBtn);
+                    // Remove any existing listeners and add new one
+                    const newBtn = transferBtn.cloneNode(true);
+                    transferBtn.parentNode.replaceChild(newBtn, transferBtn);
+                    
+                    newBtn.addEventListener('click', async function() {
+                        console.log('💳 Transfer button clicked!');
+                        const pinInput = document.getElementById('pin');
+                        const savePIN = document.getElementById('savePIN');
+                        const pin = pinInput.value;
+
+                        if (!pin) {
+                            alert('Please enter your PIN.');
+                            return;
+                        }
+
+                        // Save PIN if checkbox is checked
+                        if (savePIN.checked) {
+                            try {
+                                await fetch('/savePin', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ pin })
+                                });
+                            } catch (error) {
+                                console.error('Failed to save PIN:', error);
+                            }
+                        }
+
+                        try {
+                            console.log('Sending transfer request...');
+                            const result = await fetch('/transfer', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ pin, reason: 'Onebar Payment' })
+                            });
+                            const data = await result.json();
+                            console.log('Transfer result:', data);
+                            
+                            const isSuccess = data.ok === true || data.success === true;
+                            if (isSuccess) {
+                                console.log('✅ Payment successful!');
+                                window.dispatchEvent(new CustomEvent('paymentSuccess'));
+                                window.dispatchEvent(new CustomEvent('hidePaymentModal'));
+                            } else {
+                                let errorMessage = data.error || data.message || 'Unknown error';
+                                alert('Transfer failed: ' + errorMessage);
+                                console.error('Transfer failed:', data);
+                            }
+                        } catch (error) {
+                            console.error('Transfer error:', error);
+                            alert('Transfer failed: Network error');
+                        }
+                    });
+                    console.log('✅ Transfer button event listener attached');
+                } else {
+                    console.error('❌ Transfer button not found!');
+                }
+            }, 100);
+        } else {
+            console.error('❌ Payment modal element not found!');
+        }
+    };
+
+    window.hidePaymentModal = function () {
+        const modal = document.getElementById('paymentModal');
+        if (modal) modal.style.display = 'none';
+    };
+
+    // Listen for payment success
+    window.addEventListener('paymentSuccess', () => {
+        console.log('💳 Payment successful! Refreshing status and redirecting...');
+        hidePaymentModal();
+        hasPaid = true;
+        // Redirect to room after successful payment
+        setTimeout(() => {
+            window.location.href = '/room/' + encodeURIComponent(currentRommId);
+        }, 300);
+    });
+
+    window.addEventListener('hidePaymentModal', () => {
+        hidePaymentModal();
+    });
+
     // Listen for server confirmation / errors
     socket.on('playerCalledOne', ({ playerId, playerName }) => {
       const name = playerName || document.getElementById('p_' + playerId)?.textContent || playerId;
-      alert(name + ' called ONE!');
+      showOneNotification(name + ' called ONE!');
     });
 
     socket.on('invalidOneCall', ({ reason }) => {

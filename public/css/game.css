@@ -694,3 +694,45 @@ html, body {
     background: linear-gradient(135deg, #777, #666);
     }
 }
+
+/* Payment Modal Styles */
+.payment-modal {
+    display: none;
+    position: fixed;
+    z-index: 20000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.payment-modal-content {
+    margin: 5% auto;
+    padding: 0;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    animation: slideIn 0.3s ease-out;
+}
+
+.payment-modal-close {
+    color: #aaa;
+    float: right;
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 20001;
+}
+
+.payment-modal-close:hover,
+.payment-modal-close:focus {
+    color: #f0c030;
+    transform: scale(1.2);
+}

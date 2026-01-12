@@ -52,9 +52,32 @@
         </div>
     </div>
 
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="payment-modal" style="display: none;">
+        <div class="payment-modal-content">
+            <span class="payment-modal-close" onclick="hidePaymentModal()">&times;</span>
+            <%- include('partials/pay') %>
+        </div>
+    </div>
+
     <script>window.CURRENT_USER = "<%= user %>"; window.GAME_ID = "<%= gameId %>"; window.LOBBY_NAME = "<%= (typeof lobbyName !== 'undefined' ? lobbyName : '') %>";</script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
+    <script>
+        // Play "a few moments" sound on page load
+        const afewMomentsSound = new Audio('/sfx/afewmoments.mp3');
+        afewMomentsSound.volume = 0.5;
+        afewMomentsSound.play().catch(err => console.log('Sound play failed:', err));
+        
+        // Override alert to play loading sound
+        const originalAlert = window.alert;
+        window.alert = function(message) {
+            const loadingSound = new Audio('/sfx/loading.mp3');
+            loadingSound.volume = 0.5;
+            loadingSound.play().catch(err => console.log('Sound play failed:', err));
+            originalAlert.call(window, message);
+        };
+    </script>
     <script src="/js/room.js"></script>
 </body>
 </html>

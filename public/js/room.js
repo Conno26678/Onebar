@@ -19,10 +19,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentRoomIsPrivate = false;
   let currentJoinCode = null;
   let hasPromptedForCode = false;
+  let hasPaid = false; // Track payment status
 
   // Check for join code in URL (from join-by-code flow)
   const urlParams = new URLSearchParams(window.location.search);
   const urlJoinCode = urlParams.get('code');
+
+  // Listen for payment status updates
+  socket.on('paymentStatus', ({ hasPaid: paid }) => {
+    hasPaid = paid;
+    console.log('💰 Payment status updated:', hasPaid);
+  });
 
   // When socket connects, send join request for this room
   socket.on('connect', () => {
@@ -341,8 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
         earningsDisplay.innerHTML = `You won <strong>${digipogs}</strong> Digipogs!<br><small>${playerCount} players</small>`;
       }
     } else {
-      // Non-winners always see regular message, even if there was a payout error
-      nameDisplay.textContent = `${winnerName} won`;
+      // Non-winners see 'get gud' message
+      nameDisplay.textContent = `get gud`;
       earningsDisplay.innerHTML = `${winnerName} won <strong>${digipogs}</strong> Digipogs!<br><small>Try to win next time to earn some!</small>`;
     }
     
@@ -351,9 +358,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Play Again button handler
   document.getElementById('playAgainBtn').addEventListener('click', () => {
+    console.log('Play Again button clicked, emitting playAgain event');
     socket.emit('playAgain', { gameId });
     // Close the winner modal
     document.getElementById('winnerModal').style.display = 'none';
+  });
+
+  // Handle play again payment requirement
+  socket.on('playAgainPaymentRequired', () => {
+    console.log('⚠️ Payment required! Showing payment modal...');
+    // Close winner modal
+    document.getElementById('winnerModal').style.display = 'none';
+    // Show payment modal
+    const modal = document.getElementById('paymentModal');
+    console.log('Payment modal element:', modal);
+    if (modal) {
+      modal.style.display = 'block';
+      console.log('✅ Payment modal should now be visible');
+    } else {
+      console.error('❌ Payment modal element not found!');
+    }
   });
 
   // Handle game reset (from play again)
@@ -367,5 +391,33 @@ document.addEventListener('DOMContentLoaded', () => {
   // Back to Lobby button handler
   document.getElementById('backToLobbyBtn').addEventListener('click', () => {
     window.location.href = '/lobby';
+  });
+
+  // Payment modal functions
+  window.showPaymentModal = function () {
+    const modal = document.getElementById('paymentModal');
+    if (modal) modal.style.display = 'block';
+  };
+
+  window.hidePaymentModal = function () {
+    const modal = document.getElementById('paymentModal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  // Listen for payment success
+  window.addEventListener('paymentSuccess', () => {
+    console.log('💳 Payment successful! Refreshing payment status...');
+    hidePaymentModal();
+    // Request server to refresh payment status
+    socket.emit('refreshPaymentStatus');
+    // Wait a brief moment for server to update session, then retry play again
+    setTimeout(() => {
+      console.log('🔄 Retrying play again after payment...');
+      socket.emit('playAgain', { gameId });
+    }, 500);
+  });
+
+  window.addEventListener('hidePaymentModal', () => {
+    hidePaymentModal();
   });
 });

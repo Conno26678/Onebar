@@ -884,17 +884,31 @@ function setupSocketHandlers(io) {
             
             // Reset payment status for all players EXCEPT owner (ID 33)
             if (p.userId !== 33) {
+              console.log(`🔄 Resetting payment status for player ${p.name} (userId: ${p.userId})`);
               const socketForPlayer = io.sockets.sockets.get(p.socketId);
               if (socketForPlayer && socketForPlayer.request && socketForPlayer.request.session) {
                 socketForPlayer.request.session.hasPaid = false;
                 socketForPlayer.request.session.save((err) => {
-                  if (err) console.error('Session save error for player:', err);
+                  if (err) {
+                    console.error('Session save error for player:', err);
+                  } else {
+                    console.log(`✅ Session saved, hasPaid=false for ${p.name}`);
+                  }
+                  // Emit updated payment status to the player
+                  socketForPlayer.emit('paymentStatus', { hasPaid: false });
+                  console.log(`📤 Emitted paymentStatus { hasPaid: false } to ${p.name}`);
                 });
               }
               // Also reset in database
               db.run("UPDATE users SET hasPaid = 0 WHERE id = ?", [p.userId], (err) => {
-                if (err) console.error('Database error resetting hasPaid:', err);
+                if (err) {
+                  console.error('Database error resetting hasPaid:', err);
+                } else {
+                  console.log(`💾 Database updated: hasPaid=0 for userId ${p.userId}`);
+                }
               });
+            } else {
+              console.log(`👑 Skipping payment reset for owner (userId: ${p.userId})`);
             }
           }
         });
@@ -1025,28 +1039,50 @@ function setupSocketHandlers(io) {
 
       console.log(`Play Again requested for game ${gameId}`);
 
-      // Reset game state while keeping players
-      game.deck = createDeck();
-      game.discardPile = [];
-      game.turnIndex = 0;
-      game.direction = 1;
-      game.started = false;
-      game.status = 'waiting';
-      game.onePending = null;
-      game.winner = null;
+      // Check if the player has paid
+      socket.request.session.reload((reloadErr) => {
+        if (reloadErr) {
+          console.error('Session reload error in playAgain:', reloadErr);
+        }
+        
+        const currentSess = socket.request.session;
+        const hasPaid = currentSess && currentSess.hasPaid;
+        const userId = currentSess && currentSess.token ? currentSess.token.id : null;
+        
+        console.log(`Play Again check: userId=${userId}, hasPaid=${hasPaid}, socketId=${socket.id}`);
+        
+        if (!hasPaid) {
+          // Emit event to show payment modal
+          console.log(`💰 Payment required for play again - emitting playAgainPaymentRequired to ${socket.id}`);
+          socket.emit('playAgainPaymentRequired');
+          return;
+        }
 
-      // Reset player states
-      game.players.forEach(player => {
-        player.hand = [];
-        player.ready = false;
+        console.log(`✅ Payment verified, resetting game ${gameId}`);
+
+        // Reset game state while keeping players
+        game.deck = createDeck();
+        game.discardPile = [];
+        game.turnIndex = 0;
+        game.direction = 1;
+        game.started = false;
+        game.status = 'waiting';
+        game.onePending = null;
+        game.winner = null;
+
+        // Reset player states
+        game.players.forEach(player => {
+          player.hand = [];
+          player.ready = false;
+        });
+
+        // Notify all players that game was reset
+        io.to(gameId).emit('gameReset', { message: 'Starting new game' });
+        emitPlayerList(io, game);
+        broadcastLobbyList(io);
+
+        console.log(`Game ${gameId} reset for new round`);
       });
-
-      // Notify all players that game was reset
-      io.to(gameId).emit('gameReset', { message: 'Starting new game' });
-      emitPlayerList(io, game);
-      broadcastLobbyList(io);
-
-      console.log(`Game ${gameId} reset for new round`);
     });
 
     // =====================

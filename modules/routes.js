@@ -22,6 +22,10 @@ function setupRoutes(app) {
     res.render('lobby.ejs', { user: req.session.user });
   });
 
+  app.get('/profile', isAuthenticated, (req, res) => {
+    res.render('profile.ejs', { user: req.session.user });
+  });
+
   app.get('/leaderboard', isAuthenticated, (req, res) => {
     db.all(
       "SELECT displayName, wins, losses, gamesPlayed FROM users WHERE gamesPlayed > 0 ORDER BY wins DESC LIMIT 100",

@@ -29,12 +29,6 @@
     padding: 30px;
     margin-bottom: 24px;
     box-shadow: 0 4px 20px var(--shadow);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.about-section:hover {
-    transform: translateY(-4px) scale(1.01);
-    box-shadow: 0 8px 30px var(--shadow);
 }
 
 .about-section h2 {
@@ -67,12 +61,6 @@
     background: var(--hover-color);
     border-radius: 10px;
     border-left: 4px solid #f0c030;
-    transition: all 0.2s ease;
-}
-
-.rules-list li:hover {
-    transform: translateX(8px);
-    background: var(--border-color);
 }
 
 .rules-list li strong {

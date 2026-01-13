@@ -5,11 +5,112 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Onebar - Profile</title>
     <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/profile.css">
 </head>
 <body>
-    <h1>User Profile</h1>
-    <h2>Here is your profile information/customization options</h2>
-    <p>(This page is under construction)</p>
+    <a href="/" class="btn home-button">Home</a>
+    <a href="/logout" class="btn logout-button">Logout</a>
+
+    <div class="profile-container">
+        <div class="profile-header">
+            <h1>User Profile</h1>
+            <p class="profile-subtitle">Your stats, achievements, and customization options</p>
+        </div>`
+
+        <div class="profile-content">
+            <!-- Profile Image Section -->
+            <div class="profile-image-section">
+                <div class="profile-image-container">
+                    <div class="profile-image-wrapper">
+                        <img src="/img/Smiffers1984.png" alt="User Photo" class="profile-image" 
+                             onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'profile-image-placeholder\'>👤</div>';" />
+                    </div>
+                </div>
+                <p class="image-caption">This you bro?</p>
+                
+                <!-- Customize Card Button -->
+                <div class="customize-card-section">
+                    <div class="card-back-preview">
+                        <img src="/img/cards/card_Back.png" alt="Card Back" class="card-back-img">
+                    </div>
+                    <button class="customize-card-btn">Customize Card</button>
+                </div>
+            </div>
+
+            <!-- Stats Section -->
+            <div class="profile-stats">
+                <!-- Sound Effects Card -->
+                <div class="stat-card">
+                    <h2>Sound Effects</h2>
+                    <p class="stat-label">Enable or disable game sound effects</p>
+                    <div class="sound-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="soundToggle" checked>
+                            <span class="slider-toggle"></span>
+                        </label>
+                        <span class="sound-status" id="soundStatus">ON</span>
+                    </div>
+                </div>
+
+                <!-- Level Card -->
+                <div class="stat-card">
+                    <h2>Level</h2>
+                    <div class="stat-value">42</div>
+                    <p class="stat-label">Current Level</p>
+                </div>
+
+                <!-- XP Card -->
+                <div class="stat-card">
+                    <h2>Experience Points</h2>
+                    <div class="xp-numbers">
+                        <div class="xp-item">
+                            <span class="xp-item-label">Current XP</span>
+                            <span class="xp-item-value">8,500</span>
+                        </div>
+                        <div class="xp-item">
+                            <span class="xp-item-label">Next Level</span>
+                            <span class="xp-item-value">10,000</span>
+                        </div>
+                        <div class="xp-item">
+                            <span class="xp-item-label">Remaining</span>
+                            <span class="xp-item-value">1,500</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" style="width: 85%;"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span>85% to next level</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="/js/theme.js"></script>
+    <script>
+        // Sound effects toggle functionality
+        const soundToggle = document.getElementById('soundToggle');
+        const soundStatus = document.getElementById('soundStatus');
+        
+        // Load saved preference from localStorage
+        const savedSoundState = localStorage.getItem('soundEffectsEnabled');
+        if (savedSoundState !== null) {
+            soundToggle.checked = savedSoundState === 'true';
+            soundStatus.textContent = soundToggle.checked ? 'ON' : 'OFF';
+        }
+        
+        // Handle toggle changes
+        soundToggle.addEventListener('change', function() {
+            const isEnabled = this.checked;
+            soundStatus.textContent = isEnabled ? 'ON' : 'OFF';
+            localStorage.setItem('soundEffectsEnabled', isEnabled);
+            
+            // Trigger event that the game can listen to
+            window.dispatchEvent(new CustomEvent('soundEffectsToggle', { 
+                detail: { enabled: isEnabled } 
+            }));
+        });
+    </script>
 </body>
 </html>

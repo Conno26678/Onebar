@@ -336,10 +336,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('winnerModal');
     const nameDisplay = document.getElementById('winnerNameDisplay');
     const earningsDisplay = document.getElementById('winnerEarningsDisplay');
+    const xpDisplay = document.getElementById('winnerXpDisplay');
     
     const isCurrentUserWinner = winnerName === currentUser;
     
+    // Calculate XP based on performance
+    let xpEarned = 0;
     if (isCurrentUserWinner) {
+      // Winner gets more XP based on player count
+      xpEarned = 100 + (playerCount * 25); // Base 100 + 25 per player
       nameDisplay.textContent = 'You are the winner!';
       if (payoutError) {
         // Only show error to the winner
@@ -348,10 +353,19 @@ document.addEventListener('DOMContentLoaded', () => {
         earningsDisplay.innerHTML = `You won <strong>${digipogs}</strong> Digipogs!<br><small>${playerCount} players</small>`;
       }
     } else {
-      // Non-winners see 'get gud' message
+      // Loser gets participation XP based on player count
+      xpEarned = 25 + (playerCount * 5); // Base 25 + 5 per player
       nameDisplay.textContent = `get gud`;
       earningsDisplay.innerHTML = `${winnerName} won <strong>${digipogs}</strong> Digipogs!<br><small>Try to win next time to earn some!</small>`;
     }
+    
+    // Display XP earned
+    xpDisplay.innerHTML = `<span class="xp-label">⭐ XP Earned:</span> <strong class="xp-amount">+${xpEarned}</strong>`;
+    
+    // Save XP to localStorage (you can later sync this to backend)
+    const currentXp = parseInt(localStorage.getItem('userXp') || '0');
+    const newXp = currentXp + xpEarned;
+    localStorage.setItem('userXp', newXp.toString());
     
     modal.style.display = 'flex';
   });

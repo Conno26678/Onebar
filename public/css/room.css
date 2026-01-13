@@ -486,6 +486,33 @@
     font-size: 1.8rem;
 }
 
+.winner-xp {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 30px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, rgba(63, 185, 80, 0.15) 0%, rgba(86, 211, 100, 0.1) 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(63, 185, 80, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.winner-xp .xp-label {
+    color: var(--secondary-color);
+    font-size: 1.1rem;
+}
+
+.winner-xp .xp-amount {
+    color: var(--accent-color);
+    font-size: 1.6rem;
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(63, 185, 80, 0.5);
+}
+
 .winner-buttons {
     display: flex;
     gap: 15px;

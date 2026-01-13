@@ -884,7 +884,7 @@ function setupSocketHandlers(io) {
             
             // Reset payment status for all players EXCEPT owner (ID 33)
             if (p.userId !== 33) {
-              console.log(`🔄 Resetting payment status for player ${p.name} (userId: ${p.userId})`);
+              console.log(`Resetting payment status for player ${p.name} (userId: ${p.userId})`);
               const socketForPlayer = io.sockets.sockets.get(p.socketId);
               if (socketForPlayer && socketForPlayer.request && socketForPlayer.request.session) {
                 socketForPlayer.request.session.hasPaid = false;
@@ -892,11 +892,11 @@ function setupSocketHandlers(io) {
                   if (err) {
                     console.error('Session save error for player:', err);
                   } else {
-                    console.log(`✅ Session saved, hasPaid=false for ${p.name}`);
+                    console.log(`Session saved, hasPaid=false for ${p.name}`);
                   }
                   // Emit updated payment status to the player
                   socketForPlayer.emit('paymentStatus', { hasPaid: false });
-                  console.log(`📤 Emitted paymentStatus { hasPaid: false } to ${p.name}`);
+                  console.log(`Emitted paymentStatus { hasPaid: false } to ${p.name}`);
                 });
               }
               // Also reset in database
@@ -904,11 +904,11 @@ function setupSocketHandlers(io) {
                 if (err) {
                   console.error('Database error resetting hasPaid:', err);
                 } else {
-                  console.log(`💾 Database updated: hasPaid=0 for userId ${p.userId}`);
+                  console.log(`Database updated: hasPaid=0 for userId ${p.userId}`);
                 }
               });
             } else {
-              console.log(`👑 Skipping payment reset for owner (userId: ${p.userId})`);
+              console.log(`Skipping payment reset for owner (userId: ${p.userId})`);
             }
           }
         });

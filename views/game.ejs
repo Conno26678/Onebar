@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/cards-atlas.css">
     <link rel="stylesheet" href="/css/game.css">
+    <link rel="stylesheet" href="/css/lobby.css">
     <style>
         @keyframes popIn {
             0% {
@@ -17,6 +18,61 @@
                 transform: translate(-50%, -50%) scale(1);
                 opacity: 1;
             }
+        }
+        
+        /* Transfer button styling */
+        .actions {
+            margin-top: 20px;
+        }
+        
+        .actions button.primary,
+        button.primary {
+            width: 100%;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #f0c030 0%, #f39c12 100%);
+            color: #1a1a1a;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .actions button.primary:hover,
+        button.primary:hover {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(240, 192, 48, 0.4);
+        }
+        
+        .actions button.primary:disabled,
+        button.primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Payment modal must be above winner modal (z-index 10000) */
+        .payment-modal {
+            z-index: 50000 !important;
+            pointer-events: auto !important;
+        }
+        
+        .payment-modal-content {
+            z-index: 50001 !important;
+            pointer-events: auto !important;
+        }
+        
+        .payment-modal .card {
+            pointer-events: auto !important;
+        }
+        
+        .payment-modal button,
+        .payment-modal input {
+            pointer-events: auto !important;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -846,10 +902,6 @@
         alert('You can only call ONE when you have exactly 1 card left!');
         return;
       }
-      // Play yeahoo sound
-      const yeahooSound = new Audio('/sfx/yeahoo.mp3');
-      yeahooSound.volume = 0.5;
-      yeahooSound.play().catch(err => console.log('Sound play failed:', err));
       
       // Clear the countdown timer when ONE is pressed
       if (oneCountdownInterval) {
@@ -902,79 +954,33 @@
         }, 2000);
     }
 
+    // Global handler for transfer button (called by inline onclick)
+    window.handleTransferClick = async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Transfer button workie!');
+        await doTransfer();
+    };
+    
     // Payment modal functions
-    window.showPaymentModal = function () {
+    let paymentHandlerAttached = false; // Track if handler is already attached
+    
+    window.showPaymentModal = async function () {
+        console.log(' showPaymentModal called');
         const modal = document.getElementById('paymentModal');
-        if (modal) {
-            modal.style.display = 'block';
-            console.log('💳 Payment modal shown');
-            
-            // Ensure the transfer button is clickable by re-attaching event listener
-            setTimeout(() => {
-                const transferBtn = document.getElementById('transferBtn');
-                if (transferBtn) {
-                    console.log('✅ Transfer button found:', transferBtn);
-                    // Remove any existing listeners and add new one
-                    const newBtn = transferBtn.cloneNode(true);
-                    transferBtn.parentNode.replaceChild(newBtn, transferBtn);
-                    
-                    newBtn.addEventListener('click', async function() {
-                        console.log('💳 Transfer button clicked!');
-                        const pinInput = document.getElementById('pin');
-                        const savePIN = document.getElementById('savePIN');
-                        const pin = pinInput.value;
-
-                        if (!pin) {
-                            alert('Please enter your PIN.');
-                            return;
-                        }
-
-                        // Save PIN if checkbox is checked
-                        if (savePIN.checked) {
-                            try {
-                                await fetch('/savePin', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ pin })
-                                });
-                            } catch (error) {
-                                console.error('Failed to save PIN:', error);
-                            }
-                        }
-
-                        try {
-                            console.log('Sending transfer request...');
-                            const result = await fetch('/transfer', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ pin, reason: 'Onebar Payment' })
-                            });
-                            const data = await result.json();
-                            console.log('Transfer result:', data);
-                            
-                            const isSuccess = data.ok === true || data.success === true;
-                            if (isSuccess) {
-                                console.log('✅ Payment successful!');
-                                window.dispatchEvent(new CustomEvent('paymentSuccess'));
-                                window.dispatchEvent(new CustomEvent('hidePaymentModal'));
-                            } else {
-                                let errorMessage = data.error || data.message || 'Unknown error';
-                                alert('Transfer failed: ' + errorMessage);
-                                console.error('Transfer failed:', data);
-                            }
-                        } catch (error) {
-                            console.error('Transfer error:', error);
-                            alert('Transfer failed: Network error');
-                        }
-                    });
-                    console.log('✅ Transfer button event listener attached');
-                } else {
-                    console.error('❌ Transfer button not found!');
-                }
-            }, 100);
-        } else {
-            console.error('❌ Payment modal element not found!');
+        if (!modal) {
+            console.error('Payment modal element not found!');
+            return;
         }
+        
+        // Hide the winner modal so it doesn't block clicks
+        const winnerOverlay = document.querySelector('.win-modal-overlay');
+        if (winnerOverlay) {
+            winnerOverlay.style.display = 'none';
+        }
+        
+        modal.style.display = 'block';
+        console.log('✅ Payment modal displayed');
     };
 
     window.hidePaymentModal = function () {
@@ -987,9 +993,9 @@
         console.log('💳 Payment successful! Refreshing status and redirecting...');
         hidePaymentModal();
         hasPaid = true;
-        // Redirect to room after successful payment
+        // Redirect to lobby after successful payment
         setTimeout(() => {
-            window.location.href = '/room/' + encodeURIComponent(currentRommId);
+            window.location.href = '/lobby';
         }, 300);
     });
 
@@ -1003,14 +1009,14 @@
       showOneNotification(name + ' called ONE!');
     });
 
-    socket.on('invalidOneCall', ({ reason }) => {
-      alert('Invalid ONE call: ' + reason);
+    socket.on('oneCallFailedToEarly', ({ playerId }) => {
+      alert('You cannot call ONE yet! You have more than 1 card.');
     });
 
-    socket.on('playerPenalized', ({ playerId, playerName, count, reason }) => {
+    socket.on('drawPenalty', ({ playerId, playerName, count, reason }) => {
       const name = playerName || document.getElementById('p_' + playerId)?.textContent || playerId;
-      if (reason === 'noOneCalled') {
-        alert(name + ' tried to play without calling ONE! +' + count + ' cards as penalty!');
+      if (reason === 'missedOne') {
+        alert(name + ' failed to call ONE and drew ' + count + ' penalty card' + (count !== 1 ? 's' : ''));
       } else if (reason === 'timeout') {
         alert(name + ' failed to call ONE in time and drew ' + count + ' card' + (count !== 1 ? 's' : ''));
       } else {

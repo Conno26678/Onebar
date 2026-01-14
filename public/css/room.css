@@ -555,6 +555,79 @@
     box-shadow: 0 6px 25px rgba(0, 0, 0, 0.5);
 }
 
+/* XP Notification Box */
+.xp-notification {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    background: linear-gradient(135deg, var(--card-bg) 0%, var(--hover-color) 100%);
+    border: 2px solid var(--accent-color);
+    border-radius: 15px;
+    padding: 20px 25px;
+    min-width: 250px;
+    box-shadow: 0 10px 40px rgba(63, 185, 80, 0.3), 0 0 20px rgba(63, 185, 80, 0.2);
+    z-index: 10001 !important;
+    animation: slideInRight 0.5s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.xp-notification-header {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent-color);
+    margin-bottom: 15px;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.xp-notification-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.xp-notification-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.xp-notification-row.xp-earned-row {
+    margin-top: 8px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.xp-notification-label {
+    font-size: 0.95rem;
+    color: var(--secondary-color);
+    font-weight: 500;
+}
+
+.xp-notification-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.xp-notification-value.xp-earned {
+    font-size: 1.4rem;
+    color: var(--accent-color);
+    text-shadow: 0 0 10px rgba(63, 185, 80, 0.5);
+}
+
 /* Payment Modal Styles */
 .payment-modal {
     display: none;

@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/css/cards-atlas.css">
     <link rel="stylesheet" href="/css/game.css">
     <link rel="stylesheet" href="/css/lobby.css">
+    <link rel="stylesheet" href="/css/room.css">
     <style>
         @keyframes popIn {
             0% {
@@ -89,6 +90,25 @@
     <div id="hand"></div>
   </div>
 
+  <!-- XP Notification Box -->
+  <div id="xpNotification" class="xp-notification" style="display: none;">
+    <div class="xp-notification-header">Level Up Progress</div>
+    <div class="xp-notification-content">
+      <div class="xp-notification-row">
+        <span class="xp-notification-label">Player:</span>
+        <span class="xp-notification-value" id="xpNotifPlayerName"></span>
+      </div>
+      <div class="xp-notification-row">
+        <span class="xp-notification-label">Level:</span>
+        <span class="xp-notification-value" id="xpNotifLevel"></span>
+      </div>
+      <div class="xp-notification-row xp-earned-row">
+        <span class="xp-notification-label">XP Earned:</span>
+        <span class="xp-notification-value xp-earned" id="xpNotifEarned"></span>
+      </div>
+    </div>
+  </div>
+
   <!-- Payment Modal -->
   <div id="paymentModal" class="payment-modal" style="display: none;">
     <div class="payment-modal-content">
@@ -101,12 +121,23 @@
     <script src="/js/theme.js"></script>
 </body>
 <script>
+    // Sound control helper function
+    function playSoundIfEnabled(soundPath, volume = 0.5) {
+        const soundEnabled = localStorage.getItem('soundEffectsEnabled');
+        if (soundEnabled === 'false') {
+            console.log('Sound disabled, skipping:', soundPath);
+            return null;
+        }
+        const audio = new Audio(soundPath);
+        audio.volume = volume;
+        audio.play().catch(err => console.log('Sound play failed:', err));
+        return audio;
+    }
+
     // Override alert to play loading sound
     const originalAlert = window.alert;
     window.alert = function(message) {
-        const loadingSound = new Audio('/sfx/loading.mp3');
-        loadingSound.volume = 0.5;
-        loadingSound.play().catch(err => console.log('Sound play failed:', err));
+        playSoundIfEnabled('/sfx/loading.mp3', 0.5);
         originalAlert.call(window, message);
     };
 
@@ -129,7 +160,7 @@
     // Listen for payment status updates
     socket.on('paymentStatus', ({ hasPaid: paid }) => {
         hasPaid = paid;
-        console.log('💰 Payment status updated in game:', hasPaid);
+        console.log('Payment status updated in game:', hasPaid);
     });
     
     // Track current turn player
@@ -142,13 +173,9 @@
       
       // Play appropriate sound based on win/lose
       if (isCurrentUserWinner) {
-        const winSound = new Audio('/sfx/yippie.mp3');
-        winSound.volume = 0.5;
-        winSound.play().catch(err => console.log('Sound play failed:', err));
+        playSoundIfEnabled('/sfx/yippie.mp3', 0.5);
       } else {
-        const loseSound = new Audio('/sfx/spongebobfail.mp3');
-        loseSound.volume = 0.5;
-        loseSound.play().catch(err => console.log('Sound play failed:', err));
+        playSoundIfEnabled('/sfx/spongebobfail.mp3', 0.5);
       }
 
       const overlay = document.createElement('div');
@@ -256,6 +283,72 @@
       });
     }
     socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError, payoutErrorMessage }) => {
+  console.log('🏆 Winner screen data:', { winnerName, winnerId, digipogs, playerCount, payoutError });
+  
+  const isCurrentUserWinner = (winnerName === playerName);
+  
+  // Calculate XP based on performance
+  let xpEarned = 0;
+  if (isCurrentUserWinner) {
+    // Winner gets more XP based on player count
+    xpEarned = 100 + (playerCount * 25); // Base 100 + 25 per player
+  } else {
+    // Loser gets participation XP based on player count
+    xpEarned = 25 + (playerCount * 5); // Base 25 + 5 per player
+  }
+  
+  console.log('XP Earned:', xpEarned);
+  console.log('Current Player:', playerName);
+  
+  // Save XP to localStorage
+  const currentXp = parseInt(localStorage.getItem('userXp') || '0');
+  const newXp = currentXp + xpEarned;
+  localStorage.setItem('userXp', newXp.toString());
+  
+  // Calculate level based on XP (every 1000 XP = 1 level)
+  const currentLevel = Math.floor(newXp / 1000) + 1;
+  console.log(`Saved XP: ${currentXp} → ${newXp}, Level: ${currentLevel}`);
+  
+  // Show XP notification box in upper right corner
+  const xpNotification = document.getElementById('xpNotification');
+  const xpNotifPlayerName = document.getElementById('xpNotifPlayerName');
+  const xpNotifLevel = document.getElementById('xpNotifLevel');
+  const xpNotifEarned = document.getElementById('xpNotifEarned');
+  
+  console.log('XP Notification elements:', {
+    xpNotification,
+    xpNotifPlayerName,
+    xpNotifLevel,
+    xpNotifEarned
+  });
+  
+  if (xpNotification && xpNotifPlayerName && xpNotifLevel && xpNotifEarned) {
+    console.log('Setting XP notification content...');
+    xpNotifPlayerName.textContent = playerName;
+    xpNotifLevel.textContent = currentLevel;
+    xpNotifEarned.textContent = `+${xpEarned} XP`;
+    
+    console.log('Displaying XP notification...');
+    xpNotification.style.display = 'block';
+    xpNotification.style.opacity = '1';
+    xpNotification.style.visibility = 'visible';
+    
+    // Animate in
+    setTimeout(() => {
+      xpNotification.style.animation = 'slideInRight 0.5s ease-out';
+      console.log('XP Notification displayed and animated');
+    }, 100);
+  } else {
+    console.error('XP Notification element not found!');
+    console.error('Missing elements:', {
+      notification: !xpNotification,
+      playerName: !xpNotifPlayerName,
+      level: !xpNotifLevel,
+      earned: !xpNotifEarned
+    });
+  }
+  
+  // Create winner modal overlay
   const overlay = document.createElement('div');
   overlay.id = 'winnerModal';
   overlay.style.display = 'block';
@@ -280,7 +373,7 @@
   content.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.5)';
   content.style.border = '1px solid #30363d';
   
-  const isCurrentUserWinner = (winnerName === playerName);
+  // isCurrentUserWinner already declared above
   
   const title = document.createElement('h2');
   title.textContent = isCurrentUserWinner ? '🏆 Winner!' : 'get gud';
@@ -379,15 +472,15 @@
     playAgainBtn.style.boxShadow = 'none';
   });
   playAgainBtn.addEventListener('click', () => {
-    console.log('🎮 Play Again clicked, checking payment status...');
-    console.log('💰 Current hasPaid status:', hasPaid);
+    console.log('Play Again clicked, checking payment status...');
+    console.log('Current hasPaid status:', hasPaid);
     
     // Check payment status before allowing play again
     if (!hasPaid) {
-      console.log('⚠️ Payment required, showing modal...');
+      console.log('Payment required, showing modal...');
       showPaymentModal();
     } else {
-      console.log('✅ Payment verified, redirecting to room...');
+      console.log('Payment verified, redirecting to room...');
       window.location.href = '/room/' + encodeURIComponent(currentRommId);
     }
   });
@@ -505,7 +598,7 @@
 
     // Register requestStartColor handler BEFORE joining game to avoid race condition
     socket.on('requestStartColor', ({ gameId: gid, card }) => {
-        console.log('🎨 requestStartColor received, showing color picker...');
+        console.log('requestStartColor received, showing color picker...');
         showColorPicker((chosen) => {
           console.log('Color chosen:', chosen);
           socket.emit('startColorChosen', { gameId: gameId || 'default', color: chosen });
@@ -599,17 +692,11 @@
         
         // Play sound effects based on card type
         if (card.value === 'Skip') {
-          const slapSound = new Audio('/sfx/slap.mp3');
-          slapSound.volume = 0.4;
-          slapSound.play().catch(err => console.log('Sound play failed:', err));
+          playSoundIfEnabled('/sfx/slap.mp3', 0.4);
         } else if (card.value === 'Reverse') {
-          const reverseSound = new Audio('/sfx/reverse.mp3');
-          reverseSound.volume = 0.4;
-          reverseSound.play().catch(err => console.log('Sound play failed:', err));
+          playSoundIfEnabled('/sfx/reverse.mp3', 0.4);
         } else if (card.value === 'Draw Two' || card.value === 'Wild Draw Four' || card.id?.includes('DrawTwo') || card.id?.includes('WildDrawFour')) {
-          const pluhSound = new Audio('/sfx/pluh.mp3');
-          pluhSound.volume = 0.4;
-          pluhSound.play().catch(err => console.log('Sound play failed:', err));
+          playSoundIfEnabled('/sfx/pluh.mp3', 0.4);
         }
     });
 

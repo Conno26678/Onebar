@@ -55,4 +55,82 @@ db.run(`ALTER TABLE users ADD COLUMN gamesPlayed INTEGER DEFAULT 0`, (err) => {
     }
 });
 
+// Add xp column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN xp INTEGER DEFAULT 0`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding xp column:', err.message);
+    }
+});
+
+// Add level column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN level INTEGER DEFAULT 1`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding level column:', err.message);
+    }
+});
+
+/**
+ * Calculate XP required for a given level
+ * Progressive system: Each level requires more XP than the last
+ * Formula: baseXP * level^1.5, rounded to nearest 50
+ * @param {number} level - The level to calculate XP for
+ * @returns {number} XP required to reach that level
+ */
+function calculateXPForLevel(level) {
+    const baseXP = 100;
+    const rawXP = baseXP * Math.pow(level, 1.5);
+    // Round to nearest 50 for cleaner numbers (100, 150, 200, 250, 300, etc.)
+    return Math.round(rawXP / 50) * 50;
+}
+
+/**
+ * Add XP to a user and handle level ups
+ * @param {number} userId - The user's ID
+ * @param {number} xpToAdd - Amount of XP to add
+ * @param {function} callback - Callback function (err, result)
+ */
+function addXP(userId, xpToAdd, callback) {
+    db.get('SELECT xp, level FROM users WHERE id = ?', [userId], (err, user) => {
+        if (err || !user) {
+            return callback(err || new Error('User not found'), null);
+        }
+        
+        let currentXP = user.xp + xpToAdd;
+        let currentLevel = user.level;
+        let levelsGained = 0;
+        
+        // Check for level ups
+        while (true) {
+            const xpNeeded = calculateXPForLevel(currentLevel + 1);
+            if (currentXP >= xpNeeded) {
+                currentXP -= xpNeeded;
+                currentLevel++;
+                levelsGained++;
+            } else {
+                break;
+            }
+        }
+        
+        // Update the database
+        db.run(
+            'UPDATE users SET xp = ?, level = ? WHERE id = ?',
+            [currentXP, currentLevel, userId],
+            (updateErr) => {
+                if (updateErr) {
+                    return callback(updateErr, null);
+                }
+                callback(null, {
+                    xp: currentXP,
+                    level: currentLevel,
+                    levelsGained,
+                    xpAdded: xpToAdd,
+                    xpForNextLevel: calculateXPForLevel(currentLevel + 1)
+                });
+            }
+        );
+    });
+}
+
 module.exports = db;
+module.exports.calculateXPForLevel = calculateXPForLevel;
+module.exports.addXP = addXP;

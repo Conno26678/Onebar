@@ -23,7 +23,27 @@ function setupRoutes(app) {
   });
 
   app.get('/profile', isAuthenticated, (req, res) => {
-    res.render('profile.ejs', { user: req.session.user });
+    const userId = req.session.token?.id;
+    if (userId) {
+      db.get('SELECT xp, level FROM users WHERE id = ?', [userId], (err, userData) => {
+        if (err) {
+          console.error('Error fetching user XP data:', err);
+          res.render('profile.ejs', { user: req.session.user, xp: 0, level: 1, xpForNextLevel: 100 });
+        } else {
+          const currentXP = userData?.xp || 0;
+          const currentLevel = userData?.level || 1;
+          const xpForNextLevel = db.calculateXPForLevel(currentLevel + 1);
+          res.render('profile.ejs', { 
+            user: req.session.user, 
+            xp: currentXP, 
+            level: currentLevel, 
+            xpForNextLevel 
+          });
+        }
+      });
+    } else {
+      res.render('profile.ejs', { user: req.session.user, xp: 0, level: 1, xpForNextLevel: 100 });
+    }
   });
 
   app.get('/leaderboard', isAuthenticated, (req, res) => {

@@ -14,8 +14,8 @@
     <div class="profile-container">
         <div class="profile-header">
             <h1>User Profile</h1>
-            <p class="profile-subtitle">Your stats, achievements, and customization options</p>
-        </div>`
+            <p class="profile-subtitle">Your stats and customization options</p>
+        </div>
 
         <div class="profile-content">
             <!-- Profile Image Section -->
@@ -33,7 +33,7 @@
                     <div class="card-back-preview">
                         <img src="/img/cards/card_Back.png" alt="Card Back" class="card-back-img">
                     </div>
-                    <button class="customize-card-btn">Customize Card</button>
+                    <button class="customize-card-btn">Customize Card (in progress)</button>
                 </div>
             </div>
 
@@ -55,8 +55,8 @@
                 <!-- Level Card -->
                 <div class="stat-card">
                     <h2>Level</h2>
-                    <div class="stat-value">42</div>
-                    <p class="stat-label">Current Level</p>
+                    <div class="stat-value"><%= level || 1 %></div>
+                    <p class="stat-label">Buy the pass to earn more for leveling up!</p>
                 </div>
 
                 <!-- XP Card -->
@@ -65,22 +65,22 @@
                     <div class="xp-numbers">
                         <div class="xp-item">
                             <span class="xp-item-label">Current XP</span>
-                            <span class="xp-item-value">8,500</span>
+                            <span class="xp-item-value"><%= xp || 0 %></span>
                         </div>
                         <div class="xp-item">
-                            <span class="xp-item-label">Next Level</span>
-                            <span class="xp-item-value">10,000</span>
+                            <span class="xp-item-label">XP Needed for level up</span>
+                            <span class="xp-item-value"><%= xpForNextLevel || 100 %></span>
                         </div>
                         <div class="xp-item">
-                            <span class="xp-item-label">Remaining</span>
-                            <span class="xp-item-value">1,500</span>
+                            <span class="xp-item-label">XP Remaining to level up</span>
+                            <span class="xp-item-value"><%= Math.max(0, (xpForNextLevel || 100) - (xp || 0)) %></span>
                         </div>
                     </div>
                     <div class="progress-bar-container">
-                        <div class="progress-bar" style="width: 85%;"></div>
+                        <div class="progress-bar" style="width: <%= Math.min(100, Math.floor(((xp || 0) / (xpForNextLevel || 100)) * 100)) %>%;"></div>
                     </div>
                     <div class="progress-text">
-                        <span>85% to next level</span>
+                        <span><%= Math.min(100, Math.floor(((xp || 0) / (xpForNextLevel || 100)) * 100)) %>% to next level</span>
                     </div>
                 </div>
             </div>

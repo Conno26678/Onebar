@@ -22,6 +22,32 @@ function setupRoutes(app) {
     res.render('lobby.ejs', { user: req.session.user });
   });
 
+  app.get('/battlepass', isAuthenticated, (req, res) => {
+    const userId = req.session.token?.id;
+    if (userId) {
+      db.get('SELECT xp, level, hasBattlePassPremium FROM users WHERE id = ?', [userId], (err, userData) => {
+        if (err) {
+          console.error('Error fetching user XP data:', err);
+          res.render('battlepass.ejs', { user: req.session.user, xp: 0, level: 1, xpForNextLevel: 100, hasBattlePassPremium: 0 });
+        } else {
+          const currentXP = userData?.xp || 0;
+          const currentLevel = userData?.level || 1;
+          const hasBattlePassPremium = userData?.hasBattlePassPremium || 0;
+          const xpForNextLevel = db.calculateXPForLevel(currentLevel + 1);
+          res.render('battlepass.ejs', { 
+            user: { ...req.session.user, hasPaid: hasBattlePassPremium },
+            xp: currentXP, 
+            level: currentLevel, 
+            xpForNextLevel,
+            hasBattlePassPremium
+          });
+        }
+      });
+    } else {
+      res.render('battlepass.ejs', { user: req.session.user, xp: 0, level: 1, xpForNextLevel: 100, hasBattlePassPremium: 0 });
+    }
+  });
+
   app.get('/profile', isAuthenticated, (req, res) => {
     const userId = req.session.token?.id;
     if (userId) {
@@ -78,6 +104,41 @@ function setupRoutes(app) {
 
   app.get('/about', (req, res) => {
     res.render('about.ejs', { user: req.session.user });
+  });
+
+  // API endpoint to purchase battle pass premium
+  app.post('/api/purchase-premium', isAuthenticated, (req, res) => {
+    const userId = req.session.token?.id;
+    if (!userId) {
+      return res.json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Check if user already has premium
+    db.get('SELECT hasBattlePassPremium FROM users WHERE id = ?', [userId], (err, user) => {
+      if (err) {
+        console.error('Error checking premium status:', err);
+        return res.json({ success: false, message: 'Database error' });
+      }
+
+      if (user?.hasBattlePassPremium === 1) {
+        return res.json({ success: false, message: 'You already own the Premium Pass!' });
+      }
+
+      // In a real implementation, you would:
+      // 1. Check if user has enough currency/digipogs
+      // 2. Deduct the cost from their balance
+      // 3. Then grant premium access
+      
+      // For now, just grant premium access
+      db.run('UPDATE users SET hasBattlePassPremium = 1 WHERE id = ?', [userId], (updateErr) => {
+        if (updateErr) {
+          console.error('Error updating premium status:', updateErr);
+          return res.json({ success: false, message: 'Failed to update premium status' });
+        }
+
+        res.json({ success: true, message: 'Premium Pass purchased successfully!' });
+      });
+    });
   });
 
   app.get('/logout', (req, res) => {

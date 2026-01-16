@@ -400,14 +400,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Play Again button handler
-  // document.getElementById('playAgainBtn').addEventListener('click', () => {
-  //   console.log('Play Again button clicked, emitting playAgain event');
-  //   socket.emit('playAgain', { gameId });
-  //   // Close the winner modal and XP notification
-  //   document.getElementById('winnerModal').style.display = 'none';
-  //   const xpNotification = document.getElementById('xpNotification');
-  //   if (xpNotification) xpNotification.style.display = 'none';
-  // });
+  document.getElementById('playAgainBtn').addEventListener('click', () => {
+    console.log('Play Again button clicked, emitting playAgain event');
+    socket.emit('playAgain', { gameId });
+    // Close the winner modal and XP notification
+    document.getElementById('winnerModal').style.display = 'none';
+    const xpNotification = document.getElementById('xpNotification');
+    if (xpNotification) xpNotification.style.display = 'none';
+  });
 
   // Handle play again payment requirement
   socket.on('playAgainPaymentRequired', () => {

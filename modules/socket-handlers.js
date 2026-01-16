@@ -510,13 +510,20 @@ function setupSocketHandlers(io) {
         return;
       }
 
+      const player = game.players[playerIndex];
+      
+      // Prevent drawing if there's already a pending drawn card decision
+      if (game.pendingDrawnCard && game.pendingDrawnCard.playerId === player.id) {
+        socket.emit('invalidMove', { reason: 'Must decide on current drawn card first' });
+        return;
+      }
+
       const drawn = drawFromDeck(game, 1);
       if (!drawn || drawn.length === 0) {
         socket.emit('invalidMove', { reason: 'No cards left to draw' });
         return;
       }
 
-      const player = game.players[playerIndex];
       const drawnCard = drawn[0];
 
       //Drawn card playable logic
@@ -723,6 +730,11 @@ function setupSocketHandlers(io) {
 
       // Block playing last card (winning) if player has 1 card and hasn't called ONE
       if (player.hand.length === 1 && !player.calledOne) {
+        // Clear any existing ONE penalty timer to avoid double-penalizing
+        if (game.onePending && game.onePending.playerId === player.id) {
+          clearOnePending(game);
+        }
+        
         // Penalize: give them 2 cards and reject the play
         const penaltyCards = drawFromDeck(game, 2);
         player.hand.push(...penaltyCards);
@@ -1086,7 +1098,15 @@ function setupSocketHandlers(io) {
         clearOnePending(game);
       }
 
+      // Emit immediately to show game info right away
+      const playerInfo = game.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        cardCount: p.hand.length
+      }));
+      
       io.to(gameId).emit('playerCalledOne', { playerId: player.id, playerName: player.name });
+      io.to(gameId).emit('playerList', playerInfo);
     });
 
     // =====================

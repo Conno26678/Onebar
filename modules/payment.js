@@ -73,7 +73,22 @@ router.post('/transfer', async (req, res) => {
             body: JSON.stringify(payload),
         });
 
-        const responseJson = await transferResult.json();
+        // Check if the response is JSON before parsing
+        const contentType = transferResult.headers.get('content-type');
+        let responseJson;
+        
+        if (contentType && contentType.includes('application/json')) {
+            responseJson = await transferResult.json();
+        } else {
+            // If not JSON, get the text to see what the server returned
+            const responseText = await transferResult.text();
+            console.error(`Transfer API returned non-JSON response (status ${transferResult.status}):`, responseText.substring(0, 200));
+            return res.status(502).json({ 
+                ok: false, 
+                error: `API returned ${transferResult.status}: ${transferResult.statusText || 'Unknown error'}`,
+                details: responseText.substring(0, 500)
+            });
+        }
 
         // Check if the transfer was successful based on the response
         if (transferResult.ok && responseJson) {
@@ -185,7 +200,22 @@ async function processWinnerPayout(winnerId, playerCount, gameId = 'unknown') {
             body: JSON.stringify(payload),
         });
 
-        const responseJson = await transferResult.json();
+        // Check if the response is JSON before parsing
+        const contentType = transferResult.headers.get('content-type');
+        let responseJson;
+        
+        if (contentType && contentType.includes('application/json')) {
+            responseJson = await transferResult.json();
+        } else {
+            // If not JSON, get the text to see what the server returned
+            const responseText = await transferResult.text();
+            console.error(`Payout API returned non-JSON response (status ${transferResult.status}):`, responseText.substring(0, 200));
+            return { 
+                ok: false, 
+                error: `API returned ${transferResult.status}: ${transferResult.statusText || 'Unknown error'}`,
+                details: responseText.substring(0, 500)
+            };
+        }
 
         if (transferResult.ok && responseJson) {
             console.log(`Payout successful: ${amount} Digipogs to user ${winnerId}`);

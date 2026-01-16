@@ -76,6 +76,13 @@ db.run(`ALTER TABLE users ADD COLUMN hasBattlePassPremium INTEGER DEFAULT 0`, (e
     }
 });
 
+// Add profilePicture column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN profilePicture TEXT DEFAULT '/img/pfp.png'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding profilePicture column:', err.message);
+    }
+});
+
 /**
  * Calculate XP required for a given level
  * Progressive system: Each level requires more XP than the last

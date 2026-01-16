@@ -31,7 +31,12 @@
                     <% leaderboard.forEach((user, index) => { %>
                         <tr>
                             <td><%= index + 1 %></td>
-                            <td><%= user.displayName %></td>
+                            <td>
+                                <% if (index === 0) { %>
+                                    <img src="/img/king.png" alt="King" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 8px;">
+                                <% } %>
+                                <%= user.displayName %>
+                            </td>
                             <td><%= user.wins %></td>
                             <td><%= user.losses %></td>
                             <td><%= user.gamesPlayed %></td>
@@ -42,7 +47,6 @@
             </table>
         <% } else { %>
             <div class="empty-leaderboard">
-                <div class="empty-leaderboard-icon">🎮</div>
                 <div class="empty-leaderboard-text">No games played yet. Be the first!</div>
             </div>
         <% } %>

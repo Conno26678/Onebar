@@ -282,71 +282,48 @@
         }
       });
     }
+    // Listen for XP gained from server (has correct level calculation)
+    socket.on('xpGained', ({ xpAdded, currentXP, level, levelsGained, xpForNextLevel }) => {
+      console.log('⭐ XP Gained from server:', { xpAdded, currentXP, level, levelsGained, xpForNextLevel });
+      
+      // Show XP notification box in upper right corner
+      const xpNotification = document.getElementById('xpNotification');
+      const xpNotifPlayerName = document.getElementById('xpNotifPlayerName');
+      const xpNotifLevel = document.getElementById('xpNotifLevel');
+      const xpNotifEarned = document.getElementById('xpNotifEarned');
+      
+      if (xpNotification && xpNotifPlayerName && xpNotifLevel && xpNotifEarned) {
+        console.log('📝 Setting XP notification content...');
+        xpNotifPlayerName.textContent = playerName;
+        xpNotifLevel.textContent = level; // Use level from server
+        xpNotifEarned.textContent = `+${xpAdded} XP`;
+        
+        console.log('🎨 Displaying XP notification...');
+        xpNotification.style.display = 'block';
+        xpNotification.style.opacity = '1';
+        xpNotification.style.visibility = 'visible';
+        
+        // Animate in
+        setTimeout(() => {
+          xpNotification.style.animation = 'slideInRight 0.5s ease-out';
+          console.log('✅ XP Notification displayed and animated');
+        }, 100);
+        
+        // Show level up message if they gained levels
+        if (levelsGained > 0) {
+          console.log(`🎉 Level up! Gained ${levelsGained} level(s). Now level ${level}`);
+        }
+      } else {
+        console.error('❌ XP Notification element not found!');
+      }
+    });
+
     socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError, payoutErrorMessage }) => {
   console.log('🏆 Winner screen data:', { winnerName, winnerId, digipogs, playerCount, payoutError });
   
   const isCurrentUserWinner = (winnerName === playerName);
   
-  // Calculate XP based on performance
-  let xpEarned = 0;
-  if (isCurrentUserWinner) {
-    // Winner gets more XP based on player count
-    xpEarned = 100 + (playerCount * 25); // Base 100 + 25 per player
-  } else {
-    // Loser gets participation XP based on player count
-    xpEarned = 25 + (playerCount * 5); // Base 25 + 5 per player
-  }
-  
-  console.log('XP Earned:', xpEarned);
-  console.log('Current Player:', playerName);
-  
-  // Save XP to localStorage
-  const currentXp = parseInt(localStorage.getItem('userXp') || '0');
-  const newXp = currentXp + xpEarned;
-  localStorage.setItem('userXp', newXp.toString());
-  
-  // Calculate level based on XP (every 1000 XP = 1 level)
-  const currentLevel = Math.floor(newXp / 1000) + 1;
-  console.log(`Saved XP: ${currentXp} → ${newXp}, Level: ${currentLevel}`);
-  
-  // Show XP notification box in upper right corner
-  const xpNotification = document.getElementById('xpNotification');
-  const xpNotifPlayerName = document.getElementById('xpNotifPlayerName');
-  const xpNotifLevel = document.getElementById('xpNotifLevel');
-  const xpNotifEarned = document.getElementById('xpNotifEarned');
-  
-  console.log('XP Notification elements:', {
-    xpNotification,
-    xpNotifPlayerName,
-    xpNotifLevel,
-    xpNotifEarned
-  });
-  
-  if (xpNotification && xpNotifPlayerName && xpNotifLevel && xpNotifEarned) {
-    console.log('Setting XP notification content...');
-    xpNotifPlayerName.textContent = playerName;
-    xpNotifLevel.textContent = currentLevel;
-    xpNotifEarned.textContent = `+${xpEarned} XP`;
-    
-    console.log('Displaying XP notification...');
-    xpNotification.style.display = 'block';
-    xpNotification.style.opacity = '1';
-    xpNotification.style.visibility = 'visible';
-    
-    // Animate in
-    setTimeout(() => {
-      xpNotification.style.animation = 'slideInRight 0.5s ease-out';
-      console.log('XP Notification displayed and animated');
-    }, 100);
-  } else {
-    console.error('XP Notification element not found!');
-    console.error('Missing elements:', {
-      notification: !xpNotification,
-      playerName: !xpNotifPlayerName,
-      level: !xpNotifLevel,
-      earned: !xpNotifEarned
-    });
-  }
+  // Note: XP notification is now handled by the xpGained event from the server
   
   // Create winner modal overlay
   const overlay = document.createElement('div');

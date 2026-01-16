@@ -50,25 +50,74 @@ function setupRoutes(app) {
 
   app.get('/profile', isAuthenticated, (req, res) => {
     const userId = req.session.token?.id;
+    const displayName = req.session.user;
+    
     if (userId) {
-      db.get('SELECT xp, level FROM users WHERE id = ?', [userId], (err, userData) => {
-        if (err) {
-          console.error('Error fetching user XP data:', err);
-          res.render('profile.ejs', { user: req.session.user, xp: 0, level: 1, xpForNextLevel: 100 });
-        } else {
-          const currentXP = userData?.xp || 0;
-          const currentLevel = userData?.level || 1;
-          const xpForNextLevel = db.calculateXPForLevel(currentLevel + 1);
-          res.render('profile.ejs', { 
-            user: req.session.user, 
-            xp: currentXP, 
-            level: currentLevel, 
-            xpForNextLevel 
+      // First, check who is in 1st place
+      db.get(
+        "SELECT id, displayName FROM users WHERE gamesPlayed > 0 ORDER BY wins DESC LIMIT 1",
+        [],
+        (leaderErr, firstPlaceUser) => {
+          // Determine if this user should have king.png
+          const shouldHaveKing = !leaderErr && firstPlaceUser && firstPlaceUser.id === userId;
+          const kingPicture = '/img/king.png';
+          const defaultPicture = '/img/pfp.png';
+          
+          if (leaderErr) {
+            console.error('Error checking leaderboard:', leaderErr);
+          }
+          
+          // Get current user data
+          db.get('SELECT xp, level, profilePicture FROM users WHERE id = ?', [userId], (err, userData) => {
+            if (err) {
+              console.error('Error fetching user data:', err);
+              res.render('profile.ejs', { 
+                user: req.session.user, 
+                xp: 0, 
+                level: 1, 
+                xpForNextLevel: 100,
+                profilePicture: defaultPicture,
+                isFirstPlace: false
+              });
+            } else {
+              const currentXP = userData?.xp || 0;
+              const currentLevel = userData?.level || 1;
+              const xpForNextLevel = db.calculateXPForLevel(currentLevel + 1);
+              const currentPfp = userData?.profilePicture || defaultPicture;
+              
+              // Auto-update profile picture based on leaderboard position
+              const newPfp = shouldHaveKing ? kingPicture : (currentPfp === kingPicture ? defaultPicture : currentPfp);
+              
+              // Update database if profile picture needs to change
+              if (newPfp !== currentPfp) {
+                db.run('UPDATE users SET profilePicture = ? WHERE id = ?', [newPfp, userId], (updateErr) => {
+                  if (updateErr) {
+                    console.error('Error updating profile picture:', updateErr);
+                  }
+                });
+              }
+              
+              res.render('profile.ejs', { 
+                user: req.session.user, 
+                xp: currentXP, 
+                level: currentLevel, 
+                xpForNextLevel,
+                profilePicture: newPfp,
+                isFirstPlace: shouldHaveKing
+              });
+            }
           });
         }
-      });
+      );
     } else {
-      res.render('profile.ejs', { user: req.session.user, xp: 0, level: 1, xpForNextLevel: 100 });
+      res.render('profile.ejs', { 
+        user: req.session.user, 
+        xp: 0, 
+        level: 1, 
+        xpForNextLevel: 100,
+        profilePicture: '/img/pfp.png',
+        isFirstPlace: false
+      });
     }
   });
 

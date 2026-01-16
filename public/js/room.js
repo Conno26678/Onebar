@@ -331,6 +331,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Listen for XP gained from server (this has the correct level calculation)
+  socket.on('xpGained', ({ xpAdded, currentXP, level, levelsGained, xpForNextLevel }) => {
+    console.log('⭐ XP Gained from server:', { xpAdded, currentXP, level, levelsGained, xpForNextLevel });
+    
+    // Show XP notification box in upper right corner
+    const xpNotification = document.getElementById('xpNotification');
+    const xpNotifPlayerName = document.getElementById('xpNotifPlayerName');
+    const xpNotifLevel = document.getElementById('xpNotifLevel');
+    const xpNotifEarned = document.getElementById('xpNotifEarned');
+    
+    if (xpNotification && xpNotifPlayerName && xpNotifLevel && xpNotifEarned) {
+      console.log('📝 Setting XP notification content...');
+      xpNotifPlayerName.textContent = currentUser;
+      xpNotifLevel.textContent = level; // Use level from server
+      xpNotifEarned.textContent = `+${xpAdded} XP`;
+      
+      console.log('🎨 Displaying XP notification...');
+      xpNotification.style.display = 'block';
+      xpNotification.style.opacity = '1';
+      xpNotification.style.visibility = 'visible';
+      
+      // Animate in
+      setTimeout(() => {
+        xpNotification.style.animation = 'slideInRight 0.5s ease-out';
+        console.log('✅ XP Notification displayed and animated');
+      }, 100);
+      
+      // Show level up message if they gained levels
+      if (levelsGained > 0) {
+        console.log(`🎉 Level up! Gained ${levelsGained} level(s). Now level ${level}`);
+      }
+    } else {
+      console.error('❌ XP Notification element not found!');
+    }
+  });
+
   // Winner screen handler
   socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError = false }) => {
     console.log('🏆 Winner screen data:', { winnerName, winnerId, digipogs, playerCount, payoutError });
@@ -344,11 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const isCurrentUserWinner = winnerName === currentUser;
     
-    // Calculate XP based on performance
-    let xpEarned = 0;
     if (isCurrentUserWinner) {
-      // Winner gets more XP based on player count
-      xpEarned = 100 + (playerCount * 25); // Base 100 + 25 per player
       nameDisplay.textContent = 'You are the winner!';
       
       if (payoutError) {
@@ -358,75 +390,24 @@ document.addEventListener('DOMContentLoaded', () => {
         earningsDisplay.innerHTML = `You won <strong>${digipogs}</strong> Digipogs!<br><small>${playerCount} players</small>`;
       }
     } else {
-      // Loser gets participation XP based on player count
-      xpEarned = 25 + (playerCount * 5); // Base 25 + 5 per player
       nameDisplay.textContent = `get gud`;
       earningsDisplay.innerHTML = `${winnerName} won <strong>${digipogs}</strong> Digipogs!<br><small>Try to win next time to earn some!</small>`;
     }
     
-    console.log('⭐ XP Earned:', xpEarned);
-    console.log('Current User:', currentUser);
-    
-    // Save XP to localStorage (you can later sync this to backend)
-    const currentXp = parseInt(localStorage.getItem('userXp') || '0');
-    const newXp = currentXp + xpEarned;
-    localStorage.setItem('userXp', newXp.toString());
-    
-    // Calculate level based on XP (every 1000 XP = 1 level)
-    const currentLevel = Math.floor(newXp / 1000) + 1;
-    console.log(`💾 Saved XP: ${currentXp} → ${newXp}, Level: ${currentLevel}`);
-    
-    // Show XP notification box in upper right corner
-    const xpNotification = document.getElementById('xpNotification');
-    const xpNotifPlayerName = document.getElementById('xpNotifPlayerName');
-    const xpNotifLevel = document.getElementById('xpNotifLevel');
-    const xpNotifEarned = document.getElementById('xpNotifEarned');
-    
-    console.log('XP Notification elements:', {
-      xpNotification,
-      xpNotifPlayerName,
-      xpNotifLevel,
-      xpNotifEarned
-    });
-    
-    if (xpNotification && xpNotifPlayerName && xpNotifLevel && xpNotifEarned) {
-      console.log('📝 Setting XP notification content...');
-      xpNotifPlayerName.textContent = currentUser;
-      xpNotifLevel.textContent = currentLevel;
-      xpNotifEarned.textContent = `+${xpEarned} XP`;
-      
-      console.log('🎨 Displaying XP notification...');
-      xpNotification.style.display = 'block';
-      xpNotification.style.opacity = '1';
-      xpNotification.style.visibility = 'visible';
-      
-      // Animate in
-      setTimeout(() => {
-        xpNotification.style.animation = 'slideInRight 0.5s ease-out';
-        console.log('✅ XP Notification displayed and animated');
-      }, 100);
-    } else {
-      console.error('❌ XP Notification element not found!');
-      console.error('Missing elements:', {
-        notification: !xpNotification,
-        playerName: !xpNotifPlayerName,
-        level: !xpNotifLevel,
-        earned: !xpNotifEarned
-      });
-    }
+    // Note: XP notification is now handled by the xpGained event from the server
     
     modal.style.display = 'flex';
   });
 
   // Play Again button handler
-  document.getElementById('playAgainBtn').addEventListener('click', () => {
-    console.log('Play Again button clicked, emitting playAgain event');
-    socket.emit('playAgain', { gameId });
-    // Close the winner modal and XP notification
-    document.getElementById('winnerModal').style.display = 'none';
-    const xpNotification = document.getElementById('xpNotification');
-    if (xpNotification) xpNotification.style.display = 'none';
-  });
+  // document.getElementById('playAgainBtn').addEventListener('click', () => {
+  //   console.log('Play Again button clicked, emitting playAgain event');
+  //   socket.emit('playAgain', { gameId });
+  //   // Close the winner modal and XP notification
+  //   document.getElementById('winnerModal').style.display = 'none';
+  //   const xpNotification = document.getElementById('xpNotification');
+  //   if (xpNotification) xpNotification.style.display = 'none';
+  // });
 
   // Handle play again payment requirement
   socket.on('playAgainPaymentRequired', () => {

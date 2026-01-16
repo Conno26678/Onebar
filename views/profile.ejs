@@ -22,18 +22,67 @@
             <div class="profile-image-section">
                 <div class="profile-image-container">
                     <div class="profile-image-wrapper">
-                        <img src="/img/pfp.png" alt="User Photo" class="profile-image" 
+                        <img src="<%= profilePicture || '/img/pfp.png' %>" alt="User Photo" class="profile-image" 
                              onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'profile-image-placeholder\'>👤</div>';" />
+                        <% if (isFirstPlace) { %>
+                            <div class="first-place-badge" title="You are #1 on the leaderboard!">
+                            </div>
+                        <% } %>
                     </div>
                 </div>
-                <p class="image-caption">This you bro?</p>
+                <!-- <button class="change-photo-btn">Change Photo (in progress)</button> -->
+                <% if (isFirstPlace) { %>
+                    <p class="image-caption" style="color: #ffd700; font-weight: bold;"> Leaderboard Champion!</p>
+                <% } else { %>
+                    <p class="image-caption">This you bro?</p>
+                <% } %>
                 
                 <!-- Customize Card Button -->
                 <div class="customize-card-section">
                     <div class="card-back-preview">
                         <img src="/img/cards/card_Back.png" alt="Card Back" class="card-back-img">
                     </div>
-                    <button class="customize-card-btn">Customize Card (in progress)</button>
+                    <button class="customize-card-btn" onclick="showCustomizePopup()">Customize Options</button>
+                </div>
+                
+                <!-- Customize Options Popup Modal -->
+                <div id="customizePopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideCustomizePopup()">&times;</span>
+                        <h2>Options - earn more by leveling up</h2>
+                        <div class="customize-options-grid">
+                            <div class="customize-option">
+                                <h3>Card Backs</h3>
+                                <p>Unlock new card backs through Battle Pass</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                            <div class="customize-option">
+                                <h3>Themes</h3>
+                                <p>Customize your game appearance</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                            <div class="customize-option">
+                                <h3>Sound Packs</h3>
+                                <p>Unlock exclusive sound effects</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                            <div class="customize-option">
+                                <h3>Profile Badges</h3>
+                                <p>Show off your achievements</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                            <div class="customize-option">
+                                <h3>Card Effects</h3>
+                                <p>Unlock in future Battle Passes</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                            <div class="customize-option">
+                                <h3>Emotes</h3>
+                                <p>Express yourself in-game</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -56,7 +105,7 @@
                 <div class="stat-card">
                     <h2>Level</h2>
                     <div class="stat-value"><%= level || 1 %></div>
-                    <a href="/battlepass" class="stat-label">Buy the pass to here, click me!</a>
+                    <!-- <a href="/battlepass" class="stat-label">Buy the pass to here, click me to visit!</a> -->
                 </div>
 
                 <!-- XP Card -->
@@ -111,6 +160,23 @@
                 detail: { enabled: isEnabled } 
             }));
         });
+        
+        // Customize popup functions
+        function showCustomizePopup() {
+            document.getElementById('customizePopup').style.display = 'flex';
+        }
+        
+        function hideCustomizePopup() {
+            document.getElementById('customizePopup').style.display = 'none';
+        }
+        
+        // Close popup when clicking outside
+        window.onclick = function(event) {
+            const popup = document.getElementById('customizePopup');
+            if (event.target === popup) {
+                hideCustomizePopup();
+            }
+        };
     </script>
 </body>
 </html>

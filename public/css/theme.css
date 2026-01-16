@@ -1,27 +1,8 @@
-/* Theme Variables */
-:root {
-  /* Light mode colors */
-  --bg-color: #f0f4f8;
-  --text-color: #2d3748;
-  --primary-color: #e53e3e;
-  /* secondary color used for badges, small labels, etc. In light mode make it match text so it's readable */
-  --secondary-color: #4a5568;
-  --accent-color: #38a169;
-  --card-bg: #ffffff;
-  --border-color: #e2e8f0;
-  --hover-color: #edf2f7;
-  --shadow: rgba(0, 0, 0, 0.12);
-  
-  /* Additional fancy variables */
-  --gradient-primary: linear-gradient(135deg, #e53e3e 0%, #fc8181 100%);
-  --gradient-accent: linear-gradient(135deg, #38a169 0%, #68d391 100%);
-  --gradient-bg: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
-  --glow-primary: 0 0 30px rgba(229, 62, 62, 0.3);
-  --glow-accent: 0 0 30px rgba(56, 161, 105, 0.3);
-}
+/* Add Google Font import via CSS */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* Dark mode colors */
-[data-theme="dark"] {
+/* Dark Mode Theme Variables */
+:root {
   --bg-color: #0d1117;
   --text-color: #e6edf3;
   --primary-color: #f85149;
@@ -32,7 +13,7 @@
   --hover-color: #21262d;
   --shadow: rgba(0, 0, 0, 0.4);
   
-  /* Dark mode fancy variables */
+  /* Gradient and glow variables */
   --gradient-primary: linear-gradient(135deg, #f85149 0%, #ff7b72 100%);
   --gradient-accent: linear-gradient(135deg, #3fb950 0%, #56d364 100%);
   --gradient-bg: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
@@ -57,38 +38,9 @@ body {
   min-height: 100vh;
 }
 
-/* Add Google Font import via CSS */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
-/* Theme toggle button */
+/* Theme toggle button - hidden (dark mode only) */
 .theme-toggle {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: var(--gradient-primary);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 55px;
-  height: 55px;
-  cursor: pointer;
-  font-size: 22px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 1000;
-  box-shadow: 0 4px 15px var(--shadow), var(--glow-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.theme-toggle:hover {
-  transform: scale(1.1) rotate(15deg);
-  background: var(--gradient-primary);
-  box-shadow: 0 6px 25px var(--shadow), var(--glow-primary);
-}
-
-.theme-toggle:active {
-  transform: scale(0.95);
+  display: none !important;
 }
 
 /* Main content */
@@ -371,7 +323,7 @@ a:hover {
 .logout-button {
   position: fixed;
   top: 20px;
-  left: 20px;
+  right: 20px;
   z-index: 1001;
   display: inline-flex !important;
   align-items: center;
@@ -392,6 +344,37 @@ a:hover {
   background: linear-gradient(135deg, #c53030 0%, #9b2c2c 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 25px var(--shadow), 0 0 30px rgba(197, 48, 48, 0.3);
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Home button (upper-left) */
+.home-button {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1001;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--gradient-primary);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 600;
+  box-shadow: 0 4px 15px var(--shadow), var(--glow-primary);
+  border: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.home-button:hover {
+  background: linear-gradient(135deg, #c53030 0%, #9b2c2c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px var(--shadow), 0 0 30px rgba(197, 48, 48, 0.3);
+  color: #fff;
+  text-decoration: none;
 }
 
 /* Scrollbar styling */

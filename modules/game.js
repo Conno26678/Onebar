@@ -104,6 +104,15 @@ function getLobbyList() {
     }));
 }
 
+function endGame(roomCode, winnerId) {
+  db.run("UPDATE users SET wins = wins +1, gamesPlayed +1 WHERE id = ?",
+    [winnerId],
+    (err) => {
+      if (err) console.error("Error updating user stats:", err);
+    }
+  );
+}
+
 module.exports = {
   games,
   generateJoinCode,

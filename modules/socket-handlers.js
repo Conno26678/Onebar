@@ -8,7 +8,9 @@ const {
   getLobbyList,
   shuffle
 } = require('./game');
+const { createDeck } = require('../cards');
 const { processWinnerPayout } = require('./payment');
+const db = require('../util/database');
 
 function broadcastLobbyList(io) {
   io.emit('lobbyList', getLobbyList());
@@ -96,7 +98,8 @@ function setupSocketHandlers(io) {
           id: socket.id,
           name: playerName || 'Host',
           hand: [],
-          ready: false
+          ready: false,
+          userId: currentSess && currentSess.token ? currentSess.token.id : null
         };
         game.players.push(player);
         socket.join(gameId);
@@ -200,9 +203,11 @@ function setupSocketHandlers(io) {
         io.to(player.socketId).emit('cardPlacedOnTable', top);
         
         // If it's a wild card without an activeColor and it's this player's turn, ask for color
-        if (top.color === 'wild' && !top.activeColor && game.started) {
+        // Add a flag to prevent duplicate requests
+        if (top.color === 'wild' && !top.activeColor && game.started && !game.awaitingStartColor) {
           const currentPlayer = game.players[game.turnIndex];
           if (currentPlayer && currentPlayer.socketId === socket.id) {
+            game.awaitingStartColor = true;
             io.to(socket.id).emit('requestStartColor', { gameId, card: top });
             console.log('Re-requesting starting color after join for', player.name);
           }
@@ -456,8 +461,26 @@ function setupSocketHandlers(io) {
         io.to(gameId).emit('cardPlacedOnTable', top);
 
         if (top.color === 'wild') {
+          game.awaitingStartColor = true;
           io.to(currentSocketId).emit('requestStartColor', { gameId, card: top });
           console.log('requesting starting color', currentSocketId);
+          
+          // Auto-set to red after 10 seconds if no response
+          setTimeout(() => {
+            if (game.awaitingStartColor && game.discardPile.length > 0) {
+              const currentTop = game.discardPile[game.discardPile.length - 1];
+              if (currentTop.color === 'wild' && !currentTop.activeColor) {
+                console.log(`⏰ Auto-setting start color to red after timeout for game ${gameId}`);
+                currentTop.activeColor = 'red';
+                game.awaitingStartColor = false;
+                io.to(gameId).emit('cardPlacedOnTable', currentTop);
+                const turnPlayer = game.players[game.turnIndex];
+                if (turnPlayer) {
+                  io.to(gameId).emit('turnChanged', { currentPlayerId: turnPlayer.id });
+                }
+              }
+            }
+          }, 10000);
         }
       }
 
@@ -470,6 +493,13 @@ function setupSocketHandlers(io) {
         socket.emit('invalidMove', { reason: 'Game not started' });
         return;
       }
+      
+      // Block moves if awaiting start color selection
+      if (game.awaitingStartColor) {
+        socket.emit('invalidMove', { reason: 'Waiting for starting color to be chosen' });
+        return;
+      }
+      
       const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
       if (playerIndex === -1) {
         socket.emit('invalidMove', { reason: 'Not in game' });
@@ -480,13 +510,20 @@ function setupSocketHandlers(io) {
         return;
       }
 
+      const player = game.players[playerIndex];
+      
+      // Prevent drawing if there's already a pending drawn card decision
+      if (game.pendingDrawnCard && game.pendingDrawnCard.playerId === player.id) {
+        socket.emit('invalidMove', { reason: 'Must decide on current drawn card first' });
+        return;
+      }
+
       const drawn = drawFromDeck(game, 1);
       if (!drawn || drawn.length === 0) {
         socket.emit('invalidMove', { reason: 'No cards left to draw' });
         return;
       }
 
-      const player = game.players[playerIndex];
       const drawnCard = drawn[0];
 
       //Drawn card playable logic
@@ -654,6 +691,7 @@ function setupSocketHandlers(io) {
 
       top.activeColor = color;
       game.started = true;
+      game.awaitingStartColor = false;
 
       io.to(gameId).emit('cardPlacedOnTable', top);
       io.to(gameId).emit('turnChanged', { currentPlayerId: currentPlayer.id });
@@ -665,6 +703,12 @@ function setupSocketHandlers(io) {
       const game = games[gameId];
       if (!game || !game.started) {
         socket.emit('invalidMove', { reason: 'Game not started' });
+        return;
+      }
+
+      // Block moves if awaiting start color selection
+      if (game.awaitingStartColor) {
+        socket.emit('invalidMove', { reason: 'Waiting for starting color to be chosen' });
         return;
       }
 
@@ -686,6 +730,11 @@ function setupSocketHandlers(io) {
 
       // Block playing last card (winning) if player has 1 card and hasn't called ONE
       if (player.hand.length === 1 && !player.calledOne) {
+        // Clear any existing ONE penalty timer to avoid double-penalizing
+        if (game.onePending && game.onePending.playerId === player.id) {
+          clearOnePending(game);
+        }
+        
         // Penalize: give them 2 cards and reject the play
         const penaltyCards = drawFromDeck(game, 2);
         player.hand.push(...penaltyCards);
@@ -846,9 +895,102 @@ function setupSocketHandlers(io) {
 
         console.log(`Player ${player.name} (${player.id}) won game ${gameId}`);
         
+        // Calculate player count for XP calculation
+        const playerCount = game.players.length;
+        
+        // Update game statistics for all players
+        game.players.forEach(p => {
+          if (p.userId) {
+            const isWinner = p.id === player.id;
+            
+            // Update wins/losses/games played
+            if (isWinner) {
+              db.run("UPDATE users SET wins = COALESCE(wins, 0) + 1, gamesPlayed = COALESCE(gamesPlayed, 0) + 1 WHERE id = ?", [p.userId], (err) => {
+                if (err) console.error('Database error updating winner stats:', err);
+              });
+              
+              // Award XP to winner - matches client-side formula: 100 + (playerCount * 25)
+              const totalXP = 100 + (playerCount * 25);
+              
+              db.addXP(p.userId, totalXP, (xpErr, xpResult) => {
+                if (xpErr) {
+                  console.error('Error adding XP to winner:', xpErr);
+                } else {
+                  console.log(`Winner ${p.name} earned ${totalXP} XP. New level: ${xpResult.level}, XP: ${xpResult.xp}`);
+                  if (xpResult.levelsGained > 0) {
+                    console.log(`🎉 ${p.name} leveled up ${xpResult.levelsGained} time(s)!`);
+                  }
+                  // Emit XP gain to the winner
+                  io.to(p.socketId).emit('xpGained', {
+                    xpAdded: totalXP,
+                    currentXP: xpResult.xp,
+                    level: xpResult.level,
+                    levelsGained: xpResult.levelsGained,
+                    xpForNextLevel: xpResult.xpForNextLevel
+                  });
+                }
+              });
+            } else {
+              db.run("UPDATE users SET losses = COALESCE(losses, 0) + 1, gamesPlayed = COALESCE(gamesPlayed, 0) + 1 WHERE id = ?", [p.userId], (err) => {
+                if (err) console.error('Database error updating loser stats:', err);
+              });
+              
+              // Award participation XP to losers - matches client-side formula: 25 + (playerCount * 5)
+              const totalXP = 25 + (playerCount * 5);
+              
+              db.addXP(p.userId, totalXP, (xpErr, xpResult) => {
+                if (xpErr) {
+                  console.error('Error adding XP to loser:', xpErr);
+                } else {
+                  console.log(`Player ${p.name} earned ${totalXP} participation XP. New level: ${xpResult.level}, XP: ${xpResult.xp}`);
+                  if (xpResult.levelsGained > 0) {
+                    console.log(`🎉 ${p.name} leveled up ${xpResult.levelsGained} time(s)!`);
+                  }
+                  // Emit XP gain to the loser
+                  io.to(p.socketId).emit('xpGained', {
+                    xpAdded: totalXP,
+                    currentXP: xpResult.xp,
+                    level: xpResult.level,
+                    levelsGained: xpResult.levelsGained,
+                    xpForNextLevel: xpResult.xpForNextLevel
+                  });
+                }
+              });
+            }
+            
+            // Reset payment status for all players EXCEPT owner (ID 33)
+            if (p.userId !== 33) {
+              console.log(`Resetting payment status for player ${p.name} (userId: ${p.userId})`);
+              const socketForPlayer = io.sockets.sockets.get(p.socketId);
+              if (socketForPlayer && socketForPlayer.request && socketForPlayer.request.session) {
+                socketForPlayer.request.session.hasPaid = false;
+                socketForPlayer.request.session.save((err) => {
+                  if (err) {
+                    console.error('Session save error for player:', err);
+                  } else {
+                    console.log(`Session saved, hasPaid=false for ${p.name}`);
+                  }
+                  // Emit updated payment status to the player
+                  socketForPlayer.emit('paymentStatus', { hasPaid: false });
+                  console.log(`Emitted paymentStatus { hasPaid: false } to ${p.name}`);
+                });
+              }
+              // Also reset in database
+              db.run("UPDATE users SET hasPaid = 0 WHERE id = ?", [p.userId], (err) => {
+                if (err) {
+                  console.error('Database error resetting hasPaid:', err);
+                } else {
+                  console.log(`Database updated: hasPaid=0 for userId ${p.userId}`);
+                }
+              });
+            } else {
+              console.log(`Skipping payment reset for owner (userId: ${p.userId})`);
+            }
+          }
+        });
+        
         // Process winner payout with dynamic amount calculation
         const winnerId = player.userId;
-        const playerCount = game.players.length;
         
         if (winnerId) {
           console.log(`Initiating payout: winner userId=${winnerId}, players=${playerCount}`);
@@ -857,6 +999,15 @@ function setupSocketHandlers(io) {
             .then(result => {
               if (result.ok) {
                 console.log(`Payout success: ${result.amount} Digipogs to user ${winnerId}`);
+                
+                // Emit winner screen to all players in the room
+                io.to(gameId).emit('showWinnerScreen', {
+                  winnerName: player.name,
+                  winnerId: player.id,
+                  digipogs: result.amount,
+                  playerCount: playerCount
+                });
+                
                 io.to(player.socketId).emit('payoutSuccess', {
                   amount: result.amount,
                   playerCount: playerCount,
@@ -864,6 +1015,17 @@ function setupSocketHandlers(io) {
                 });
               } else {
                 console.error(`Payout failed for user ${winnerId}:`, result.error);
+                
+                // Still show winner screen even if payout failed
+                io.to(gameId).emit('showWinnerScreen', {
+                  winnerName: player.name,
+                  winnerId: player.id,
+                  digipogs: 0,
+                  playerCount: playerCount,
+                  payoutError: true,
+                  payoutErrorMessage: result.error || 'Failed to process winner payout'
+                });
+                
                 io.to(player.socketId).emit('payoutFailed', {
                   error: result.error,
                   message: 'Failed to process winner payout. Please contact support.'
@@ -872,6 +1034,17 @@ function setupSocketHandlers(io) {
             })
             .catch(err => {
               console.error('Payout processing error:', err);
+              
+              // Still show winner screen even if payout failed
+              io.to(gameId).emit('showWinnerScreen', {
+                winnerName: player.name,
+                winnerId: player.id,
+                digipogs: 0,
+                playerCount: playerCount,
+                payoutError: true,
+                payoutErrorMessage: err?.message || 'Unexpected error processing payout'
+              });
+              
               io.to(player.socketId).emit('payoutFailed', {
                 error: 'Unexpected error',
                 message: 'Failed to process payout. Please contact support.'
@@ -879,6 +1052,17 @@ function setupSocketHandlers(io) {
             });
         } else {
           console.warn(`Winner ${player.name} has no userId, cannot process payout`);
+          
+          // Show winner screen without payout info
+          io.to(gameId).emit('showWinnerScreen', {
+            winnerName: player.name,
+            winnerId: player.id,
+            digipogs: 0,
+            playerCount: playerCount,
+            payoutError: true,
+            payoutErrorMessage: 'Winner has no user account linked'
+          });
+          
           io.to(player.socketId).emit('payoutFailed', {
             error: 'No user ID',
             message: 'Cannot process payout: user not authenticated'
@@ -914,7 +1098,74 @@ function setupSocketHandlers(io) {
         clearOnePending(game);
       }
 
+      // Emit immediately to show game info right away
+      const playerInfo = game.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        cardCount: p.hand.length
+      }));
+      
       io.to(gameId).emit('playerCalledOne', { playerId: player.id, playerName: player.name });
+      io.to(gameId).emit('playerList', playerInfo);
+    });
+
+    // =====================
+    // PLAY AGAIN HANDLER
+    // =====================
+
+    socket.on('playAgain', ({ gameId } = {}) => {
+      const game = games[gameId];
+      if (!game) {
+        socket.emit('invalidMove', { reason: 'Game not found' });
+        return;
+      }
+
+      console.log(`Play Again requested for game ${gameId}`);
+
+      // Check if the player has paid
+      socket.request.session.reload((reloadErr) => {
+        if (reloadErr) {
+          console.error('Session reload error in playAgain:', reloadErr);
+        }
+        
+        const currentSess = socket.request.session;
+        const hasPaid = currentSess && currentSess.hasPaid;
+        const userId = currentSess && currentSess.token ? currentSess.token.id : null;
+        
+        console.log(`Play Again check: userId=${userId}, hasPaid=${hasPaid}, socketId=${socket.id}`);
+        
+        if (!hasPaid) {
+          // Emit event to show payment modal
+          console.log(`💰 Payment required for play again - emitting playAgainPaymentRequired to ${socket.id}`);
+          socket.emit('playAgainPaymentRequired');
+          return;
+        }
+
+        console.log(`✅ Payment verified, resetting game ${gameId}`);
+
+        // Reset game state while keeping players
+        game.deck = createDeck();
+        game.discardPile = [];
+        game.turnIndex = 0;
+        game.direction = 1;
+        game.started = false;
+        game.status = 'waiting';
+        game.onePending = null;
+        game.winner = null;
+
+        // Reset player states
+        game.players.forEach(player => {
+          player.hand = [];
+          player.ready = false;
+        });
+
+        // Notify all players that game was reset
+        io.to(gameId).emit('gameReset', { message: 'Starting new game' });
+        emitPlayerList(io, game);
+        broadcastLobbyList(io);
+
+        console.log(`Game ${gameId} reset for new round`);
+      });
     });
 
     // =====================
@@ -950,12 +1201,20 @@ function setupSocketHandlers(io) {
                   io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
                 }
               } else {
+                // No players left, delete the game/room
+                console.log(`Room ${gameId} is now empty, deleting...`);
                 delete games[gameId];
+                broadcastLobbyList(io);
                 return;
               }
             }
 
-            if (game.started && game.players.length > 0) {
+            if (game.players.length === 0) {
+              // Game is now empty after player removal, delete it
+              console.log(`Game ${gameId} has no players left, deleting...`);
+              delete games[gameId];
+              broadcastLobbyList(io);
+            } else if (game.started && game.players.length > 0) {
               game.turnIndex = game.turnIndex % game.players.length;
               io.to(gameId).emit('turnChanged', { currentPlayerId: game.players[game.turnIndex].id });
             } else if (!game.started) {

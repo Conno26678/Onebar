@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onebar - Profile</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/profile.css">
+</head>
+<body>
+    <a href="/" class="btn home-button">Home</a>
+    <a href="/logout" class="btn logout-button">Logout</a>
+
+    <div class="profile-container">
+        <div class="profile-header">
+            <h1>User Profile</h1>
+            <p class="profile-subtitle">Your stats and customization options</p>
+        </div>
+
+        <div class="profile-content">
+            <!-- Profile Image Section -->
+            <div class="profile-image-section">
+                <div class="profile-image-container">
+                    <div class="profile-image-wrapper">
+                        <img src="<%= profilePicture || '/img/pfp.png' %>" alt="User Photo" class="profile-image" 
+                             onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'profile-image-placeholder\'>👤</div>';" />
+                        <% if (isFirstPlace) { %>
+                            <div class="first-place-badge" title="You are #1 on the leaderboard!">
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
+                <!-- <button class="change-photo-btn">Change Photo (in progress)</button> -->
+                <% if (isFirstPlace) { %>
+                    <p class="image-caption" style="color: #ffd700; font-weight: bold;"> Leaderboard Champion!</p>
+                <% } else { %>
+                    <p class="image-caption">This you bro?</p>
+                <% } %>
+                
+                <!-- Customize Card Button -->
+                <div class="customize-card-section">
+                    <div class="card-back-preview">
+                        <img src="/img/cards/card_Back.png" alt="Card Back" class="card-back-img">
+                    </div>
+                    <button class="customize-card-btn" onclick="showCustomizePopup()">Customize Options</button>
+                </div>
+                
+                <!-- Customize Options Popup Modal -->
+                <div id="customizePopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideCustomizePopup()">&times;</span>
+                        <h2>Options - earn more by leveling up</h2>
+                        <div class="customize-options-grid">
+                            <div class="customize-option">
+                                <h3>Card Backs</h3>
+                                <p>Unlock new card backs through Battle Pass</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                            <div class="customize-option">
+                                <h3>Themes</h3>
+                                <p>Customize your game appearance</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                            <div class="customize-option">
+                                <h3>Sound Packs</h3>
+                                <p>Unlock exclusive sound effects</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                            <div class="customize-option">
+                                <h3>Profile Badges</h3>
+                                <p>Show off your achievements</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                            <div class="customize-option">
+                                <h3>Card Effects</h3>
+                                <p>Unlock in future Battle Passes</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                            <div class="customize-option">
+                                <h3>Emotes</h3>
+                                <p>Express yourself in-game</p>
+                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Section -->
+            <div class="profile-stats">
+                <!-- Sound Effects Card -->
+                <div class="stat-card">
+                    <h2>Sound Effects</h2>
+                    <p class="stat-label">Enable or disable game sound effects</p>
+                    <div class="sound-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="soundToggle" checked>
+                            <span class="slider-toggle"></span>
+                        </label>
+                        <span class="sound-status" id="soundStatus">ON</span>
+                    </div>
+                </div>
+
+                <!-- Level Card -->
+                <div class="stat-card">
+                    <h2>Level</h2>
+                    <div class="stat-value"><%= level || 1 %></div>
+                    <!-- <a href="/battlepass" class="stat-label">Buy the pass to here, click me to visit!</a> -->
+                </div>
+
+                <!-- XP Card -->
+                <div class="stat-card">
+                    <h2>Experience Points</h2>
+                    <div class="xp-numbers">
+                        <div class="xp-item">
+                            <span class="xp-item-label">Current XP</span>
+                            <span class="xp-item-value"><%= xp || 0 %></span>
+                        </div>
+                        <div class="xp-item">
+                            <span class="xp-item-label">XP Needed for level up</span>
+                            <span class="xp-item-value"><%= xpForNextLevel || 100 %></span>
+                        </div>
+                        <div class="xp-item">
+                            <span class="xp-item-label">XP Remaining to level up</span>
+                            <span class="xp-item-value"><%= Math.max(0, (xpForNextLevel || 100) - (xp || 0)) %></span>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" style="width: <%= Math.min(100, Math.floor(((xp || 0) / (xpForNextLevel || 100)) * 100)) %>%;"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span><%= Math.min(100, Math.floor(((xp || 0) / (xpForNextLevel || 100)) * 100)) %>% to next level</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/theme.js"></script>
+    <script>
+        // Sound effects toggle functionality
+        const soundToggle = document.getElementById('soundToggle');
+        const soundStatus = document.getElementById('soundStatus');
+        
+        // Load saved preference from localStorage
+        const savedSoundState = localStorage.getItem('soundEffectsEnabled');
+        if (savedSoundState !== null) {
+            soundToggle.checked = savedSoundState === 'true';
+            soundStatus.textContent = soundToggle.checked ? 'ON' : 'OFF';
+        }
+        
+        // Handle toggle changes
+        soundToggle.addEventListener('change', function() {
+            const isEnabled = this.checked;
+            soundStatus.textContent = isEnabled ? 'ON' : 'OFF';
+            localStorage.setItem('soundEffectsEnabled', isEnabled);
+            
+            // Trigger event that the game can listen to
+            window.dispatchEvent(new CustomEvent('soundEffectsToggle', { 
+                detail: { enabled: isEnabled } 
+            }));
+        });
+        
+        // Customize popup functions
+        function showCustomizePopup() {
+            document.getElementById('customizePopup').style.display = 'flex';
+        }
+        
+        function hideCustomizePopup() {
+            document.getElementById('customizePopup').style.display = 'none';
+        }
+        
+        // Close popup when clicking outside
+        window.onclick = function(event) {
+            const popup = document.getElementById('customizePopup');
+            if (event.target === popup) {
+                hideCustomizePopup();
+            }
+        };
+    </script>
+</body>
+</html>

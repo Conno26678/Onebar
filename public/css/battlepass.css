@@ -1,0 +1,425 @@
+/* Battlepass Page Layout */
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+    min-height: 100vh;
+}
+
+/* Header Section */
+h2 {
+    text-align: center;
+    font-size: 3rem;
+    font-weight: bold;
+    color: #ffd700;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5),
+                 0 0 40px rgba(255, 215, 0, 0.3);
+    margin-bottom: 1rem;
+    letter-spacing: 2px;
+}
+
+/* Description Text */
+p {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #e0e0e0;
+    max-width: 800px;
+    margin: 0 auto 3rem;
+    line-height: 1.6;
+    padding: 0 1rem;
+}
+
+/* Battle Pass Container */
+.battlepass-container {
+    width: 100%;
+    max-width: 2500px;
+    margin: 0 auto;
+    padding: 2rem 2rem;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: relative;
+}
+
+/* Battle Pass Track */
+.pass-track {
+    display: flex;
+    gap: 0.45em;
+    padding: 2rem 0;
+    flex: 1;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Individual Tier */
+.tier {
+    min-width: 155px;
+    max-width: 155px;
+    flex-shrink: 0;
+    padding: 0.8rem;
+    background: linear-gradient(145deg, #2c3e50, #1a1a2e);
+    border: 2px solid #34495e;
+    border-radius: 12px;
+    text-align: center;
+    position: relative;
+}
+
+.tier.unlocked {
+    border-color: #00ff88;
+    background: linear-gradient(145deg, #2c5e4a, #1a3e2e);
+}
+
+.tier.premium {
+    border-color: #ff00ff;
+    background: linear-gradient(145deg, #4a2c5e, #2e1a3e);
+}
+
+/* Tier Number */
+.tier-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #ffd700;
+    margin-bottom: 1rem;
+}
+
+/* Tier Reward */
+.tier-reward {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+}
+
+.reward-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+
+.reward-name {
+    font-size: 0.9rem;
+    color: #e0e0e0;
+    margin-top: 0.5rem;
+}
+
+/* Premium Button */
+.premium-button {
+    display: inline-block;
+    margin: 2rem auto;
+    padding: 1rem 3rem;
+    background: linear-gradient(135deg, #ff00ff, #ff6b6b);
+    color: white;
+    font-size: 1.3rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 5px 20px rgba(255, 0, 255, 0.4);
+    transition: all 0.3s ease;
+}
+
+.premium-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 30px rgba(255, 0, 255, 0.6);
+}
+
+/* Progress Bar */
+.progress-container {
+    width: 100%;
+    max-width: 2500px;
+    height: 30px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 15px;
+    margin: 2rem 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff88, #ffd700);
+    border-radius: 15px;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+}
+
+.progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Player Info Section */
+.player-info {
+    display: flex;
+    gap: 3rem;
+    justify-content: center;
+    margin: 2rem 0;
+    flex-wrap: wrap;
+}
+
+.current-level, .premium-status {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 1rem 2rem;
+    border-radius: 10px;
+    border: 2px solid #34495e;
+}
+
+.level-label, .status-label {
+    color: #aaa;
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+}
+
+.level-value, .status-value {
+    color: #ffd700;
+    font-size: 1.8rem;
+    font-weight: bold;
+}
+
+/* Reward Labels */
+.reward-label {
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    padding: 0.3rem;
+    border-radius: 5px;
+}
+
+.reward-label:not(.premium) {
+    background: rgba(0, 255, 136, 0.2);
+    color: #00ff88;
+}
+
+.reward-label.premium {
+    background: rgba(255, 0, 255, 0.2);
+    color: #ff00ff;
+}
+
+/* Reward Icon States */
+.reward-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    transition: all 0.3s ease;
+}
+
+.reward-icon.unlocked {
+    background: rgba(0, 255, 136, 0.3);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+    animation: pulse 2s infinite;
+}
+
+.reward-icon.locked {
+    filter: grayscale(100%);
+    opacity: 0.4;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(0, 255, 136, 0.8);
+    }
+}
+
+/* No Reward */
+.no-reward {
+    color: #555;
+    font-size: 2rem;
+    padding: 2rem 0;
+}
+
+/* Free and Premium Reward Sections */
+.free-reward {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+
+.premium-reward {
+    padding-top: 1rem;
+}
+
+/* Navigation Arrows */
+.nav-arrow {
+    background: linear-gradient(135deg, #34495e, #2c3e50);
+    border: 2px solid #ffd700;
+    color: #ffd700;
+    font-size: 2rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.nav-arrow:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #1a1a2e;
+    transform: scale(1.1);
+    box-shadow: 0 8px 25px rgba(255, 215, 0, 0.5);
+}
+
+.nav-arrow:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    border-color: #555;
+    color: #555;
+}
+
+.nav-arrow-left {
+    margin-right: 0.5rem;
+}
+
+.nav-arrow-right {
+    margin-left: 0.5rem;
+}
+
+/* Pagination Info */
+.pagination-info {
+    text-align: center;
+    margin-top: 1rem;
+    color: #aaa;
+    font-size: 1.1rem;
+}
+
+/* Slide Animations */
+.pass-track.slide-out-left {
+    animation: slideOutLeft 0.4s ease-out forwards;
+}
+
+.pass-track.slide-out-right {
+    animation: slideOutRight 0.4s ease-out forwards;
+}
+
+.pass-track.slide-in-left {
+    animation: slideInLeft 0.4s ease-out forwards;
+}
+
+.pass-track.slide-in-right {
+    animation: slideInRight 0.4s ease-out forwards;
+}
+
+@keyframes slideOutLeft {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Stat Cards */
+.stat-card .stat-value {
+    font-size: 3em;
+    font-weight: bold;
+    color: #ffcc00;
+}
+
+.stat-card .stat-label {
+    font-size: 1.2em;
+    color: #007bff;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.stat-card .stat-label:hover {
+    color: #0056b3;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    h2 {
+        font-size: 2rem;
+    }
+    
+    p {
+        font-size: 1rem;
+    }
+    
+    .battlepass-container {
+        padding: 1rem;
+    }
+    
+    .tier {
+        min-width: 120px;
+        padding: 1rem;
+    }
+    
+    .nav-arrow {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+    
+    .battlepass-container {
+        flex-direction: column;
+    }
+    
+    .pass-track {
+        width: 100%;
+    }
+}

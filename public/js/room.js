@@ -19,10 +19,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentRoomIsPrivate = false;
   let currentJoinCode = null;
   let hasPromptedForCode = false;
+  let hasPaid = false; // Track payment status
 
   // Check for join code in URL (from join-by-code flow)
   const urlParams = new URLSearchParams(window.location.search);
   const urlJoinCode = urlParams.get('code');
+
+  // Listen for payment status updates
+  socket.on('paymentStatus', ({ hasPaid: paid }) => {
+    hasPaid = paid;
+    console.log('Payment status updated:', hasPaid);
+  });
 
   // When socket connects, send join request for this room
   socket.on('connect', () => {
@@ -30,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.emit('joinLobby', { gameId, playerName: currentUser, joinCode: urlJoinCode || null });
   });
 
-   socket.on('joined', ({ playerId, gameId: gid, lobbyName, isPrivate = false, joinCode = null, ownerId = null, ownerName = null }) => {
+   socket.on('joined', ({ playerId, isPrivate = false, joinCode = null, ownerId = null, ownerName = null }) => {
     currentPlayerId = playerId || socket.id;
     // remember privacy state and join code
     currentRoomIsPrivate = !!isPrivate;
@@ -157,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRoomControls();
   });
 
-  socket.on('gameStarted', ({ currentPlayerId, players }) => {
+  socket.on('gameStarted', () => {
     // navigate to game page
     window.location.href = '/game?gameId=' + encodeURIComponent(gameId);
   });
@@ -177,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(code).then(() => {
         showCopyNotification('Join code copied!');
-      }).catch(err => {
+      }).catch(() => {
         fallbackCopy(code);
       });
     } else {
@@ -322,5 +329,147 @@ document.addEventListener('DOMContentLoaded', () => {
   socket.on('lobbyCreated', ({ gameId: createdId }) => {
     if (createdId === gameId) {
     }
+  });
+
+  // Listen for XP gained from server (this has the correct level calculation)
+  socket.on('xpGained', ({ xpAdded, currentXP, level, levelsGained, xpForNextLevel }) => {
+    console.log('⭐ XP Gained from server:', { xpAdded, currentXP, level, levelsGained, xpForNextLevel });
+    
+    // Show XP notification box in upper right corner
+    const xpNotification = document.getElementById('xpNotification');
+    const xpNotifPlayerName = document.getElementById('xpNotifPlayerName');
+    const xpNotifLevel = document.getElementById('xpNotifLevel');
+    const xpNotifEarned = document.getElementById('xpNotifEarned');
+    
+    if (xpNotification && xpNotifPlayerName && xpNotifLevel && xpNotifEarned) {
+      console.log('📝 Setting XP notification content...');
+      xpNotifPlayerName.textContent = currentUser;
+      xpNotifLevel.textContent = level; // Use level from server
+      xpNotifEarned.textContent = `+${xpAdded} XP`;
+      
+      console.log('🎨 Displaying XP notification...');
+      xpNotification.style.display = 'block';
+      xpNotification.style.opacity = '1';
+      xpNotification.style.visibility = 'visible';
+      
+      // Animate in
+      setTimeout(() => {
+        xpNotification.style.animation = 'slideInRight 0.5s ease-out';
+        console.log('✅ XP Notification displayed and animated');
+      }, 100);
+      
+      // Show level up message if they gained levels
+      if (levelsGained > 0) {
+        console.log(`🎉 Level up! Gained ${levelsGained} level(s). Now level ${level}`);
+      }
+    } else {
+      console.error('❌ XP Notification element not found!');
+    }
+  });
+
+  // Winner screen handler
+  socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError = false }) => {
+    console.log('🏆 Winner screen data:', { winnerName, winnerId, digipogs, playerCount, payoutError });
+    
+    const modal = document.getElementById('winnerModal');
+    const nameDisplay = document.getElementById('winnerNameDisplay');
+    const earningsDisplay = document.getElementById('winnerEarningsDisplay');
+    const xpDisplay = document.getElementById('winnerXpDisplay');
+    
+    console.log('XP Display element:', xpDisplay);
+    
+    const isCurrentUserWinner = winnerName === currentUser;
+    
+    if (isCurrentUserWinner) {
+      nameDisplay.textContent = 'You are the winner!';
+      
+      if (payoutError) {
+        // Only show error to the winner
+        earningsDisplay.innerHTML = `<strong>Winner!</strong><br><small>Payout processing failed</small>`;
+      } else {
+        earningsDisplay.innerHTML = `You won <strong>${digipogs}</strong> Digipogs!<br><small>${playerCount} players</small>`;
+      }
+    } else {
+      nameDisplay.textContent = `get gud`;
+      earningsDisplay.innerHTML = `${winnerName} won <strong>${digipogs}</strong> Digipogs!<br><small>Try to win next time to earn some!</small>`;
+    }
+    
+    // Note: XP notification is now handled by the xpGained event from the server
+    
+    modal.style.display = 'flex';
+  });
+
+  // Play Again button handler
+  // document.getElementById('playAgainBtn').addEventListener('click', () => {
+  //   console.log('Play Again button clicked, emitting playAgain event');
+  //   socket.emit('playAgain', { gameId });
+  //   // Close the winner modal and XP notification
+  //   document.getElementById('winnerModal').style.display = 'none';
+  //   const xpNotification = document.getElementById('xpNotification');
+  //   if (xpNotification) xpNotification.style.display = 'none';
+  // });
+
+  // Handle play again payment requirement
+  socket.on('playAgainPaymentRequired', () => {
+    console.log('Payment required! Showing payment modal...');
+    // Close winner modal and XP notification
+    document.getElementById('winnerModal').style.display = 'none';
+    const xpNotification = document.getElementById('xpNotification');
+    if (xpNotification) xpNotification.style.display = 'none';
+    // Show payment modal
+    const modal = document.getElementById('paymentModal');
+    console.log('Payment modal element:', modal);
+    if (modal) {
+      modal.style.display = 'block';
+      console.log('Payment modal should now be visible');
+    } else {
+      console.error('Payment modal element not found!');
+    }
+  });
+
+  // Handle game reset (from play again)
+  socket.on('gameReset', ({ message }) => {
+    console.log('Game reset:', message);
+    // Close winner modal and XP notification if still open
+    document.getElementById('winnerModal').style.display = 'none';
+    const xpNotification = document.getElementById('xpNotification');
+    if (xpNotification) xpNotification.style.display = 'none';
+    // The playerList update will refresh the UI automatically
+  });
+
+  // Back to Lobby button handler
+  document.getElementById('backToLobbyBtn').addEventListener('click', () => {
+    // Hide XP notification before leaving
+    const xpNotification = document.getElementById('xpNotification');
+    if (xpNotification) xpNotification.style.display = 'none';
+    window.location.href = '/lobby';
+  });
+
+  // Payment modal functions
+  window.showPaymentModal = function () {
+    const modal = document.getElementById('paymentModal');
+    if (modal) modal.style.display = 'block';
+  };
+
+  window.hidePaymentModal = function () {
+    const modal = document.getElementById('paymentModal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  // Listen for payment success
+  window.addEventListener('paymentSuccess', () => {
+    console.log('Payment successful! Refreshing payment status...');
+    hidePaymentModal();
+    // Request server to refresh payment status
+    socket.emit('refreshPaymentStatus');
+    // Wait a brief moment for server to update session, then retry play again
+    setTimeout(() => {
+      console.log('Retrying play again after payment...');
+      socket.emit('playAgain', { gameId });
+    }, 500);
+  });
+
+  window.addEventListener('hidePaymentModal', () => {
+    hidePaymentModal();
   });
 });

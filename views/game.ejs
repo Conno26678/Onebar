@@ -207,6 +207,7 @@
       const buttons = document.createElement('div');
       buttons.className = 'win-modal-buttons';
 
+      /* Play Again Button - Commented Out
       const playAgainBtn = document.createElement('button');
       playAgainBtn.className = 'win-modal-btn play-again';
       playAgainBtn.textContent = 'Play Again';
@@ -214,6 +215,7 @@
         window.location.href = '/room/' + encodeURIComponent(currentRommId);
       });
       buttons.appendChild(playAgainBtn);
+      */
 
       const goHomeBtn = document.createElement('button');
       goHomeBtn.className = 'win-modal-btn go-home';
@@ -426,6 +428,7 @@
   buttons.style.justifyContent = 'center';
   buttons.style.marginTop = '30px';
   
+  /* Play Again Button - Commented Out
   const playAgainBtn = document.createElement('button');
   playAgainBtn.textContent = 'Play Again';
   playAgainBtn.className = 'play-again-btn';
@@ -462,6 +465,7 @@
     }
   });
   buttons.appendChild(playAgainBtn);
+  */
   
   const lobbyBtn = document.createElement('button');
   lobbyBtn.textContent = 'Back to Lobby';

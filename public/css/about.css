@@ -29,12 +29,6 @@
     padding: 30px;
     margin-bottom: 24px;
     box-shadow: 0 4px 20px var(--shadow);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.about-section:hover {
-    transform: translateY(-4px) scale(1.01);
-    box-shadow: 0 8px 30px var(--shadow);
 }
 
 .about-section h2 {
@@ -67,45 +61,10 @@
     background: var(--hover-color);
     border-radius: 10px;
     border-left: 4px solid #f0c030;
-    transition: all 0.2s ease;
-}
-
-.rules-list li:hover {
-    transform: translateX(8px);
-    background: var(--border-color);
 }
 
 .rules-list li strong {
     color: #f0c030;
-}
-
-/* Back to Home Button - styled like logout button */
-.back-link {
-    position: fixed;
-    top: 80px;
-    left: 20px;
-    z-index: 1001;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    background: var(--gradient-primary);
-    color: #fff;
-    padding: 10px 18px;
-    border-radius: 12px;
-    text-decoration: none;
-    font-weight: 600;
-    box-shadow: 0 4px 15px var(--shadow), var(--glow-primary);
-    border: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.back-link:hover {
-    background: linear-gradient(135deg, #c53030 0%, #9b2c2c 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 25px var(--shadow), 0 0 30px rgba(197, 48, 48, 0.3);
-    color: #fff;
-    text-decoration: none;
 }
 
 .contact-info {

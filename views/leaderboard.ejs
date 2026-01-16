@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onebar - Leaderboard</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/leaderboard.css">
+</head>
+<body>
+    <a href="/" class="btn home-button">Home</a>
+    <a href="/logout" class="btn logout-button">Logout</a>
+    
+    <div class="leaderboard-container">
+        <div class="leaderboard-trophy">🏆</div>
+        <h1 class="leaderboard-title">LEADERBOARD</h1>
+        
+        <% if (leaderboard && leaderboard.length > 0) { %>
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Player</th>
+                        <th>Wins</th>
+                        <th>Losses</th>
+                        <th>Games</th>
+                        <th>Win Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% leaderboard.forEach((user, index) => { %>
+                        <tr>
+                            <td><%= index + 1 %></td>
+                            <td>
+                                <% if (index === 0) { %>
+                                    <img src="/img/king.png" alt="King" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 8px;">
+                                <% } %>
+                                <%= user.displayName %>
+                            </td>
+                            <td><%= user.wins %></td>
+                            <td><%= user.losses %></td>
+                            <td><%= user.gamesPlayed %></td>
+                            <td><%= ((user.wins / user.gamesPlayed) * 100).toFixed(1) %>%</td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        <% } else { %>
+            <div class="empty-leaderboard">
+                <div class="empty-leaderboard-text">No games played yet. Be the first!</div>
+            </div>
+        <% } %>
+    </div>
+    
+    <script src="/js/theme.js"></script>
+</body>
+</html>

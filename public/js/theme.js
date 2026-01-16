@@ -1,16 +1,16 @@
-// Theme management (thanks to ChatGPT)
+// Theme management - Dark mode only
 class ThemeManager {
   constructor() {
-    this.currentTheme = localStorage.getItem('theme') || 'light';
+    this.currentTheme = 'dark';
     this.init();
   }
 
   init() {
-    // Apply saved theme on page load
+    // Apply dark theme on page load
     this.applyTheme(this.currentTheme);
     
-    // Create theme toggle button
-    this.createToggleButton();
+    // Theme toggle disabled - dark mode only
+    // this.createToggleButton();
     
     // Add fade-in animation to body
     document.body.classList.add('fade-in');

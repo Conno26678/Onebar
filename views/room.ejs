@@ -8,8 +8,8 @@
     <link rel="stylesheet" href="/css/room.css">
 </head>
 <body>
+    <a href="/" class="btn home-button">Home</a>
     <a href="/logout" class="btn logout-button">Logout</a>
-    <a href="/" class="back-link">Home</a>
     
     <div class="room-container">
         <h1 class="room-title" id="roomTitle"> Private Room</h1>
@@ -38,9 +38,74 @@
         </div>
     </div>
 
+    <!-- XP Notification Box -->
+    <div id="xpNotification" class="xp-notification" style="display: none;">
+        <div class="xp-notification-header">Level Up Progress</div>
+        <div class="xp-notification-content">
+            <div class="xp-notification-row">
+                <span class="xp-notification-label">Player:</span>
+                <span class="xp-notification-value" id="xpNotifPlayerName"></span>
+            </div>
+            <div class="xp-notification-row">
+                <span class="xp-notification-label">Level:</span>
+                <span class="xp-notification-value" id="xpNotifLevel"></span>
+            </div>
+            <div class="xp-notification-row xp-earned-row">
+                <span class="xp-notification-label">XP Earned:</span>
+                <span class="xp-notification-value xp-earned" id="xpNotifEarned"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="winnerModal" class="winner-modal" style="display: none;">
+        <div class="winner-modal-content">
+            <div class="winner-trophy">🏆</div>
+            <h2 class="winner-title">Game Over!</h2>
+            <div class="winner-name" id="winnerNameDisplay"></div>
+            <div class="winner-earnings" id="winnerEarningsDisplay"></div>
+            <div class="winner-buttons">
+                <!-- <button id="playAgainBtn" class="winner-btn primary">Play Again</button> -->
+                <button id="backToLobbyBtn" class="winner-btn secondary">Back to Lobby</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="payment-modal" style="display: none;">
+        <div class="payment-modal-content">
+            <span class="payment-modal-close" onclick="hidePaymentModal()">&times;</span>
+            <%- include('partials/pay') %>
+        </div>
+    </div>
+
     <script>window.CURRENT_USER = "<%= user %>"; window.GAME_ID = "<%= gameId %>"; window.LOBBY_NAME = "<%= (typeof lobbyName !== 'undefined' ? lobbyName : '') %>";</script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
-    <script src="/js/room.js"></script>
+    <script>
+        // Sound control helper function
+        function playSoundIfEnabled(soundPath, volume = 0.5) {
+            const soundEnabled = localStorage.getItem('soundEffectsEnabled');
+            if (soundEnabled === 'false') {
+                console.log('Sound disabled, skipping:', soundPath);
+                return null;
+            }
+            const audio = new Audio(soundPath);
+            audio.volume = volume;
+            audio.play().catch(err => console.log('Sound play failed:', err));
+            return audio;
+        }
+
+        // Play "a few moments" sound on page load
+        playSoundIfEnabled('/sfx/afewmoments.mp3', 0.5);
+        
+        // Override alert to play loading sound
+        const originalAlert = window.alert;
+        window.alert = function(message) {
+            playSoundIfEnabled('/sfx/loading.mp3', 0.5);
+            originalAlert.call(window, message);
+        };
+    </script>
+    <script src="/js/room.js?v=4"></script>
 </body>
 </html>

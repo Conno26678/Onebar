@@ -7,6 +7,75 @@
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/cards-atlas.css">
     <link rel="stylesheet" href="/css/game.css">
+    <link rel="stylesheet" href="/css/lobby.css">
+    <link rel="stylesheet" href="/css/room.css">
+    <style>
+        @keyframes popIn {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 0;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+        
+        /* Transfer button styling */
+        .actions {
+            margin-top: 20px;
+        }
+        
+        .actions button.primary,
+        button.primary {
+            width: 100%;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #f0c030 0%, #f39c12 100%);
+            color: #1a1a1a;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .actions button.primary:hover,
+        button.primary:hover {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(240, 192, 48, 0.4);
+        }
+        
+        .actions button.primary:disabled,
+        button.primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Payment modal must be above winner modal (z-index 10000) */
+        .payment-modal {
+            z-index: 50000 !important;
+            pointer-events: auto !important;
+        }
+        
+        .payment-modal-content {
+            z-index: 50001 !important;
+            pointer-events: auto !important;
+        }
+        
+        .payment-modal .card {
+            pointer-events: auto !important;
+        }
+        
+        .payment-modal button,
+        .payment-modal input {
+            pointer-events: auto !important;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
   <!-- Logout button (upper-left) -->
@@ -21,10 +90,57 @@
     <div id="hand"></div>
   </div>
 
+  <!-- XP Notification Box -->
+  <div id="xpNotification" class="xp-notification" style="display: none;">
+    <div class="xp-notification-header">Level Up Progress</div>
+    <div class="xp-notification-content">
+      <div class="xp-notification-row">
+        <span class="xp-notification-label">Player:</span>
+        <span class="xp-notification-value" id="xpNotifPlayerName"></span>
+      </div>
+      <div class="xp-notification-row">
+        <span class="xp-notification-label">Level:</span>
+        <span class="xp-notification-value" id="xpNotifLevel"></span>
+      </div>
+      <div class="xp-notification-row xp-earned-row">
+        <span class="xp-notification-label">XP Earned:</span>
+        <span class="xp-notification-value xp-earned" id="xpNotifEarned"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Modal -->
+  <div id="paymentModal" class="payment-modal" style="display: none;">
+    <div class="payment-modal-content">
+      <span class="payment-modal-close" onclick="hidePaymentModal()">&times;</span>
+      <%- include('partials/pay') %>
+    </div>
+  </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
 </body>
 <script>
+    // Sound control helper function
+    function playSoundIfEnabled(soundPath, volume = 0.5) {
+        const soundEnabled = localStorage.getItem('soundEffectsEnabled');
+        if (soundEnabled === 'false') {
+            console.log('Sound disabled, skipping:', soundPath);
+            return null;
+        }
+        const audio = new Audio(soundPath);
+        audio.volume = volume;
+        audio.play().catch(err => console.log('Sound play failed:', err));
+        return audio;
+    }
+
+    // Override alert to play loading sound
+    const originalAlert = window.alert;
+    window.alert = function(message) {
+        playSoundIfEnabled('/sfx/loading.mp3', 0.5);
+        originalAlert.call(window, message);
+    };
+
     const socket = io();
 
     const gameId = <%- JSON.stringify(gameId || 'default') %>;
@@ -37,9 +153,30 @@
 
     //store lobby ID
     let currentRommId = gameId;
+    
+    // Track payment status
+    let hasPaid = false;
+    
+    // Listen for payment status updates
+    socket.on('paymentStatus', ({ hasPaid: paid }) => {
+        hasPaid = paid;
+        console.log('Payment status updated in game:', hasPaid);
+    });
+    
+    // Track current turn player
+    let currentTurnPlayerId = null;
+    let myPlayerId = null;
+    let currentTableCard = null; // Track the card on top of discard pile
 
     function showWinMedal(winnerName, isCurrentUserWinner) {
       disableGameUI();
+      
+      // Play appropriate sound based on win/lose
+      if (isCurrentUserWinner) {
+        playSoundIfEnabled('/sfx/yippie.mp3', 0.5);
+      } else {
+        playSoundIfEnabled('/sfx/spongebobfail.mp3', 0.5);
+      }
 
       const overlay = document.createElement('div');
       overlay.className = 'win-modal-overlay';
@@ -49,12 +186,12 @@
 
       const trophy = document.createElement('div');
       trophy.className = 'win-modal-trophy';
-      trophy.textContent = '🏆';
-      modal.appendChild(trophy);
+      trophy.textContent = isCurrentUserWinner ? '🏆' : '';
+      if (trophy.textContent) modal.appendChild(trophy);
 
       const title = document.createElement('div');
       title.className = 'win-modal-title';
-      title.textContent = isCurrentUserWinner ? 'Congratulations! You Won!' : `Game Over!`;
+      title.textContent = isCurrentUserWinner ? 'Congratulations! You Won!' : `get gud`;
       modal.appendChild(title);
 
       const winner = document.createElement('div');
@@ -145,7 +282,218 @@
         }
       });
     }
+    // Listen for XP gained from server (has correct level calculation)
+    socket.on('xpGained', ({ xpAdded, currentXP, level, levelsGained, xpForNextLevel }) => {
+      console.log('⭐ XP Gained from server:', { xpAdded, currentXP, level, levelsGained, xpForNextLevel });
+      
+      // Show XP notification box in upper right corner
+      const xpNotification = document.getElementById('xpNotification');
+      const xpNotifPlayerName = document.getElementById('xpNotifPlayerName');
+      const xpNotifLevel = document.getElementById('xpNotifLevel');
+      const xpNotifEarned = document.getElementById('xpNotifEarned');
+      
+      if (xpNotification && xpNotifPlayerName && xpNotifLevel && xpNotifEarned) {
+        console.log('📝 Setting XP notification content...');
+        xpNotifPlayerName.textContent = playerName;
+        xpNotifLevel.textContent = level; // Use level from server
+        xpNotifEarned.textContent = `+${xpAdded} XP`;
+        
+        console.log('🎨 Displaying XP notification...');
+        xpNotification.style.display = 'block';
+        xpNotification.style.opacity = '1';
+        xpNotification.style.visibility = 'visible';
+        
+        // Animate in
+        setTimeout(() => {
+          xpNotification.style.animation = 'slideInRight 0.5s ease-out';
+          console.log('✅ XP Notification displayed and animated');
+        }, 100);
+        
+        // Show level up message if they gained levels
+        if (levelsGained > 0) {
+          console.log(`🎉 Level up! Gained ${levelsGained} level(s). Now level ${level}`);
+        }
+      } else {
+        console.error('❌ XP Notification element not found!');
+      }
+    });
 
+    socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError, payoutErrorMessage }) => {
+  console.log('🏆 Winner screen data:', { winnerName, winnerId, digipogs, playerCount, payoutError });
+  
+  const isCurrentUserWinner = (winnerName === playerName);
+  
+  // Note: XP notification is now handled by the xpGained event from the server
+  
+  // Create winner modal overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'winnerModal';
+  overlay.style.display = 'block';
+  overlay.style.position = 'fixed';
+  overlay.style.zIndex = '10000';
+  overlay.style.left = '0';
+  overlay.style.top = '0';
+  overlay.style.width = '100%';
+  overlay.style.height = '100%';
+  overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+  
+  const content = document.createElement('div');
+  content.className = 'winner-content';
+  content.style.position = 'relative';
+  content.style.background = '#0d1117';
+  content.style.margin = '10% auto';
+  content.style.padding = '40px';
+  content.style.borderRadius = '20px';
+  content.style.width = '90%';
+  content.style.maxWidth = '500px';
+  content.style.textAlign = 'center';
+  content.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.5)';
+  content.style.border = '1px solid #30363d';
+  
+  // isCurrentUserWinner already declared above
+  
+  const title = document.createElement('h2');
+  title.textContent = isCurrentUserWinner ? '🏆 Winner!' : 'get gud';
+  title.style.color = isCurrentUserWinner ? '#ffd700' : '#ff6b6b';
+  title.style.fontSize = '2.5em';
+  title.style.marginBottom = '20px';
+  title.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.5)';
+  content.appendChild(title);
+  
+  const name = document.createElement('div');
+  name.className = 'winner-name';
+  name.textContent = isCurrentUserWinner ? 'You are the winner!' : `${winnerName} won`;
+  name.style.fontSize = '2em';
+  name.style.color = '#fff';
+  name.style.margin = '20px 0';
+  name.style.fontWeight = 'bold';
+  content.appendChild(name);
+  
+  const amount = document.createElement('div');
+  amount.className = 'winner-amount';
+  if (payoutError && isCurrentUserWinner) {
+    // Only show error to the winner
+    amount.textContent = 'Payout Error';
+    amount.style.color = '#ff6b6b';
+    amount.style.fontSize = '1.8em';
+    amount.style.margin = '20px 0';
+    amount.style.fontWeight = 'bold';
+    content.appendChild(amount);
+    
+    const errorMessage = document.createElement('div');
+    errorMessage.className = 'payout-error-message';
+    errorMessage.textContent = payoutErrorMessage || 'Failed to process payout - Contact Support';
+    errorMessage.style.color = '#ff8585';
+    errorMessage.style.fontSize = '1.1em';
+    errorMessage.style.margin = '15px 0';
+    errorMessage.style.padding = '10px';
+    errorMessage.style.backgroundColor = 'rgba(255, 107, 107, 0.1)';
+    errorMessage.style.borderRadius = '8px';
+    errorMessage.style.border = '1px solid rgba(255, 107, 107, 0.3)';
+    content.appendChild(errorMessage);
+  } else {
+    // Normal winner/loser display
+    if (isCurrentUserWinner) {
+      amount.textContent = `You won ${digipogs} Digipogs!`;
+    } else {
+      amount.textContent = `${winnerName} won ${digipogs} Digipogs!`;
+      
+      const encouragement = document.createElement('div');
+      encouragement.style.color = '#a0aec0';
+      encouragement.style.fontSize = '1.1em';
+      encouragement.style.marginTop = '10px';
+      encouragement.textContent = 'Try to win next time to earn some!';
+      content.appendChild(encouragement);
+    }
+    amount.style.color = '#ffd700';
+    amount.style.fontSize = '1.8em';
+    amount.style.margin = '20px 0';
+    amount.style.fontWeight = 'bold';
+    content.appendChild(amount);
+  }
+  
+  const playerInfo = document.createElement('div');
+  playerInfo.textContent = `${playerCount} players competed`;
+  playerInfo.style.color = '#fff';
+  playerInfo.style.fontSize = '1.2em';
+  playerInfo.style.marginBottom = '30px';
+  content.appendChild(playerInfo);
+  
+  const buttons = document.createElement('div');
+  buttons.className = 'winner-buttons';
+  buttons.style.display = 'flex';
+  buttons.style.gap = '20px';
+  buttons.style.justifyContent = 'center';
+  buttons.style.marginTop = '30px';
+  
+  const playAgainBtn = document.createElement('button');
+  playAgainBtn.textContent = 'Play Again';
+  playAgainBtn.className = 'play-again-btn';
+  playAgainBtn.style.padding = '15px 30px';
+  playAgainBtn.style.fontSize = '1.2em';
+  playAgainBtn.style.border = 'none';
+  playAgainBtn.style.borderRadius = '10px';
+  playAgainBtn.style.cursor = 'pointer';
+  playAgainBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
+  playAgainBtn.style.color = 'white';
+  playAgainBtn.style.fontWeight = 'bold';
+  playAgainBtn.style.transition = 'all 0.3s ease';
+  playAgainBtn.addEventListener('mouseover', () => {
+    playAgainBtn.style.background = 'linear-gradient(135deg, #c53030 0%, #e53e3e 100%)';
+    playAgainBtn.style.transform = 'translateY(-2px)';
+    playAgainBtn.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
+  });
+  playAgainBtn.addEventListener('mouseout', () => {
+    playAgainBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
+    playAgainBtn.style.transform = 'translateY(0)';
+    playAgainBtn.style.boxShadow = 'none';
+  });
+  playAgainBtn.addEventListener('click', () => {
+    console.log('Play Again clicked, checking payment status...');
+    console.log('Current hasPaid status:', hasPaid);
+    
+    // Check payment status before allowing play again
+    if (!hasPaid) {
+      console.log('Payment required, showing modal...');
+      showPaymentModal();
+    } else {
+      console.log('Payment verified, redirecting to room...');
+      window.location.href = '/room/' + encodeURIComponent(currentRommId);
+    }
+  });
+  buttons.appendChild(playAgainBtn);
+  
+  const lobbyBtn = document.createElement('button');
+  lobbyBtn.textContent = 'Back to Lobby';
+  lobbyBtn.className = 'back-lobby-btn';
+  lobbyBtn.style.padding = '15px 30px';
+  lobbyBtn.style.fontSize = '1.2em';
+  lobbyBtn.style.border = 'none';
+  lobbyBtn.style.borderRadius = '10px';
+  lobbyBtn.style.cursor = 'pointer';
+  lobbyBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
+  lobbyBtn.style.color = 'white';
+  lobbyBtn.style.fontWeight = 'bold';
+  lobbyBtn.style.transition = 'all 0.3s ease';
+  lobbyBtn.addEventListener('mouseover', () => {
+    lobbyBtn.style.background = 'linear-gradient(135deg, #c53030 0%, #e53e3e 100%)';
+    lobbyBtn.style.transform = 'translateY(-2px)';
+    lobbyBtn.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
+  });
+  lobbyBtn.addEventListener('mouseout', () => {
+    lobbyBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
+    lobbyBtn.style.transform = 'translateY(0)';
+    lobbyBtn.style.boxShadow = 'none';
+  });
+  lobbyBtn.addEventListener('click', () => {
+    window.location.href = '/lobby';
+  });
+  buttons.appendChild(lobbyBtn);
+  
+  content.appendChild(buttons);
+  overlay.appendChild(content);
+  document.body.appendChild(overlay);
+});
     //Drawn Card choice
     function showDrawnCardChoice(card, isWild, callback) {
       const overlay = document.createElement('div');
@@ -225,6 +573,15 @@
       document.body.appendChild(overlay);
     }
 
+    // Register requestStartColor handler BEFORE joining game to avoid race condition
+    socket.on('requestStartColor', ({ gameId: gid, card }) => {
+        console.log('requestStartColor received, showing color picker...');
+        showColorPicker((chosen) => {
+          console.log('Color chosen:', chosen);
+          socket.emit('startColorChosen', { gameId: gameId || 'default', color: chosen });
+        }, 'Starting card is Wild!');
+    });
+
     socket.on('drawnCardPlayable', ({ card, gameId: gid, isWild }) => {
       showDrawnCardChoice(card, isWild, (action, chosenColor) => {
         socket.emit('drawnCardChoice', {
@@ -252,6 +609,7 @@
 
     socket.on('joined', ({ playerId, gameId }) => {
         console.log('joined', playerId, gameId);
+        myPlayerId = playerId; // Store our player ID
         document.getElementById('status').innerText = `Joined game ${gameId} as ${playerName}`;
         // After first join, subsequent deals are reconnections - don't animate
         isInitialLoad = false;
@@ -288,34 +646,41 @@
     
     socket.on('gameStarted', ({currentPlayerId, players}) => {
       gameActive = true;
+        currentTurnPlayerId = currentPlayerId;
         updateCurrentPlayer(currentPlayerId);
     });
 
     socket.on('turnChanged', ({ currentPlayerId }) => {
+        currentTurnPlayerId = currentPlayerId;
         updateCurrentPlayer(currentPlayerId);
     });
 
     socket.on('cardPlacedOnTable', (card) => {
+      currentTableCard = card; // Store current table card
       addCardToTable(card, null, 'Top of Discard Pile');
     });
 
     socket.on('cardPlayed', ({ playerId, playerName, card }) => {
+        currentTableCard = card; // Store current table card
         addCardToTable(card, playerId, playerName);
         removeCardFromHand(card.id);
         // Update local hand tracking
         currentHand = currentHand.filter(c => c.id !== card.id);
+        
+        // Play sound effects based on card type
+        if (card.value === 'Skip') {
+          playSoundIfEnabled('/sfx/slap.mp3', 0.4);
+        } else if (card.value === 'Reverse') {
+          playSoundIfEnabled('/sfx/reverse.mp3', 0.4);
+        } else if (card.value === 'Draw Two' || card.value === 'Wild Draw Four' || card.id?.includes('DrawTwo') || card.id?.includes('WildDrawFour')) {
+          playSoundIfEnabled('/sfx/pluh.mp3', 0.4);
+        }
     });
 
     socket.on('invalidMove', ({ reason }) => {
         alert('Invalid move: ' + reason);
         // Re-render hand to restore any cards that were hidden during animation
         renderHand(currentHand, false);
-    });
-
-        socket.on('requestStartColor', ({ gameId: gid, card }) => {
-        showColorPicker((chosen) => {
-          socket.emit('startColorChosen', { gameId: gameId || 'default', color: chosen });
-        }, 'Starting card is Wild!');
     });
 
     socket.on('playerWon', ({ playerId, playerName }) => {
@@ -468,6 +833,18 @@
         cardEl.addEventListener('click', async () => {
           if (!gameActive) return;
           
+          // Check if it's the player's turn BEFORE animation
+          if (currentTurnPlayerId !== myPlayerId) {
+            alert("It's not your turn! Wait for your turn to play.");
+            return;
+          }
+          
+          // Check if the card can be played BEFORE animation
+          if (!canPlayCard(card)) {
+            alert("You can't play that card! It doesn't match the color or value.");
+            return;
+          }
+          
           // Animate card to discard pile
           await animateCardToDiscard(cardEl, card.img);
           
@@ -482,6 +859,21 @@
         });
         container.appendChild(cardEl);
       });
+    }
+
+    // Validate if a card can be played on the current table card
+    function canPlayCard(card) {
+      if (!currentTableCard) return true; // No table card yet, any card is valid
+      
+      // Wild cards can always be played
+      if (card.color === 'wild') return true;
+      
+      // Get the active color (for wild cards that were played)
+      const tableColor = currentTableCard.activeColor || currentTableCard.chosenColor || currentTableCard.color;
+      const tableValue = currentTableCard.value;
+      
+      // Card matches if same color OR same value
+      return card.color === tableColor || card.value === tableValue;
     }
 
     function addCardToTable(card, playerId, playerName) {
@@ -574,6 +966,18 @@
         alert('You can only call ONE when you have exactly 1 card left!');
         return;
       }
+      
+      // Clear the countdown timer when ONE is pressed
+      if (oneCountdownInterval) {
+        clearInterval(oneCountdownInterval);
+        oneCountdownInterval = null;
+      }
+      // Clear the status message
+      const s = document.getElementById('status');
+      s.innerText = '';
+      s.style.color = '';
+      s.style.fontWeight = '';
+      s.style.fontSize = '';
       // Send to server to validate and broadcast
       socket.emit('callOne', { gameId: gameId });
     });
@@ -586,20 +990,97 @@
     }
     placeOneBtn();
 
+    // Create custom notification function for ONE calls (doesn't trigger alert sound)
+    function showOneNotification(message) {
+        const notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #f0c030 0%, #f39c12 100%);
+            color: #1a1a1a;
+            padding: 20px 40px;
+            border-radius: 16px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            z-index: 10000;
+            animation: popIn 0.3s ease-out;
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 2000);
+    }
+
+    // Global handler for transfer button (called by inline onclick)
+    window.handleTransferClick = async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Transfer button workie!');
+        await doTransfer();
+    };
+    
+    // Payment modal functions
+    let paymentHandlerAttached = false; // Track if handler is already attached
+    
+    window.showPaymentModal = async function () {
+        console.log(' showPaymentModal called');
+        const modal = document.getElementById('paymentModal');
+        if (!modal) {
+            console.error('Payment modal element not found!');
+            return;
+        }
+        
+        // Hide the winner modal so it doesn't block clicks
+        const winnerOverlay = document.querySelector('.win-modal-overlay');
+        if (winnerOverlay) {
+            winnerOverlay.style.display = 'none';
+        }
+        
+        modal.style.display = 'block';
+        console.log('✅ Payment modal displayed');
+    };
+
+    window.hidePaymentModal = function () {
+        const modal = document.getElementById('paymentModal');
+        if (modal) modal.style.display = 'none';
+    };
+
+    // Listen for payment success
+    window.addEventListener('paymentSuccess', () => {
+        console.log('💳 Payment successful! Refreshing status and redirecting...');
+        hidePaymentModal();
+        hasPaid = true;
+        // Redirect to lobby after successful payment
+        setTimeout(() => {
+            window.location.href = '/lobby';
+        }, 300);
+    });
+
+    window.addEventListener('hidePaymentModal', () => {
+        hidePaymentModal();
+    });
+
     // Listen for server confirmation / errors
     socket.on('playerCalledOne', ({ playerId, playerName }) => {
       const name = playerName || document.getElementById('p_' + playerId)?.textContent || playerId;
-      alert(name + ' called ONE!');
+      showOneNotification(name + ' called ONE!');
     });
 
-    socket.on('invalidOneCall', ({ reason }) => {
-      alert('Invalid ONE call: ' + reason);
+    socket.on('oneCallFailedToEarly', ({ playerId }) => {
+      alert('You cannot call ONE yet! You have more than 1 card.');
     });
 
-    socket.on('playerPenalized', ({ playerId, playerName, count, reason }) => {
+    socket.on('drawPenalty', ({ playerId, playerName, count, reason }) => {
       const name = playerName || document.getElementById('p_' + playerId)?.textContent || playerId;
-      if (reason === 'noOneCalled') {
-        alert(name + ' tried to play without calling ONE! +' + count + ' cards as penalty!');
+      if (reason === 'missedOne') {
+        alert(name + ' failed to call ONE and drew ' + count + ' penalty card' + (count !== 1 ? 's' : ''));
       } else if (reason === 'timeout') {
         alert(name + ' failed to call ONE in time and drew ' + count + ' card' + (count !== 1 ? 's' : ''));
       } else {
@@ -702,6 +1183,12 @@ controlContainer.style.order = '3';
 
 // Clicking the draw pile
 drawImg.addEventListener('click', async () => {
+  // Check if it's the player's turn BEFORE animation
+  if (currentTurnPlayerId !== myPlayerId) {
+    alert("It's not your turn! Wait for your turn to draw.");
+    return;
+  }
+  
   // Animate card from deck to hand
   await animateCardFromDeck();
   socket.emit('drawCard', { gameId: gameId });

@@ -170,7 +170,7 @@ router.post('/transfer', async (req, res) => {
 // Helper function to process winner payouts with dynamic amount
 // Base: 100 Digipogs + (playerCount * 10)
 // Example: 5 players = 100 + (5 * 10) = 150 Digipogs
-async function processWinnerPayout(winnerId, playerCount, gameId = 'unknown') {
+async function processWinnerPayout(winnerId, playerCount, gameId = 'unknown', lobbyName = null) {
     try {
         const ownerPin = process.env.OWNER_PIN;
         if (!ownerPin) {
@@ -189,7 +189,7 @@ async function processWinnerPayout(winnerId, playerCount, gameId = 'unknown') {
             to: Number(winnerId),
             amount: Number(amount),
             pin: Number(ownerPin),
-            reason: `Winner payout for game ${gameId} (${playerCount} players)`,
+            reason: `Winner payout for game ${playerCount} ${lobbyName || 'Unnamed Lobby'}`,
         };
         
         console.log(`Payout payload (PIN redacted):`, { ...payload, pin: '[REDACTED]' });
@@ -259,14 +259,14 @@ async function processWinnerPayout(winnerId, playerCount, gameId = 'unknown') {
 
 router.post('/payout', async (req, res) => {
     try {
-        const { winnerId, playerCount, gameId } = req.body || {};
+        const { winnerId, playerCount, gameId, lobbyName } = req.body || {};
 
         if (!winnerId || !playerCount) {
             console.error('Payout failed: Missing required fields.', { winnerId, playerCount });
             return res.status(400).json({ ok: false, error: 'Missing winnerId or playerCount' });
         }
 
-        const result = await processWinnerPayout(winnerId, playerCount, gameId);
+        const result = await processWinnerPayout(winnerId, playerCount, gameId, lobbyName);
         
         if (result.ok) {
             res.json({ ok: true, amount: result.amount, message: 'Payout successful', response: result.response });

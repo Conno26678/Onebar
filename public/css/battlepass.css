@@ -226,6 +226,14 @@ p {
     justify-content: center;
     font-size: 2.5rem;
     transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.reward-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
 }
 
 .reward-icon.unlocked {

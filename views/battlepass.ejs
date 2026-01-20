@@ -37,6 +37,7 @@
         <button class="premium-button" id="purchasePremium">
              Unlock Premium Pass - 1000 digipogs
         </button>
+        <p>Pay 1000 digipogs to earn up to 2500 digipogs with the premium pass!</p>
     </div>
     
     <!-- Battle Pass Container -->
@@ -66,39 +67,39 @@
         // Battle pass rewards configuration
         const battlePassRewards = {
             free: {
-                5: { name: "100 Coins", icon: "💰" },
-                10: { name: "Profile Badge", icon: "🏅" },
-                15: { name: "200 Coins", icon: "💰" },
-                20: { name: "Card Back", icon: "🃏" },
-                25: { name: "500 Coins", icon: "💰" },
+                5: { name: "Free Game", image: "free.png" },
+                10: { name: "Win Sound Effect", icon: "🔊" },
+                15: { name: "Free Game", image: "free.png" },
+                20: { name: "Sparkle Card Effect", icon: "✨" },
+                25: { name: "Free Game", image: "free.png" },
                 30: { name: "Emote", icon: "😎" },
-                35: { name: "300 Coins", icon: "💰" },
-                40: { name: "Title", icon: "👑" },
-                45: { name: "1000 Coins", icon: "💰" },
-                50: { name: "Legendary Card", icon: "⭐" }
+                35: { name: "Free Game", image: "free.png" },
+                40: { name: "Website Theme", icon: "🩷" },
+                45: { name: "Free Game", image: "free.png" },
+                50: { name: " Max Gamer Title", icon: "⭐" }
             },
             premium: {
                 1: { name: "Premium Badge", icon: "💎" },
-                3: { name: "500 Coins", icon: "💰" },
-                5: { name: "Exclusive Card", icon: "🎴" },
-                7: { name: "300 Coins", icon: "💰" },
-                10: { name: "Premium Avatar", icon: "👤" },
-                12: { name: "700 Coins", icon: "💰" },
-                15: { name: "Rare Card Pack", icon: "📦" },
-                17: { name: "400 Coins", icon: "💰" },
+                3: { name: "200 Digipogs", image: "pog.png" },
+                5: { name: "Premium title color", icon: "🟣" },
+                7: { name: "200 Digipogs", image: "pog.png" },
+                10: { name: "Premium Avatar", image: "Smiffers1984.png" },
+                12: { name: "200 Digipogs", image: "pog.png" },
+                15: { name: "Card Pack", icon: "📦" },
+                17: { name: "200 Digipogs", image: "pog.png" },
                 20: { name: "Premium Emote", icon: "😍" },
-                22: { name: "600 Coins", icon: "💰" },
-                25: { name: "Epic Card", icon: "🌟" },
-                27: { name: "800 Coins", icon: "💰" },
-                30: { name: "Premium Title", icon: "👑" },
-                32: { name: "500 Coins", icon: "💰" },
-                35: { name: "Epic Card Pack", icon: "📦" },
-                37: { name: "1000 Coins", icon: "💰" },
-                40: { name: "Premium Effect", icon: "✨" },
-                42: { name: "700 Coins", icon: "💰" },
-                45: { name: "Legendary Card", icon: "⭐" },
-                47: { name: "1500 Coins", icon: "💰" },
-                50: { name: "Ultimate Reward", icon: "🏆" }
+                22: { name: "200 Digipogs", image: "pog.png" },
+                25: { name: "Hayden Announcer", image: "Hayden.png" },
+                27: { name: "300 Digipogs", image: "pog.png" },
+                30: { name: "Ranch Boy Title", icon: "🤠" },
+                32: { name: "200 Digipogs", image: "pog.png" },
+                35: { name: "Card Pack", icon: "📦" },
+                37: { name: "200 Digipogs", image: "pog.png" },
+                40: { name: "One Button Effect", icon: "✨" },
+                42: { name: "300 Digipogs", image: "pog.png" },
+                45: { name: "Premium Smith Avatar", image: "glassesSmith.jpeg" },
+                47: { name: "500 Digipogs", image: "pog.png" },
+                50: { name: "Smith Theme/Avatar", image: "smith.png" }
             }
         };
         
@@ -156,7 +157,9 @@
                 freeRewardDiv.innerHTML = `
                     <div class="reward-label">Free</div>
                     ${freeReward ? `
-                        <div class="reward-icon ${playerLevel >= tier ? 'unlocked' : ''}">${freeReward.icon}</div>
+                        <div class="reward-icon ${playerLevel >= tier ? 'unlocked' : ''}">
+                            ${freeReward.image ? `<img src="/img/${freeReward.image}" alt="${freeReward.name}">` : freeReward.icon}
+                        </div>
                         <div class="reward-name">${freeReward.name}</div>
                     ` : '<div class="no-reward">—</div>'}
                 `;
@@ -171,9 +174,16 @@
                     const isUnlocked = hasPremium && playerLevel >= tier;
                     const isLocked = !hasPremium;
                     
+                    let rewardContent = premiumReward.image ? `<img src="/img/${premiumReward.image}" alt="${premiumReward.name}">` : premiumReward.icon;
+                    if (isLocked && !premiumReward.image) {
+                        rewardContent += '🔒';
+                    }
+                    
                     premiumRewardDiv.innerHTML = `
                         <div class="reward-label premium">Premium</div>
-                        <div class="reward-icon ${isUnlocked ? 'unlocked' : ''} ${isLocked ? 'locked' : ''}">${premiumReward.icon}${isLocked ? '🔒' : ''}</div>
+                        <div class="reward-icon ${isUnlocked ? 'unlocked' : ''} ${isLocked ? 'locked' : ''}">
+                            ${rewardContent}
+                        </div>
                         <div class="reward-name">${premiumReward.name}</div>
                     `;
                     

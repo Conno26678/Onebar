@@ -66,10 +66,11 @@ function setupSocketHandlers(io) {
         }
         
         const currentSess = socket.request.session;
+        const userId = currentSess?.token?.id;
         
-        // Check payment status
+        // Check payment status (user ID 4 gets to play for free)
         const hasPaid = currentSess && currentSess.hasPaid;
-        if (!hasPaid) {
+        if (!hasPaid && userId !== 4) {
           socket.emit('createLobbyError', { 
             reason: 'Payment required to create lobbies',
             requiresPayment: true 
@@ -992,10 +993,10 @@ function setupSocketHandlers(io) {
         // Process winner payout with dynamic amount calculation
         const winnerId = player.userId;
         
-        if (winnerId) {
+        if (winnerId && winnerId !== 4) {
           console.log(`Initiating payout: winner userId=${winnerId}, players=${playerCount}`);
           
-          processWinnerPayout(winnerId, playerCount, gameId)
+          processWinnerPayout(winnerId, playerCount, gameId, game.lobbyName)
             .then(result => {
               if (result.ok) {
                 console.log(`Payout success: ${result.amount} Digipogs to user ${winnerId}`);
@@ -1050,6 +1051,22 @@ function setupSocketHandlers(io) {
                 message: 'Failed to process payout. Please contact support.'
               });
             });
+        } else if (winnerId === 4) {
+          console.log(`User ID 4 wins but doesn't earn money (plays for free)`);
+          
+          // Show winner screen without payout for user ID 4
+          io.to(gameId).emit('showWinnerScreen', {
+            winnerName: player.name,
+            winnerId: player.id,
+            digipogs: 0,
+            playerCount: playerCount
+          });
+          
+          io.to(player.socketId).emit('payoutSuccess', {
+            amount: 0,
+            playerCount: playerCount,
+            message: 'You won! (Free play - no payout)'
+          });
         } else {
           console.warn(`Winner ${player.name} has no userId, cannot process payout`);
           

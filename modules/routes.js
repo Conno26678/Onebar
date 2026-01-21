@@ -190,6 +190,88 @@ function setupRoutes(app) {
     });
   });
 
+  // API endpoint to update profile picture
+  app.post('/api/update-profile-picture', isAuthenticated, (req, res) => {
+    const userId = req.session.token?.id;
+    const { profilePicture } = req.body;
+
+    if (!userId) {
+      return res.json({ success: false, message: 'User not authenticated' });
+    }
+
+    if (!profilePicture) {
+      return res.json({ success: false, message: 'No profile picture provided' });
+    }
+
+    // Validate the profile picture path to prevent unauthorized access
+    const allowedPictures = [
+      '/img/pfp.png',
+      '/img/king.png',
+      '/img/Smiffers1984.png',
+      '/img/Hayden.png',
+      '/img/glassesSmith.jpeg',
+    ];
+
+    if (!allowedPictures.includes(profilePicture)) {
+      return res.json({ success: false, message: 'Invalid profile picture' });
+    }
+
+    // Get user data to check unlock requirements
+    db.get('SELECT level FROM users WHERE id = ?', [userId], (err, userData) => {
+      if (err) {
+        console.error('Error fetching user data:', err);
+        return res.json({ success: false, message: 'Database error' });
+      }
+
+      const userLevel = userData?.level || 1;
+      
+      // Check if user has unlocked this picture
+      let unlocked = true;
+      if (profilePicture === '/img/Smiffers1984.png' && userLevel < 10) unlocked = false;
+      if (profilePicture === '/img/Hayden.png' && userLevel < 25) unlocked = false;
+      if (profilePicture === '/img/glassesSmith.jpeg' && userLevel < 45) unlocked = false;
+      if (profilePicture === '/img/free.png' && userLevel < 5) unlocked = false;
+      
+      // King is handled separately by leaderboard position, skip it here
+      if (profilePicture === '/img/king.png') {
+        // Check if user is first place
+        db.get(
+          'SELECT id FROM users WHERE gamesPlayed > 0 ORDER BY wins DESC LIMIT 1',
+          [],
+          (leaderErr, firstPlaceUser) => {
+            if (leaderErr || !firstPlaceUser || firstPlaceUser.id !== userId) {
+              return res.json({ success: false, message: 'You must be #1 on the leaderboard to use this avatar' });
+            }
+            
+            // Update profile picture
+            db.run('UPDATE users SET profilePicture = ? WHERE id = ?', [profilePicture, userId], (updateErr) => {
+              if (updateErr) {
+                console.error('Error updating profile picture:', updateErr);
+                return res.json({ success: false, message: 'Failed to update profile picture' });
+              }
+              res.json({ success: true });
+            });
+          }
+        );
+        return;
+      }
+
+      if (!unlocked) {
+        return res.json({ success: false, message: 'You have not unlocked this avatar yet' });
+      }
+
+      // Update profile picture in database
+      db.run('UPDATE users SET profilePicture = ? WHERE id = ?', [profilePicture, userId], (updateErr) => {
+        if (updateErr) {
+          console.error('Error updating profile picture:', updateErr);
+          return res.json({ success: false, message: 'Failed to update profile picture' });
+        }
+
+        res.json({ success: true });
+      });
+    });
+  });
+
   app.get('/logout', (req, res) => {
     req.session.destroy();
     res.redirect('/login');

@@ -83,22 +83,28 @@
                 3: { name: "200 Digipogs", image: "pog.png" },
                 5: { name: "Premium title color", icon: "🟣" },
                 7: { name: "200 Digipogs", image: "pog.png" },
+                9: { name: "Free Game", image: "free.png" },
                 10: { name: "Premium Avatar", image: "Smiffers1984.png" },
                 12: { name: "200 Digipogs", image: "pog.png" },
+                13: { name: "Free Game", image: "free.png" },
                 15: { name: "Card Pack", icon: "📦" },
                 17: { name: "200 Digipogs", image: "pog.png" },
+                19: { name: "Free Game", image: "free.png" },
                 20: { name: "Premium Emote", icon: "😍" },
                 22: { name: "200 Digipogs", image: "pog.png" },
                 25: { name: "Hayden Announcer", image: "Hayden.png" },
                 27: { name: "300 Digipogs", image: "pog.png" },
+                29: { name: "Free Game", image: "free.png" },
                 30: { name: "Ranch Boy Title", icon: "🤠" },
                 32: { name: "200 Digipogs", image: "pog.png" },
                 35: { name: "Card Pack", icon: "📦" },
                 37: { name: "200 Digipogs", image: "pog.png" },
+                39: { name: "Free Game", image: "free.png" },
                 40: { name: "One Button Effect", icon: "✨" },
                 42: { name: "300 Digipogs", image: "pog.png" },
                 45: { name: "Premium Smith Avatar", image: "glassesSmith.jpeg" },
                 47: { name: "500 Digipogs", image: "pog.png" },
+                49: { name: "Free Game", image: "free.png" },
                 50: { name: "Smith Theme/Avatar", image: "smith.png" }
             }
         };
@@ -142,6 +148,10 @@
                 // Add unlocked class if player level is at or above this tier
                 if (playerLevel >= tier) {
                     tierDiv.classList.add('unlocked');
+                    // Add premium class to unlocked tiers if user has premium (for purple color)
+                    if (hasPremium) {
+                        tierDiv.classList.add('premium');
+                    }
                 }
                 
                 // Tier number
@@ -175,21 +185,15 @@
                     const isLocked = !hasPremium;
                     
                     let rewardContent = premiumReward.image ? `<img src="/img/${premiumReward.image}" alt="${premiumReward.name}">` : premiumReward.icon;
-                    if (isLocked && !premiumReward.image) {
-                        rewardContent += '🔒';
-                    }
                     
                     premiumRewardDiv.innerHTML = `
                         <div class="reward-label premium">Premium</div>
                         <div class="reward-icon ${isUnlocked ? 'unlocked' : ''} ${isLocked ? 'locked' : ''}">
                             ${rewardContent}
+                            ${isLocked ? '<span class="lock-overlay">🔒</span>' : ''}
                         </div>
                         <div class="reward-name">${premiumReward.name}</div>
                     `;
-                    
-                    if (hasPremium && playerLevel >= tier) {
-                        tierDiv.classList.add('premium');
-                    }
                 } else {
                     premiumRewardDiv.innerHTML = '<div class="reward-label premium">Premium</div><div class="no-reward">—</div>';
                 }

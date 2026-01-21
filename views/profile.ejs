@@ -30,7 +30,19 @@
                         <% } %>
                     </div>
                 </div>
-                <button class="change-photo-btn">Change Photo (in progress)</button>
+                <button class="change-photo-btn" onclick="showPhotoChange()">Change Photo</button>
+                <!--PFP Popup Modal -->
+                <div id="customizePhoto" class="customize-photo-popup" style="display: none;">
+                    <div class="customize-photo-popup-content">
+                        <span class="customize-popup-close" onclick="hidePhotoChange()">&times;</span>
+                        <h2>Select Profile Picture</h2>
+                        <p class="photo-subtitle">Unlock new avatars through Battle Pass and achievements</p>
+                        <div class="photo-options-grid" id="photoOptionsGrid">
+                            <!-- Photos will be dynamically loaded here -->
+                        </div>
+                    </div>
+                </div>
+
                 <% if (isFirstPlace) { %>
                     <p class="image-caption" style="color: #ffd700; font-weight: bold;"> Leaderboard Champion!</p>
                 <% } else { %>
@@ -165,16 +177,88 @@
         function showCustomizePopup() {
             document.getElementById('customizePopup').style.display = 'flex';
         }
+
+        function showPhotoChange() {
+            document.getElementById('customizePhoto').style.display = 'flex';
+            loadPhotoOptions();
+        }
+
+        function hidePhotoChange() {
+            document.getElementById('customizePhoto').style.display = 'none';
+        }
         
         function hideCustomizePopup() {
             document.getElementById('customizePopup').style.display = 'none';
         }
         
-        // Close popup when clicking outside
+        // Available profile pictures with unlock requirements
+        const availablePhotos = [
+            { image: '/img/pfp.png', name: 'Default', unlocked: true },
+            { image: '/img/king.png', name: 'King', requirement: 'Reach #1 on Leaderboard', unlocked: <%= isFirstPlace ? 'true' : 'false' %> },
+            { image: '/img/Smiffers1984.png', name: 'Smiffers1984', requirement: 'Battle Pass Level 10', unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %> },
+            { image: '/img/Hayden.png', name: 'Hayden', requirement: 'Battle Pass Level 25', unlocked: <%= (level || 1) >= 25 ? 'true' : 'false' %> },
+            { image: '/img/glassesSmith.jpeg', name: 'Glasses Smith', requirement: 'Battle Pass Level 45', unlocked: <%= (level || 1) >= 45 ? 'true' : 'false' %> },
+            { image: '/img/free.png', name: 'Free Game', requirement: 'Battle Pass Level 5', unlocked: <%= (level || 1) >= 5 ? 'true' : 'false' %> }
+        ];
+        
+        function loadPhotoOptions() {
+            const grid = document.getElementById('photoOptionsGrid');
+            grid.innerHTML = '';
+            
+            availablePhotos.forEach(photo => {
+                const photoDiv = document.createElement('div');
+                photoDiv.className = `photo-option ${photo.unlocked ? 'unlocked' : 'locked'}`;
+                
+                const currentPfp = '<%= profilePicture %>';
+                if (photo.unlocked && photo.image === currentPfp) {
+                    photoDiv.classList.add('selected');
+                }
+                
+                photoDiv.innerHTML = `
+                    <div class="photo-option-image-wrapper">
+                        <img src="${photo.image}" alt="${photo.name}" class="photo-option-image" 
+                             onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'photo-option-placeholder\'>📷</div>';">
+                        ${!photo.unlocked ? '<div class="photo-lock-overlay">🔒</div>' : ''}
+                    </div>
+                    <div class="photo-option-name">${photo.name}</div>
+                    ${!photo.unlocked ? `<div class="photo-option-requirement">${photo.requirement}</div>` : ''}
+                    ${photo.unlocked ? '<button class="photo-select-btn" onclick="selectPhoto(\'' + photo.image + '\')">Select</button>' : ''}
+                `;
+                
+                grid.appendChild(photoDiv);
+            });
+        }
+        
+        function selectPhoto(imagePath) {
+            fetch('/api/update-profile-picture', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profilePicture: imagePath })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update profile picture');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating profile picture:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+        
+        // Close popups when clicking outside
         window.onclick = function(event) {
-            const popup = document.getElementById('customizePopup');
-            if (event.target === popup) {
+            const customizePopup = document.getElementById('customizePopup');
+            const photoPopup = document.getElementById('customizePhoto');
+            
+            if (event.target === customizePopup) {
                 hideCustomizePopup();
+            }
+            if (event.target === photoPopup) {
+                hidePhotoChange();
             }
         };
     </script>

@@ -64,8 +64,8 @@
                         <h2>Options - earn more by leveling up</h2>
                         <div class="customize-options-grid">
                             <div class="customize-option">
-                                <h3>Card Backs</h3>
-                                <p>Unlock new card backs through Battle Pass</p>
+                                <h3>Titles</h3>
+                                <p>Unlock new titles and title colors through Battle Pass</p>
                                 <button class="customize-option-btn" disabled>Coming Soon</button>
                             </div>
                             <div class="customize-option">
@@ -197,8 +197,7 @@
             { image: '/img/king.png', name: 'King', requirement: 'Reach #1 on Leaderboard', unlocked: <%= isFirstPlace ? 'true' : 'false' %> },
             { image: '/img/Smiffers1984.png', name: 'Smiffers1984', requirement: 'Battle Pass Level 10', unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %> },
             { image: '/img/Hayden.png', name: 'Hayden', requirement: 'Battle Pass Level 25', unlocked: <%= (level || 1) >= 25 ? 'true' : 'false' %> },
-            { image: '/img/glassesSmith.jpeg', name: 'Glasses Smith', requirement: 'Battle Pass Level 45', unlocked: <%= (level || 1) >= 45 ? 'true' : 'false' %> },
-            { image: '/img/free.png', name: 'Free Game', requirement: 'Battle Pass Level 5', unlocked: <%= (level || 1) >= 5 ? 'true' : 'false' %> }
+            { image: '/img/glassesSmith.jpeg', name: 'Glasses Smith', requirement: 'Battle Pass Level 45', unlocked: <%= (level || 1) >= 45 ? 'true' : 'false' %> }
         ];
         
         function loadPhotoOptions() {

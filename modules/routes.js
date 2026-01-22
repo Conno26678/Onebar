@@ -85,12 +85,11 @@ function setupRoutes(app) {
               const xpForNextLevel = db.calculateXPForLevel(currentLevel + 1);
               const currentPfp = userData?.profilePicture || defaultPicture;
               
-              // Auto-update profile picture based on leaderboard position
-              const newPfp = shouldHaveKing ? kingPicture : (currentPfp === kingPicture ? defaultPicture : currentPfp);
-              
-              // Update database if profile picture needs to change
-              if (newPfp !== currentPfp) {
-                db.run('UPDATE users SET profilePicture = ? WHERE id = ?', [newPfp, userId], (updateErr) => {
+              // Auto-assign king picture when reaching #1, but don't force removal when losing it
+              // Users can manually change their picture regardless of leaderboard position
+              if (shouldHaveKing && currentPfp !== kingPicture) {
+                // Only auto-assign king if they're #1 and don't already have it
+                db.run('UPDATE users SET profilePicture = ? WHERE id = ?', [kingPicture, userId], (updateErr) => {
                   if (updateErr) {
                     console.error('Error updating profile picture:', updateErr);
                   }
@@ -102,7 +101,7 @@ function setupRoutes(app) {
                 xp: currentXP, 
                 level: currentLevel, 
                 xpForNextLevel,
-                profilePicture: newPfp,
+                profilePicture: currentPfp,
                 isFirstPlace: shouldHaveKing
               });
             }
@@ -209,7 +208,7 @@ function setupRoutes(app) {
       '/img/king.png',
       '/img/Smiffers1984.png',
       '/img/Hayden.png',
-      '/img/glassesSmith.jpeg',
+      '/img/glassesSmith.jpeg'
     ];
 
     if (!allowedPictures.includes(profilePicture)) {
@@ -230,7 +229,6 @@ function setupRoutes(app) {
       if (profilePicture === '/img/Smiffers1984.png' && userLevel < 10) unlocked = false;
       if (profilePicture === '/img/Hayden.png' && userLevel < 25) unlocked = false;
       if (profilePicture === '/img/glassesSmith.jpeg' && userLevel < 45) unlocked = false;
-      if (profilePicture === '/img/free.png' && userLevel < 5) unlocked = false;
       
       // King is handled separately by leaderboard position, skip it here
       if (profilePicture === '/img/king.png') {

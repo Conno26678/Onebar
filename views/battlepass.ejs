@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,7 +22,7 @@
         </div>
         <div class="premium-status" id="premiumStatus">
             <span class="status-label">Status:</span>
-            <span class="status-value">Free Pass</span>
+            <span class="status-value"><%= hasBattlePassPremium ? 'Premium Pass' : 'Free Pass' %></span>
         </div>
     </div>
     
@@ -38,6 +38,7 @@
              Unlock Premium Pass - 1000 digipogs
         </button>
         <p>Pay 1000 digipogs to earn up to 2500 digipogs with the premium pass!</p>
+        <a href="/profile">Click me to go back to your profile.</a>
     </div>
     
     <!-- Battle Pass Container -->
@@ -60,7 +61,7 @@
     <script>
         // Player data from server
         let playerLevel = <%= level || 1 %>; 
-        let hasPremium = <%= user?.hasPaid ? 'true' : 'false' %>;
+        let hasPremium = <%= hasBattlePassPremium ? 'true' : 'false' %>;
         let currentPage = 0;
         const tiersPerPage = 10; 
         

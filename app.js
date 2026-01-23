@@ -8,7 +8,7 @@ const dotenv = require('dotenv')
 dotenv.config({ quiet: true });
 
 // Modules
-const { sessionMiddleware } = require('./modules/middleware');
+const { sessionMiddleware, addThemeToLocals } = require('./modules/middleware');
 const { setupRoutes } = require('./modules/routes');
 const { setupSocketHandlers } = require('./modules/socket-handlers');
 
@@ -23,6 +23,7 @@ app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.json());
 app.use(sessionMiddleware);
+app.use(addThemeToLocals);
 
 // Attach session middleware to socket.io
 io.use((socket, next) => {

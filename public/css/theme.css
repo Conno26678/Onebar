@@ -1,8 +1,9 @@
 /* Add Google Font import via CSS */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* Dark Mode Theme Variables */
-:root {
+/* Dark Mode Theme Variables (Default) */
+:root,
+:root[data-theme="default"] {
   --bg-color: #0d1117;
   --text-color: #e6edf3;
   --primary-color: #f85149;
@@ -19,6 +20,26 @@
   --gradient-bg: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
   --glow-primary: 0 0 40px rgba(248, 81, 73, 0.4);
   --glow-accent: 0 0 40px rgba(63, 185, 80, 0.4);
+}
+
+/* Pink Paradise Theme */
+:root[data-theme="pink"] {
+  --bg-color: #1a0a14;
+  --text-color: #fde8f7;
+  --primary-color: #ec4899;
+  --secondary-color: #f472b6;
+  --accent-color: #fbbf24;
+  --card-bg: #2d1525;
+  --border-color: #4a2039;
+  --hover-color: #3d1f30;
+  --shadow: rgba(236, 72, 153, 0.3);
+  
+  /* Gradient and glow variables */
+  --gradient-primary: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+  --gradient-accent: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
+  --gradient-bg: linear-gradient(135deg, #1a0a14 0%, #2d1525 100%);
+  --glow-primary: 0 0 40px rgba(236, 72, 153, 0.5);
+  --glow-accent: 0 0 40px rgba(251, 191, 36, 0.5);
 }
 
 /* Base styles */

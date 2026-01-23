@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -121,6 +121,41 @@
     <script src="/js/theme.js"></script>
 </body>
 <script>
+    // Sound pack mapping
+    const soundMappings = {
+        default: {
+            loading: '/sfx/loading.mp3',
+            win: '/sfx/yippie.mp3',
+            lose: '/sfx/spongebobfail.mp3',
+            plus2: '/sfx/slap.mp3',
+            reverse: '/sfx/reverse.mp3',
+            skip: '/sfx/pluh.mp3',
+            startgame: '/sfx/afewmoments.mp3'
+        },
+        hayden: {
+            loading: '/sfx/loading.mp3',
+            win: '/sfx/haydenwinner.mp3',
+            lose: '/sfx/haydenlose.mp3',
+            plus2: '/sfx/hayden+2.mp3',
+            reverse: '/sfx/haydenreverse.mp3',
+            skip: '/sfx/haydenskip.mp3',
+            startgame: '/sfx/haydenstartgame.mp3',
+            wild: '/sfx/haydenwild.mp3',
+            plus4: '/sfx/hayden+4.mp3'
+        }
+    };
+
+    // Function to get current sound pack
+    function getCurrentSoundPack() {
+        return localStorage.getItem('selectedSoundPack') || 'default';
+    }
+
+    // Function to get sound path based on selected pack
+    function getSoundPath(soundType) {
+        const pack = getCurrentSoundPack();
+        return soundMappings[pack]?.[soundType] || soundMappings.default[soundType];
+    }
+
     // Sound control helper function
     function playSoundIfEnabled(soundPath, volume = 0.5) {
         const soundEnabled = localStorage.getItem('soundEffectsEnabled');
@@ -137,7 +172,7 @@
     // Override alert to play loading sound
     const originalAlert = window.alert;
     window.alert = function(message) {
-        playSoundIfEnabled('/sfx/loading.mp3', 0.5);
+        playSoundIfEnabled(getSoundPath('loading'), 0.5);
         originalAlert.call(window, message);
     };
 
@@ -173,9 +208,9 @@
       
       // Play appropriate sound based on win/lose
       if (isCurrentUserWinner) {
-        playSoundIfEnabled('/sfx/yippie.mp3', 0.5);
+        playSoundIfEnabled(getSoundPath('win'), 0.5);
       } else {
-        playSoundIfEnabled('/sfx/spongebobfail.mp3', 0.5);
+        playSoundIfEnabled(getSoundPath('lose'), 0.5);
       }
 
       const overlay = document.createElement('div');
@@ -669,11 +704,11 @@
         
         // Play sound effects based on card type
         if (card.value === 'Skip') {
-          playSoundIfEnabled('/sfx/slap.mp3', 0.4);
+          playSoundIfEnabled(getSoundPath('skip'), 0.4);
         } else if (card.value === 'Reverse') {
-          playSoundIfEnabled('/sfx/reverse.mp3', 0.4);
+          playSoundIfEnabled(getSoundPath('reverse'), 0.4);
         } else if (card.value === 'Draw Two' || card.value === 'Wild Draw Four' || card.id?.includes('DrawTwo') || card.id?.includes('WildDrawFour')) {
-          playSoundIfEnabled('/sfx/pluh.mp3', 0.4);
+          playSoundIfEnabled(getSoundPath('plus2'), 0.4);
         }
     });
 

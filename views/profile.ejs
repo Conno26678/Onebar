@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -66,33 +66,99 @@
                             <div class="customize-option">
                                 <h3>Titles</h3>
                                 <p>Unlock new titles and title colors through Battle Pass</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <button class="customize-option-btn" onclick="showTitlePopup()">Customize</button>
                             </div>
                             <div class="customize-option">
                                 <h3>Themes</h3>
-                                <p>Customize your game appearance</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <p>Customize your game / website appearance</p>
+                                <button class="customize-option-btn" onclick="showThemePopup()">Customize</button>
                             </div>
                             <div class="customize-option">
                                 <h3>Sound Packs</h3>
                                 <p>Unlock exclusive sound effects</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <button class="customize-option-btn" onclick="showSoundPackPopup()">Customize</button>
                             </div>
                             <div class="customize-option">
                                 <h3>Profile Badges</h3>
                                 <p>Show off your achievements</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <button class="customize-option-btn" onclick="showBadgePopup()">Customize</button>
                             </div>
                             <div class="customize-option">
-                                <h3>Card Effects</h3>
-                                <p>Unlock in future Battle Passes</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <h3>Effects</h3>
+                                <p>Liven up your gameplay with special effects</p>
+                                <button class="customize-option-btn">Customize</button>
                             </div>
                             <div class="customize-option">
                                 <h3>Emotes</h3>
                                 <p>Express yourself in-game</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <button class="customize-option-btn" onclick="showEmotePopup()">Customize</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Title Customization Popup -->
+                <div id="titlePopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideTitlePopup()">&times;</span>
+                        <h2>Select Your Title</h2>
+                        <p class="photo-subtitle">Unlock new titles through Battle Pass</p>
+                        <div class="customization-grid" id="titleGrid">
+                            <!-- Titles will be dynamically loaded here -->
+                        </div>
+                        
+                        <h2 style="margin-top: 30px;">Select Your Title Color</h2>
+                        <p class="photo-subtitle">Unlock new title colors through Battle Pass</p>
+                        <div class="customization-grid" id="titleColorGrid">
+                            <!-- Title colors will be dynamically loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Theme Customization Popup -->
+                <div id="themePopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideThemePopup()">&times;</span>
+                        <h2>Select Your Theme</h2>
+                        <p class="photo-subtitle">Unlock new themes through Battle Pass</p>
+                        <div class="customization-grid" id="themeGrid">
+                            <!-- Themes will be dynamically loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sound Pack Customization Popup -->
+                <div id="soundPackPopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideSoundPackPopup()">&times;</span>
+                        <h2>Select Your Sound Pack</h2>
+                        <p class="photo-subtitle">Unlock new sound packs through Battle Pass</p>
+                        <div class="customization-grid" id="soundPackGrid">
+                            <!-- Sound packs will be dynamically loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Badge Customization Popup -->
+                <div id="badgePopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideBadgePopup()">&times;</span>
+                        <h2>Select Your Profile Badge</h2>
+                        <p class="photo-subtitle">Unlock badges through achievements</p>
+                        <div class="customization-grid" id="badgeGrid">
+                            <!-- Badges will be dynamically loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emote Customization Popup -->
+                <div id="emotePopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideEmotePopup()">&times;</span>
+                        <h2>Select Your Emotes</h2>
+                        <p class="photo-subtitle">Unlock emotes through Battle Pass</p>
+                        <div class="customization-grid" id="emoteGrid">
+                            <!-- Emotes will be dynamically loaded here -->
                         </div>
                     </div>
                 </div>
@@ -150,6 +216,76 @@
 
     <script src="/js/theme.js"></script>
     <script>
+        // Load sound pack from server data to localStorage
+        const selectedSoundPack = '<%= selectedSoundPack %>';
+        if (selectedSoundPack) {
+            localStorage.setItem('selectedSoundPack', selectedSoundPack);
+        }
+
+        // Define popup functions first so they're available to onclick handlers
+        function showCustomizePopup() {
+            document.getElementById('customizePopup').style.display = 'flex';
+        }
+
+        function showPhotoChange() {
+            document.getElementById('customizePhoto').style.display = 'flex';
+            loadPhotoOptions();
+        }
+
+        function hidePhotoChange() {
+            document.getElementById('customizePhoto').style.display = 'none';
+        }
+        
+        function hideCustomizePopup() {
+            document.getElementById('customizePopup').style.display = 'none';
+        }
+
+        function showTitlePopup() {
+            document.getElementById('titlePopup').style.display = 'flex';
+            loadTitleOptions();
+            loadTitleColorOptions();
+        }
+
+        function hideTitlePopup() {
+            document.getElementById('titlePopup').style.display = 'none';
+        }
+
+        function showThemePopup() {
+            document.getElementById('themePopup').style.display = 'flex';
+            loadThemeOptions();
+        }
+
+        function hideThemePopup() {
+            document.getElementById('themePopup').style.display = 'none';
+        }
+
+        function showSoundPackPopup() {
+            document.getElementById('soundPackPopup').style.display = 'flex';
+            loadSoundPackOptions();
+        }
+
+        function hideSoundPackPopup() {
+            document.getElementById('soundPackPopup').style.display = 'none';
+        }
+
+        function showBadgePopup() {
+            document.getElementById('badgePopup').style.display = 'flex';
+            loadBadgeOptions();
+        }
+
+        function hideBadgePopup() {
+            document.getElementById('badgePopup').style.display = 'none';
+        }
+
+        function showEmotePopup() {
+            document.getElementById('emotePopup').style.display = 'flex';
+            loadEmoteOptions();
+        }
+
+        function hideEmotePopup() {
+            document.getElementById('emotePopup').style.display = 'none';
+        }
+
         // Sound effects toggle functionality
         const soundToggle = document.getElementById('soundToggle');
         const soundStatus = document.getElementById('soundStatus');
@@ -172,24 +308,6 @@
                 detail: { enabled: isEnabled } 
             }));
         });
-        
-        // Customize popup functions
-        function showCustomizePopup() {
-            document.getElementById('customizePopup').style.display = 'flex';
-        }
-
-        function showPhotoChange() {
-            document.getElementById('customizePhoto').style.display = 'flex';
-            loadPhotoOptions();
-        }
-
-        function hidePhotoChange() {
-            document.getElementById('customizePhoto').style.display = 'none';
-        }
-        
-        function hideCustomizePopup() {
-            document.getElementById('customizePopup').style.display = 'none';
-        }
         
         // Available profile pictures with unlock requirements
         const availablePhotos = [
@@ -252,6 +370,11 @@
         window.onclick = function(event) {
             const customizePopup = document.getElementById('customizePopup');
             const photoPopup = document.getElementById('customizePhoto');
+            const titlePopup = document.getElementById('titlePopup');
+            const themePopup = document.getElementById('themePopup');
+            const soundPackPopup = document.getElementById('soundPackPopup');
+            const badgePopup = document.getElementById('badgePopup');
+            const emotePopup = document.getElementById('emotePopup');
             
             if (event.target === customizePopup) {
                 hideCustomizePopup();
@@ -259,7 +382,376 @@
             if (event.target === photoPopup) {
                 hidePhotoChange();
             }
+            if (event.target === titlePopup) {
+                hideTitlePopup();
+            }
+            if (event.target === themePopup) {
+                hideThemePopup();
+            }
+            if (event.target === soundPackPopup) {
+                hideSoundPackPopup();
+            }
+            if (event.target === badgePopup) {
+                hideBadgePopup();
+            }
+            if (event.target === emotePopup) {
+                hideEmotePopup();
+            }
         };
+
+        // Title customization functions
+        const availableTitles = [
+            { name: 'Newbie', requirement: 'Starting Title', requiredLevel: 1, unlocked: true },
+            { name: 'Competitor', requirement: 'Reach Level 10', requiredLevel: 10, unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %> },
+            { name: 'Champion', requirement: 'Reach Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %> },
+            { name: 'Legend', requirement: 'Reach Level 35', requiredLevel: 35, unlocked: <%= (level || 1) >= 35 ? 'true' : 'false' %> },
+            { name: 'Master', requirement: 'Reach Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %> }
+        ];
+
+        function loadTitleOptions() {
+            const grid = document.getElementById('titleGrid');
+            grid.innerHTML = '';
+            const currentTitle = '<%= selectedTitle %>';
+
+            availableTitles.forEach(title => {
+                const titleDiv = document.createElement('div');
+                titleDiv.className = `customization-item ${title.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (title.unlocked && title.name === currentTitle) {
+                    titleDiv.classList.add('selected');
+                }
+                
+                const iconOrImage = title.image 
+                    ? `<img src="/img/${title.image}" alt="${title.name}" class="customization-item-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'customization-item-icon\\'>🏆</div>';">`
+                    : `<div class="customization-item-icon">${title.icon || '🏆'}</div>`;
+                
+                titleDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        ${iconOrImage}
+                        <div class="customization-item-name">${title.name}</div>
+                        ${!title.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!title.unlocked ? `<div class="customization-item-requirement">${title.requirement}</div>` : ''}
+                        ${title.unlocked ? '<button class="customization-select-btn" onclick="selectTitle(\'' + title.name + '\')">Select</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(titleDiv);
+            });
+        }
+
+        function selectTitle(title) {
+            fetch('/api/update-title', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update title');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating title:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Title Color customization functions
+        const availableTitleColors = [
+            { name: 'White', id: 'white', color: '#ffffff', requirement: 'Default', requiredLevel: 1, unlocked: true },
+            { name: 'Purple', id: 'purple', color: '#a855f7', requirement: 'Battle Pass Level 5', requiredLevel: 5, unlocked: <%= (level || 1) >= 5 ? 'true' : 'false' %> }
+        ];
+
+        function loadTitleColorOptions() {
+            const grid = document.getElementById('titleColorGrid');
+            grid.innerHTML = '';
+            const currentTitleColor = '<%= selectedTitleColor %>';
+
+            availableTitleColors.forEach(color => {
+                const colorDiv = document.createElement('div');
+                colorDiv.className = `customization-item ${color.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (color.unlocked && color.id === currentTitleColor) {
+                    colorDiv.classList.add('selected');
+                }
+                
+                const colorPreviewStyle = color.id === 'rainbow' 
+                    ? `background: ${color.color}; border-radius: 50%; width: 50px; height: 50px;`
+                    : `background-color: ${color.color}; border-radius: 50%; width: 50px; height: 50px; border: 2px solid rgba(255,255,255,0.3);`;
+                
+                colorDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        <div style="${colorPreviewStyle}"></div>
+                        <div class="customization-item-name">${color.name}</div>
+                        ${!color.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!color.unlocked ? `<div class="customization-item-requirement">${color.requirement}</div>` : ''}
+                        ${color.unlocked ? '<button class="customization-select-btn" onclick="selectTitleColor(\'' + color.id + '\')">Select</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(colorDiv);
+            });
+        }
+
+        function selectTitleColor(titleColor) {
+            fetch('/api/update-title-color', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ titleColor })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update title color');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating title color:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Theme customization functions
+        const availableThemes = [
+            { name: 'Default', id: 'default', requirement: 'Starting Theme', requiredLevel: 1, unlocked: true, colors: ['black', 'black'] },
+            { name: 'Pink Paradise', id: 'pink', requirement: 'Battle Pass Level 35', requiredLevel: 35, unlocked: <%= (level || 1) >= 35 ? 'true' : 'false' %>, colors: ['#ec4899', '#f472b6'] }
+        ];
+
+        function loadThemeOptions() {
+            const grid = document.getElementById('themeGrid');
+            grid.innerHTML = '';
+            const currentTheme = '<%= selectedTheme %>';
+
+            availableThemes.forEach(theme => {
+                const themeDiv = document.createElement('div');
+                themeDiv.className = `customization-item ${theme.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (theme.unlocked && theme.id === currentTheme) {
+                    themeDiv.classList.add('selected');
+                }
+                
+                const gradientStyle = `background: linear-gradient(135deg, ${theme.colors[0]} 0%, ${theme.colors[1]} 100%);`;
+                
+                themeDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        <div class="theme-preview" style="${gradientStyle}"></div>
+                        <div class="customization-item-name">${theme.name}</div>
+                        ${!theme.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!theme.unlocked ? `<div class="customization-item-requirement">${theme.requirement}</div>` : ''}
+                        ${theme.unlocked ? '<button class="customization-select-btn" onclick="selectTheme(\'' + theme.id + '\')">Select</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(themeDiv);
+            });
+        }
+
+        function selectTheme(theme) {
+            fetch('/api/update-theme', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ theme })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update theme');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating theme:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Sound Pack customization functions
+        const availableSoundPacks = [
+            { name: 'Default', id: 'default', requirement: 'Starting Pack', requiredLevel: 1, unlocked: true, icon: '🔊' },
+            { name: 'Hayden Pack', id: 'hayden', requirement: 'Battle Pass Level 25', requiredLevel: 25, unlocked: <%= (level || 1) >= 25 ? 'true' : 'false' %>, image: 'Hayden.png' }
+        ];
+
+        function loadSoundPackOptions() {
+            const grid = document.getElementById('soundPackGrid');
+            grid.innerHTML = '';
+            const currentSoundPack = '<%= selectedSoundPack %>';
+
+            availableSoundPacks.forEach(pack => {
+                const packDiv = document.createElement('div');
+                packDiv.className = `customization-item ${pack.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (pack.unlocked && pack.id === currentSoundPack) {
+                    packDiv.classList.add('selected');
+                }
+                
+                const iconOrImage = pack.image 
+                    ? `<img src="/img/${pack.image}" alt="${pack.name}" class="customization-item-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'customization-item-icon\\'>${pack.icon || '🔊'}</div>';">`
+                    : `<div class="customization-item-icon">${pack.icon}</div>`;
+                
+                packDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        ${iconOrImage}
+                        <div class="customization-item-name">${pack.name}</div>
+                        ${!pack.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!pack.unlocked ? `<div class="customization-item-requirement">${pack.requirement}</div>` : ''}
+                        ${pack.unlocked ? '<button class="customization-select-btn" onclick="selectSoundPack(\'' + pack.id + '\')">Select</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(packDiv);
+            });
+        }
+
+        function selectSoundPack(soundPack) {
+            fetch('/api/update-soundpack', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ soundPack })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Save to localStorage for immediate use
+                    localStorage.setItem('selectedSoundPack', soundPack);
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update sound pack');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating sound pack:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Badge customization functions
+        const availableBadges = [
+            { name: 'None', id: 'none', requirement: 'No badge', requiredLevel: 1, requiredWins: 0, unlocked: true, icon: '⚪' },
+            { name: 'Bronze', id: 'bronze', requirement: 'Level 5 + 10 Wins', requiredLevel: 5, requiredWins: 10, unlocked: <%= (level || 1) >= 5 && (wins || 0) >= 10 ? 'true' : 'false' %>, icon: '🥉' },
+            { name: 'Silver', id: 'silver', requirement: 'Level 15 + 25 Wins', requiredLevel: 15, requiredWins: 25, unlocked: <%= (level || 1) >= 15 && (wins || 0) >= 25 ? 'true' : 'false' %>, icon: '🥈' },
+            { name: 'Gold', id: 'gold', requirement: 'Level 30 + 50 Wins', requiredLevel: 30, requiredWins: 50, unlocked: <%= (level || 1) >= 30 && (wins || 0) >= 50 ? 'true' : 'false' %>, icon: '🥇' },
+            { name: 'Trophy', id: 'trophy', requirement: 'Level 45 + 100 Wins', requiredLevel: 45, requiredWins: 100, unlocked: <%= (level || 1) >= 45 && (wins || 0) >= 100 ? 'true' : 'false' %>, icon: '🏆' },
+            { name: 'Premium Diamond', id: 'diamond', requirement: 'Purchase Battle Pass Premium', requiredLevel: 1, requiredWins: 0, unlocked: <%= hasBattlePassPremium ? 'true' : 'false' %>, icon: '💎' }
+        ];
+
+        function loadBadgeOptions() {
+            const grid = document.getElementById('badgeGrid');
+            grid.innerHTML = '';
+            const currentBadge = '<%= selectedBadge %>';
+
+            availableBadges.forEach(badge => {
+                const badgeDiv = document.createElement('div');
+                badgeDiv.className = `customization-item ${badge.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (badge.unlocked && badge.id === currentBadge) {
+                    badgeDiv.classList.add('selected');
+                }
+                
+                const iconOrImage = badge.image 
+                    ? `<img src="/img/${badge.image}" alt="${badge.name}" class="customization-item-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'customization-item-icon\\'>${badge.icon}</div>';">`
+                    : `<div class="customization-item-icon">${badge.icon}</div>`;
+                
+                badgeDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        ${iconOrImage}
+                        <div class="customization-item-name">${badge.name}</div>
+                        ${!badge.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!badge.unlocked ? `<div class="customization-item-requirement">${badge.requirement}</div>` : ''}
+                        ${badge.unlocked ? '<button class="customization-select-btn" onclick="selectBadge(\'' + badge.id + '\')">Select</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(badgeDiv);
+            });
+        }
+
+        function selectBadge(badge) {
+            fetch('/api/update-badge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ badge })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update badge');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating badge:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Emote customization functions
+        const availableEmotes = [
+            { name: 'Wave', id: 'wave', requirement: 'Starting Emote', requiredLevel: 1, unlocked: true, icon: '👋' },
+            { name: 'Thumbs Up', id: 'thumbsup', requirement: 'Battle Pass Level 5', requiredLevel: 5, unlocked: <%= (level || 1) >= 5 ? 'true' : 'false' %>, icon: '👍' },
+            { name: 'Party', id: 'party', requirement: 'Battle Pass Level 15', requiredLevel: 15, unlocked: <%= (level || 1) >= 15 ? 'true' : 'false' %>, icon: '🎉' },
+            { name: 'Fire', id: 'fire', requirement: 'Battle Pass Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %>, icon: '🔥' },
+            { name: 'Crown', id: 'crown', requirement: 'Battle Pass Level 30', requiredLevel: 30, unlocked: <%= (level || 1) >= 30 ? 'true' : 'false' %>, icon: '👑' },
+            { name: 'Rocket', id: 'rocket', requirement: 'Battle Pass Level 40', requiredLevel: 40, unlocked: <%= (level || 1) >= 40 ? 'true' : 'false' %>, icon: '🚀' },
+            { name: 'Star', id: 'star', requirement: 'Battle Pass Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %>, icon: '⭐' }
+        ];
+
+        function loadEmoteOptions() {
+            const grid = document.getElementById('emoteGrid');
+            grid.innerHTML = '';
+            const currentEmote = '<%= selectedEmote || "wave" %>';
+
+            availableEmotes.forEach(emote => {
+                const emoteDiv = document.createElement('div');
+                emoteDiv.className = `customization-item ${emote.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (emote.unlocked && emote.id === currentEmote) {
+                    emoteDiv.classList.add('selected');
+                }
+                
+                const iconOrImage = emote.image 
+                    ? `<img src="/img/${emote.image}" alt="${emote.name}" class="customization-item-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'customization-item-icon\\'>${emote.icon}</div>';">`
+                    : `<div class="customization-item-icon">${emote.icon}</div>`;
+                
+                emoteDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        ${iconOrImage}
+                        <div class="customization-item-name">${emote.name}</div>
+                        ${!emote.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!emote.unlocked ? `<div class="customization-item-requirement">${emote.requirement}</div>` : ''}
+                        ${emote.unlocked ? '<button class="customization-select-btn" onclick="selectEmote(\'' + emote.id + '\')">Select</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(emoteDiv);
+            });
+        }
+
+        function selectEmote(emote) {
+            fetch('/api/update-emote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emote })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update emote');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating emote:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
     </script>
 </body>
 </html>

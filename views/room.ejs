@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -83,6 +83,29 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
     <script>
+        // Sound pack mapping
+        const soundMappings = {
+            default: {
+                loading: '/sfx/loading.mp3',
+                startgame: '/sfx/afewmoments.mp3'
+            },
+            hayden: {
+                loading: '/sfx/loading.mp3',
+                startgame: '/sfx/haydenstartgame.mp3'
+            }
+        };
+
+        // Function to get current sound pack
+        function getCurrentSoundPack() {
+            return localStorage.getItem('selectedSoundPack') || 'default';
+        }
+
+        // Function to get sound path based on selected pack
+        function getSoundPath(soundType) {
+            const pack = getCurrentSoundPack();
+            return soundMappings[pack]?.[soundType] || soundMappings.default[soundType];
+        }
+
         // Sound control helper function
         function playSoundIfEnabled(soundPath, volume = 0.5) {
             const soundEnabled = localStorage.getItem('soundEffectsEnabled');
@@ -97,12 +120,12 @@
         }
 
         // Play "a few moments" sound on page load
-        playSoundIfEnabled('/sfx/afewmoments.mp3', 0.5);
+        playSoundIfEnabled(getSoundPath('startgame'), 0.5);
         
         // Override alert to play loading sound
         const originalAlert = window.alert;
         window.alert = function(message) {
-            playSoundIfEnabled('/sfx/loading.mp3', 0.5);
+            playSoundIfEnabled(getSoundPath('loading'), 0.5);
             originalAlert.call(window, message);
         };
     </script>

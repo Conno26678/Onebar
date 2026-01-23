@@ -83,6 +83,48 @@ db.run(`ALTER TABLE users ADD COLUMN profilePicture TEXT DEFAULT '/img/pfp.png'`
     }
 });
 
+// Add selectedTitle column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN selectedTitle TEXT DEFAULT 'Newbie'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding selectedTitle column:', err.message);
+    }
+});
+
+// Add selectedTheme column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN selectedTheme TEXT DEFAULT 'default'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding selectedTheme column:', err.message);
+    }
+});
+
+// Add selectedSoundPack column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN selectedSoundPack TEXT DEFAULT 'default'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding selectedSoundPack column:', err.message);
+    }
+});
+
+// Add selectedBadge column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN selectedBadge TEXT DEFAULT 'none'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding selectedBadge column:', err.message);
+    }
+});
+
+// Add selectedEmote column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN selectedEmote TEXT DEFAULT 'wave'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding selectedEmote column:', err.message);
+    }
+});
+
+// Add selectedTitleColor column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN selectedTitleColor TEXT DEFAULT 'white'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding selectedTitleColor column:', err.message);
+    }
+});
+
 /**
  * Calculate XP required for a given level
  * Progressive system: Each level requires more XP than the last

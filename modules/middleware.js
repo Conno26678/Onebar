@@ -112,8 +112,28 @@ function handleLogin(req, res) {
   }
 }
 
+// Middleware to add user's selected theme to all views
+function addThemeToLocals(req, res, next) {
+  if (req.session && req.session.token && req.session.token.id) {
+    const userId = req.session.token.id;
+    db.get('SELECT selectedTheme FROM users WHERE id = ?', [userId], (err, userData) => {
+      if (err) {
+        console.error('Error fetching theme:', err);
+        res.locals.selectedTheme = 'default';
+      } else {
+        res.locals.selectedTheme = userData?.selectedTheme || 'default';
+      }
+      next();
+    });
+  } else {
+    res.locals.selectedTheme = 'default';
+    next();
+  }
+}
+
 module.exports = {
   sessionMiddleware,
   isAuthenticated,
-  handleLogin
+  handleLogin,
+  addThemeToLocals
 };

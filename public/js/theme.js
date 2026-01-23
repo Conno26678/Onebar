@@ -1,15 +1,16 @@
-// Theme management - Dark mode only
+// Theme management - Now supports multiple themes
 class ThemeManager {
   constructor() {
-    this.currentTheme = 'dark';
+    // Check if there's a theme already set on the HTML element (from server)
+    this.currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
     this.init();
   }
 
   init() {
-    // Apply dark theme on page load
+    // Apply the theme that's already set (from server or default)
     this.applyTheme(this.currentTheme);
     
-    // Theme toggle disabled - dark mode only
+    // Theme toggle disabled - themes are managed through profile page
     // this.createToggleButton();
     
     // Add fade-in animation to body

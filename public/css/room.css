@@ -371,14 +371,74 @@
 
     #roomControls {
         flex-direction: column;
+        gap: 10px;
     }
 
     #roomControls button {
         width: 100%;
+        padding: 12px;
+        font-size: 0.95rem;
     }
 
     .home-button {
         left: 100px;
+    }
+
+    .player-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .player-card {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .room-container {
+        padding: 10px;
+        padding-top: 60px;
+    }
+
+    .room-title {
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+    }
+
+    .join-code {
+        font-size: 1.3rem;
+    }
+
+    .join-code-box {
+        padding: 12px 20px;
+        margin-bottom: 15px;
+    }
+
+    .copy-btn {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+
+    #roomControls button {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+
+    .player-grid {
+        gap: 10px;
+    }
+
+    .player-card {
+        padding: 12px;
+    }
+
+    .player-name {
+        font-size: 0.95rem;
+    }
+
+    .winner-modal-content {
+        padding: 30px 20px;
+        width: 90%;
     }
 }
 /* Winner Modal Styles */

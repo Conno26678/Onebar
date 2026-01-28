@@ -518,8 +518,18 @@ html, body {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .game-container {
+        padding: 4px 10px;
+    }
+
+    .game-title {
+        font-size: 1.2rem;
+        margin-bottom: 4px;
+    }
+
     #hand img {
         width: 50px;
+        height: 75px;
     }
 
     #hand img:hover {
@@ -528,11 +538,17 @@ html, body {
 
     #table img {
         width: 55px;
+        height: 82px;
     }
 
     #tableArea {
-        gap: 8px;
-        padding: 5px;
+        gap: 6px;
+        padding: 6px;
+    }
+
+    #drawPile, #table {
+        min-width: 70px;
+        padding: 6px;
     }
 
     #oneBtn {
@@ -549,35 +565,165 @@ html, body {
 
     #playerList {
         padding: 4px 8px;
+        gap: 8px;
     }
 
     #playerList span {
-        padding: 5px 10px;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+
+    #status {
+        padding: 5px 12px;
         font-size: 0.8rem;
+    }
+
+    #hand {
+        padding: 8px;
+        min-height: 85px;
+    }
+
+    .win-modal {
+        padding: 30px 25px;
+        width: 85%;
+    }
+
+    .win-modal-trophy {
+        font-size: 60px;
+    }
+
+    .win-modal-title {
+        font-size: 22px;
+    }
+
+    .win-modal-winner {
+        font-size: 28px;
+    }
+
+    .win-modal-subtitle {
+        font-size: 14px;
+    }
+
+    .win-modal-btn {
+        padding: 12px 24px;
+        font-size: 14px;
     }
 }
 
 @media (max-width: 480px) {
     .game-container {
-        padding: 3px 8px;
+        padding: 3px 6px;
+    }
+
+    .game-title {
+        font-size: 1rem;
+        margin-bottom: 3px;
+        letter-spacing: 1px;
     }
 
     #hand img {
-        width: 45px;
+        width: 42px;
+        height: 63px;
+    }
+
+    #hand img:hover {
+        transform: translateY(-6px) scale(1.08);
     }
 
     #table img {
-        width: 55px;
+        width: 48px;
+        height: 72px;
     }
 
     #drawPile img {
-        width: 50px !important;
+        width: 48px !important;
+        height: 72px !important;
     }
 
     #hand {
         padding: 6px;
-        min-height: 50px;
+        min-height: 70px;
     }
+
+    #tableArea {
+        gap: 5px;
+        padding: 5px;
+    }
+
+    #drawPile, #table {
+        min-width: 60px;
+        padding: 5px;
+    }
+
+    #oneBtn {
+        width: 60px !important;
+        height: 60px !important;
+        right: 8px !important;
+        bottom: 8px !important;
+    }
+
+    #oneBtn img {
+        width: 42px !important;
+        height: 42px !important;
+    }
+
+    #playerList {
+        padding: 3px 6px;
+        gap: 6px;
+    }
+
+    #playerList span {
+        padding: 3px 6px;
+        font-size: 0.7rem;
+    }
+
+    #status {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+    }
+
+    .win-modal {
+        padding: 25px 20px;
+        width: 90%;
+        border-radius: 15px;
+    }
+
+    .win-modal-trophy {
+        font-size: 50px;
+        margin-bottom: 8px;
+    }
+
+    .win-modal-title {
+        font-size: 18px;
+        margin-bottom: 8px;
+    }
+
+    .win-modal-winner {
+        font-size: 24px;
+        margin-bottom: 20px;
+    }
+
+    .win-modal-subtitle {
+        font-size: 13px;
+        margin-bottom: 20px;
+    }
+
+    .win-modal-buttons {
+        gap: 10px;
+        flex-direction: column;
+    }
+
+    .win-modal-btn {
+        padding: 10px 20px;
+        font-size: 13px;
+        width: 100%;
+    }
+
+    .payment-modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+}
     /* Win Popup Modal */
     .win-modal-overlay {
     position: fixed;

@@ -298,6 +298,57 @@ a:hover {
     width: 100%;
     margin: 10px 0;
   }
+
+  .home-button,
+  .logout-button {
+    top: 15px;
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    border-radius: 10px;
+  }
+
+  .home-button {
+    left: 15px;
+  }
+
+  .logout-button {
+    right: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.6rem;
+  }
+
+  .theme-toggle {
+    top: 8px;
+    right: 8px;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .btn {
+    padding: 10px 15px;
+    font-size: 0.9rem;
+  }
+
+  .home-button,
+  .logout-button {
+    top: 10px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 8px;
+  }
+
+  .home-button {
+    left: 10px;
+  }
+
+  .logout-button {
+    right: 10px;
+  }
 }
 
 /* Animation classes */

@@ -86,15 +86,106 @@
         padding: 0 15px;
     }
 
+    .about-header {
+        margin-bottom: 30px;
+    }
+
     .about-header h1 {
         font-size: 2rem;
     }
 
+    .about-header p {
+        font-size: 1rem;
+    }
+
     .about-section {
         padding: 20px;
+        margin-bottom: 18px;
+        border-radius: 12px;
     }
 
     .about-section h2 {
         font-size: 1.3rem;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+
+    .about-section h2 .icon {
+        font-size: 1.5rem;
+    }
+
+    .about-section p {
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    .rules-list li {
+        padding: 10px 14px;
+        margin: 6px 0;
+        font-size: 0.95rem;
+    }
+
+    .contact-info {
+        padding: 16px;
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .about-container {
+        margin: 15px auto;
+        padding: 0 10px;
+    }
+
+    .about-header {
+        margin-bottom: 25px;
+    }
+
+    .about-header h1 {
+        font-size: 1.6rem;
+        margin-bottom: 8px;
+    }
+
+    .about-header p {
+        font-size: 0.9rem;
+    }
+
+    .about-section {
+        padding: 16px;
+        margin-bottom: 15px;
+        border-radius: 10px;
+    }
+
+    .about-section h2 {
+        font-size: 1.15rem;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .about-section h2 .icon {
+        font-size: 1.3rem;
+    }
+
+    .about-section p {
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    .rules-list {
+        margin-top: 12px;
+    }
+
+    .rules-list li {
+        padding: 8px 12px;
+        margin: 5px 0;
+        font-size: 0.85rem;
+        border-left: 3px solid #f0c030;
+        border-radius: 8px;
+    }
+
+    .contact-info {
+        padding: 14px;
+        font-size: 0.85rem;
+        margin-top: 12px;
     }
 }

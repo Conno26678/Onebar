@@ -397,36 +397,239 @@ input:checked + .slider-toggle:before {
 /* Responsive Design */
 @media (max-width: 768px) {
   .profile-container {
-    padding: 25px;
-    margin: 20px auto;
+    padding: 20px;
+    margin: 15px;
   }
 
   .profile-header h1 {
-    font-size: 2.2rem;
+    font-size: 2rem;
+    word-break: break-word;
+  }
+
+  .profile-subtitle {
+    font-size: 1rem;
   }
 
   .profile-image-container {
-    width: 200px;
-    height: 200px;
+    width: 180px;
+    height: 180px;
   }
 
   .stat-value {
     font-size: 2rem;
   }
+
+  .stat-card {
+    padding: 20px;
+  }
+
+  .stat-card h2 {
+    font-size: 1.2rem;
+  }
+
+  .xp-numbers {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .xp-item-value {
+    font-size: 1.1rem;
+  }
+
+  .customize-card-btn,
+  .change-photo-btn {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    width: 100%;
+  }
+
+  .photo-options-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 15px;
+  }
+
+  .photo-option-image-wrapper {
+    width: 80px;
+    height: 80px;
+  }
+
+  .customize-options-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
 }
 
 @media (max-width: 480px) {
+  .profile-container {
+    padding: 15px;
+    margin: 10px;
+    border-radius: 15px;
+  }
+
+  .profile-header {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+  }
+
   .profile-header h1 {
-    font-size: 1.8rem;
+    font-size: 1.6rem;
+    word-break: break-word;
+  }
+
+  .profile-subtitle {
+    font-size: 0.9rem;
   }
 
   .profile-image-container {
-    width: 150px;
+    width: 140px;
+    height: 140px;
+  }
+
+  .profile-image-wrapper {
+    border: 3px solid var(--border-color);
+  }
+
+  .first-place-badge {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--card-bg);
+  }
+
+  .image-caption {
+    font-size: 1rem;
+  }
+
+  .stat-card {
+    padding: 15px;
+  }
+
+  .stat-card h2 {
+    font-size: 1.1rem;
+  }
+
+  .stat-value {
+    font-size: 1.8rem;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+  }
+
+  .xp-item-label {
+    font-size: 0.75rem;
+  }
+
+  .xp-item-value {
+    font-size: 1rem;
+  }
+
+  .card-back-preview {
+    width: 100px;
     height: 150px;
   }
 
-  .profile-container {
-    padding: 20px;
+  .customize-card-btn,
+  .change-photo-btn {
+    padding: 10px 15px;
+    font-size: 0.85rem;
+    width: 100%;
+  }
+
+  .photo-options-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+  }
+
+  .photo-option-image-wrapper {
+    width: 70px;
+    height: 70px;
+  }
+
+  .photo-option-name {
+    font-size: 0.85rem;
+  }
+
+  .photo-option-requirement {
+    font-size: 0.7rem;
+  }
+
+  .customize-popup-content,
+  .customize-photo-popup-content {
+    padding: 25px 15px;
+    width: 95%;
+    max-height: 85vh;
+  }
+
+  .customize-popup-content h2,
+  .customize-photo-popup-content h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+  }
+
+  .photo-subtitle {
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+  }
+
+  .customize-popup-close {
+    font-size: 28px;
+    top: 10px;
+    right: 15px;
+  }
+
+  .customize-options-grid {
+    gap: 15px;
+  }
+
+  .customize-option {
+    padding: 20px 15px;
+  }
+
+  .customize-option h3 {
+    font-size: 1.1rem;
+  }
+
+  .customize-option p {
+    font-size: 0.85rem;
+  }
+
+  .customization-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 12px;
+  }
+
+  .customization-item {
+    padding: 15px 10px;
+  }
+
+  .customization-item-name {
+    font-size: 0.95rem;
+  }
+
+  .customization-item-icon {
+    font-size: 2.2rem;
+  }
+
+  .sound-control {
+    gap: 10px;
+  }
+
+  .toggle-switch {
+    width: 50px;
+    height: 26px;
+  }
+
+  .slider-toggle:before {
+    height: 18px;
+    width: 18px;
+  }
+
+  input:checked + .slider-toggle:before {
+    transform: translateX(24px);
+  }
+
+  .sound-status {
+    font-size: 1rem;
   }
 }
 

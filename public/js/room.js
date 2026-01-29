@@ -368,8 +368,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Winner screen handler
-  socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError = false }) => {
-    console.log('🏆 Winner screen data:', { winnerName, winnerId, digipogs, playerCount, payoutError });
+  socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError = false, selectedTitle, selectedTitleColor }) => {
+    console.log('🏆 Winner screen data:', { winnerName, winnerId, digipogs, playerCount, payoutError, selectedTitle, selectedTitleColor });
     
     const modal = document.getElementById('winnerModal');
     const nameDisplay = document.getElementById('winnerNameDisplay');
@@ -380,8 +380,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const isCurrentUserWinner = winnerName === currentUser;
     
+    // Display winner name with title and color
+    const displayTitle = selectedTitle || 'Newbie';
+    const displayColor = selectedTitleColor || 'white';
+    
     if (isCurrentUserWinner) {
-      nameDisplay.textContent = 'You are the winner!';
+      nameDisplay.innerHTML = `<span style="color: ${displayColor}">[${displayTitle}] You are the winner!</span>`;
       
       if (payoutError) {
         // Only show error to the winner
@@ -390,8 +394,8 @@ document.addEventListener('DOMContentLoaded', () => {
         earningsDisplay.innerHTML = `You won <strong>${digipogs}</strong> Digipogs!<br><small>${playerCount} players</small>`;
       }
     } else {
-      nameDisplay.textContent = `get gud`;
-      earningsDisplay.innerHTML = `${winnerName} won <strong>${digipogs}</strong> Digipogs!<br><small>Try to win next time to earn some!</small>`;
+      nameDisplay.innerHTML = `<span style="color: ${displayColor}">[${displayTitle}] ${winnerName}</span> won`;
+      earningsDisplay.innerHTML = `<strong>${digipogs}</strong> Digipogs!<br><small>get gud - Try to win next time to earn some!</small>`;
     }
     
     // Note: XP notification is now handled by the xpGained event from the server

@@ -16,13 +16,31 @@ function broadcastLobbyList(io) {
   io.emit('lobbyList', getLobbyList());
 }
 
+// Helper to fetch user customization data
+function fetchUserCustomization(userId, callback) {
+  if (!userId) {
+    callback(null, { selectedTitle: 'Newbie', selectedTitleColor: 'white', selectedBadge: 'none' });
+    return;
+  }
+  db.get('SELECT selectedTitle, selectedTitleColor, selectedBadge FROM users WHERE id = ?', [userId], (err, row) => {
+    if (err || !row) {
+      callback(err, { selectedTitle: 'Newbie', selectedTitleColor: 'white', selectedBadge: 'none' });
+    } else {
+      callback(null, row);
+    }
+  });
+}
+
 // When emitting playerList, include card counts and ready status:
 function emitPlayerList(io, game) {
   const playerData = game.players.map(p => ({
     id: p.id,
     name: p.name,
     cardCount: p.hand ? p.hand.length : 0,
-    ready: !!p.ready
+    ready: !!p.ready,
+    selectedTitle: p.selectedTitle || 'Newbie',
+    selectedTitleColor: p.selectedTitleColor || 'white',
+    selectedBadge: p.selectedBadge || 'none'
   }));
   io.to(game.id).emit('playerList', playerData);
 }
@@ -93,27 +111,32 @@ function setupSocketHandlers(io) {
           game.joinCode = generateJoinCode(6);
         }
 
-        // Creator auto-joins
-        const player = {
-          socketId: socket.id,
-          id: socket.id,
-          name: playerName || 'Host',
-          hand: [],
-          ready: false,
-          userId: currentSess && currentSess.token ? currentSess.token.id : null
-        };
-        game.players.push(player);
-        socket.join(gameId);
+        // Creator auto-joins - fetch customization data
+        fetchUserCustomization(userId, (err, customization) => {
+          const player = {
+            socketId: socket.id,
+            id: socket.id,
+            name: playerName || 'Host',
+            hand: [],
+            ready: false,  // Owner starts unready like everyone else
+            userId: userId,
+            selectedTitle: customization.selectedTitle,
+            selectedTitleColor: customization.selectedTitleColor,
+            selectedBadge: customization.selectedBadge
+          };
+          game.players.push(player);
+          socket.join(gameId);
 
-        // Notify creator
-        socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName, isPrivate: game.private, joinCode: game.joinCode });
-        emitPlayerList(io, game);
-        io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
-        // Broadcast join code to all players in the room
-        io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
-        broadcastLobbyList(io);
+          // Notify creator
+          socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName, isPrivate: game.private, joinCode: game.joinCode });
+          emitPlayerList(io, game);
+          io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+          // Broadcast join code to all players in the room
+          io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
+          broadcastLobbyList(io);
 
-        console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
+          console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
+        });
       });
     });
 
@@ -147,21 +170,34 @@ function setupSocketHandlers(io) {
       let player = game.players.find(p => p.name === name);
       let isReconnect = false;
       
+      const currentSess = socket.request.session;
+      const userId = currentSess && currentSess.token ? currentSess.token.id : null;
+      
       if (!player) {
         // New player joining mid-game - only allow if game hasn't started
         if (game.started) {
           socket.emit('joinFailed', { reason: 'Game already in progress' });
           return;
         }
-        player = {
-          socketId: socket.id,
-          id: socket.id,
-          name,
-          hand: [],
-          ready: false
-        };
-        game.players.push(player);
-        console.log(`New player ${name} joined game ${gameId}`);
+        
+        fetchUserCustomization(userId, (err, customization) => {
+          player = {
+            socketId: socket.id,
+            id: socket.id,
+            name,
+            hand: [],
+            ready: false,
+            userId: userId,
+            selectedTitle: customization.selectedTitle,
+            selectedTitleColor: customization.selectedTitleColor,
+            selectedBadge: customization.selectedBadge
+          };
+          game.players.push(player);
+          console.log(`New player ${name} joined game ${gameId}`);
+          
+          continueJoinGame();
+        });
+        return;
       } else {
         // Existing player reconnecting - clear any pending disconnect timeout
         isReconnect = true;
@@ -175,45 +211,49 @@ function setupSocketHandlers(io) {
         console.log(`Player ${name} reconnected to game ${gameId}`);
       }
 
-      socket.join(gameId);
-      socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName });
+      function continueJoinGame() {
+        socket.join(gameId);
+        socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName });
 
-      // Send the player's current hand
-      io.to(player.socketId).emit('deal', player.hand);
-      emitPlayerList(io, game);
-      io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
-      // Broadcast join code to all players in the room
-      io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
-      io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+        // Send the player's current hand
+        io.to(player.socketId).emit('deal', player.hand);
+        emitPlayerList(io, game);
+        io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+        // Broadcast join code to all players in the room
+        io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
+        io.to(gameId).emit('drawPileCount', { count: game.deck.length });
 
-      // Restore game state for reconnecting player
-      if (game.started) {
-        const currentPlayerId = game.players[game.turnIndex]?.id;
-        if (currentPlayerId) {
-          io.to(player.socketId).emit('turnChanged', { currentPlayerId });
+        // Restore game state for reconnecting player
+        if (game.started) {
+          const currentPlayerId = game.players[game.turnIndex]?.id;
+          if (currentPlayerId) {
+            io.to(player.socketId).emit('turnChanged', { currentPlayerId });
+          }
+          // Notify client that game is already in progress
+          io.to(player.socketId).emit('gameStarted', { 
+            currentPlayerId, 
+            players: game.players.map(p => ({ id: p.id, name: p.name })) 
+          });
         }
-        // Notify client that game is already in progress
-        io.to(player.socketId).emit('gameStarted', { 
-          currentPlayerId, 
-          players: game.players.map(p => ({ id: p.id, name: p.name })) 
-        });
-      }
 
-      if (game.discardPile && game.discardPile.length > 0) {
-        const top = game.discardPile[game.discardPile.length - 1];
-        io.to(player.socketId).emit('cardPlacedOnTable', top);
-        
-        // If it's a wild card without an activeColor and it's this player's turn, ask for color
-        // Add a flag to prevent duplicate requests
-        if (top.color === 'wild' && !top.activeColor && game.started && !game.awaitingStartColor) {
-          const currentPlayer = game.players[game.turnIndex];
-          if (currentPlayer && currentPlayer.socketId === socket.id) {
-            game.awaitingStartColor = true;
-            io.to(socket.id).emit('requestStartColor', { gameId, card: top });
-            console.log('Re-requesting starting color after join for', player.name);
+        if (game.discardPile && game.discardPile.length > 0) {
+          const top = game.discardPile[game.discardPile.length - 1];
+          io.to(player.socketId).emit('cardPlacedOnTable', top);
+          
+          // If it's a wild card without an activeColor and it's this player's turn, ask for color
+          // Add a flag to prevent duplicate requests
+          if (top.color === 'wild' && !top.activeColor && game.started && !game.awaitingStartColor) {
+            const currentPlayer = game.players[game.turnIndex];
+            if (currentPlayer && currentPlayer.socketId === socket.id) {
+              game.awaitingStartColor = true;
+              io.to(socket.id).emit('requestStartColor', { gameId, card: top });
+              console.log('Re-requesting starting color after join for', player.name);
+            }
           }
         }
       }
+      
+      continueJoinGame();
     });
 
     socket.on('joinLobby', ({ gameId = 'default', playerName: clientName = 'Anonymous', joinCode = null } = {}) => {
@@ -282,8 +322,7 @@ function setupSocketHandlers(io) {
         // Update owner socket id BEFORE sending events
         if (isOwner) {
           game.ownerId = socket.id;
-          existingByName.ready = true;
-          console.log(`Owner ${playerName} reconnected, setting ready=true`);
+          console.log(`Owner ${playerName} reconnected, keeping ready=${wasReady}`);
         }
 
         socket.join(gameId);
@@ -308,36 +347,43 @@ function setupSocketHandlers(io) {
         return;
       }
 
-      const player = {
-        socketId: socket.id,
-        id: socket.id,
-        name: playerName || 'Player',
-        userId: socket.request.session.token?.id || null,
-        hand: [],
-        ready: false
-      };
-      game.players.push(player);
-      socket.join(gameId);
-      socket.emit('joined', { 
-        playerId: player.id, 
-        gameId, 
-        lobbyName: game.lobbyName, 
-        isPrivate: !!game.private, 
-        joinCode: (socket.id === game.ownerId ? game.joinCode : null),
-        ownerId: game.ownerId,
-        ownerName: game.ownerName
-      });
-      console.log(`${player.name} joined as NEW player with ready=false`);
-      console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
-      emitPlayerList(io, game);
-      io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
-      // If owner changed, send the private join code to that owner (if any)
-      if (game.ownerId) {
-        io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
-      }
-      broadcastLobbyList(io);
+      const userId = socket.request.session.token?.id || null;
+      
+      fetchUserCustomization(userId, (err, customization) => {
+        const player = {
+          socketId: socket.id,
+          id: socket.id,
+          name: playerName || 'Player',
+          userId: userId,
+          hand: [],
+          ready: false,
+          selectedTitle: customization.selectedTitle,
+          selectedTitleColor: customization.selectedTitleColor,
+          selectedBadge: customization.selectedBadge
+        };
+        game.players.push(player);
+        socket.join(gameId);
+        socket.emit('joined', { 
+          playerId: player.id, 
+          gameId, 
+          lobbyName: game.lobbyName, 
+          isPrivate: !!game.private, 
+          joinCode: (socket.id === game.ownerId ? game.joinCode : null),
+          ownerId: game.ownerId,
+          ownerName: game.ownerName
+        });
+        console.log(`${player.name} joined as NEW player with ready=false`);
+        console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
+        emitPlayerList(io, game);
+        io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+        // If owner changed, send the private join code to that owner (if any)
+        if (game.ownerId) {
+          io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
+        }
+        broadcastLobbyList(io);
 
-      console.log(`${player.name} joined lobby ${gameId} (${game.lobbyName})`);
+        console.log(`${player.name} joined lobby ${gameId} (${game.lobbyName})`);
+      });
     });
 
     socket.on('setPrivate', ({ gameId, isPrivate = false } = {}) => {
@@ -887,9 +933,19 @@ function setupSocketHandlers(io) {
         game.started = false;
         game.winner = { id: player.id, name: player.name, timestamp: Date.now() };
 
-        io.to(gameId).emit('playerWon', { playerId: player.id, playerName: player.name });
+        io.to(gameId).emit('playerWon', { 
+          playerId: player.id, 
+          playerName: player.name,
+          selectedTitle: player.selectedTitle || 'Newbie',
+          selectedTitleColor: player.selectedTitleColor || 'white'
+        });
         io.to(gameId).emit('gameEnded', {
-          winner: { id: player.id, name: player.name },
+          winner: { 
+            id: player.id, 
+            name: player.name,
+            selectedTitle: player.selectedTitle || 'Newbie',
+            selectedTitleColor: player.selectedTitleColor || 'white'
+          },
           players: game.players.map(p => ({ id: p.id, name: p.name, handCount: p.hand.length })),
           discardTop: game.discardPile[game.discardPile.length - 1] || null
         });
@@ -1006,7 +1062,9 @@ function setupSocketHandlers(io) {
                   winnerName: player.name,
                   winnerId: player.id,
                   digipogs: result.amount,
-                  playerCount: playerCount
+                  playerCount: playerCount,
+                  selectedTitle: player.selectedTitle || 'Newbie',
+                  selectedTitleColor: player.selectedTitleColor || 'white'
                 });
                 
                 io.to(player.socketId).emit('payoutSuccess', {
@@ -1024,7 +1082,9 @@ function setupSocketHandlers(io) {
                   digipogs: 0,
                   playerCount: playerCount,
                   payoutError: true,
-                  payoutErrorMessage: result.error || 'Failed to process winner payout'
+                  payoutErrorMessage: result.error || 'Failed to process winner payout',
+                  selectedTitle: player.selectedTitle || 'Newbie',
+                  selectedTitleColor: player.selectedTitleColor || 'white'
                 });
                 
                 io.to(player.socketId).emit('payoutFailed', {
@@ -1043,7 +1103,9 @@ function setupSocketHandlers(io) {
                 digipogs: 0,
                 playerCount: playerCount,
                 payoutError: true,
-                payoutErrorMessage: err?.message || 'Unexpected error processing payout'
+                payoutErrorMessage: err?.message || 'Unexpected error processing payout',
+                selectedTitle: player.selectedTitle || 'Newbie',
+                selectedTitleColor: player.selectedTitleColor || 'white'
               });
               
               io.to(player.socketId).emit('payoutFailed', {
@@ -1059,7 +1121,9 @@ function setupSocketHandlers(io) {
             winnerName: player.name,
             winnerId: player.id,
             digipogs: 0,
-            playerCount: playerCount
+            playerCount: playerCount,
+            selectedTitle: player.selectedTitle || 'Newbie',
+            selectedTitleColor: player.selectedTitleColor || 'white'
           });
           
           io.to(player.socketId).emit('payoutSuccess', {
@@ -1077,7 +1141,9 @@ function setupSocketHandlers(io) {
             digipogs: 0,
             playerCount: playerCount,
             payoutError: true,
-            payoutErrorMessage: 'Winner has no user account linked'
+            payoutErrorMessage: 'Winner has no user account linked',
+            selectedTitle: player.selectedTitle || 'Newbie',
+            selectedTitleColor: player.selectedTitleColor || 'white'
           });
           
           io.to(player.socketId).emit('payoutFailed', {

@@ -419,7 +419,11 @@ function setupRoutes(app) {
       // Define theme requirements
       const themeRequirements = {
         'default': 1,
-        'pink': 35
+        'ocean': 18,
+        'forest': 21,
+        'pink': 40,
+        'winter': 46,
+        'smith': 50
       };
 
       if (!themeRequirements.hasOwnProperty(theme)) {

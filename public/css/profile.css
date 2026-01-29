@@ -37,6 +37,19 @@
   letter-spacing: -1px;
 }
 
+.profile-user-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+  color: var(--bg-color);
+  margin-right: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  vertical-align: middle;
+}
+
 .profile-subtitle {
   color: var(--secondary-color);
   font-size: 1.1rem;

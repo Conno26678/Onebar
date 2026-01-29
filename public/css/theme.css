@@ -42,6 +42,71 @@
   --glow-accent: 0 0 40px rgba(251, 191, 36, 0.5);
 }
 
+/* Deep Forest theme */
+:root[data-theme="forest"] {
+  --bg-color: #0b1a0b;
+  --text-color: #d4edda;
+  --primary-color: #34d399;
+  --secondary-color: #6ee7b7;
+  --accent-color: #fbbf24;
+  --card-bg: #142914;
+  --border-color: #254225;
+  --hover-color: #1e331e;
+  --shadow: rgba(52, 211, 153, 0.3);
+  
+  /* Gradient and glow variables */
+  --gradient-primary: linear-gradient(135deg, #34d399 0%, #6ee7b7 100%);
+  --gradient-accent: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
+  --gradient-bg: linear-gradient(135deg, #0b1a0b 0%, #142914 100%);
+  --glow-primary: 0 0 40px rgba(52, 211, 153, 0.5);
+  --glow-accent: 0 0 40px rgba(251, 191, 36, 0.5);
+}
+
+/* Ocean Breeze theme */
+:root[data-theme="ocean"] {
+  --bg-color: #0a1a26;
+  --text-color: #d0e7f9;
+  --primary-color: #3b82f6;
+  --secondary-color: #60a5fa;
+  --accent-color: #fbbf24;
+  --card-bg: #142c3e;
+  --border-color: #25475a;
+  --hover-color: #1e3a4e;
+  --shadow: rgba(59, 130, 246, 0.3);
+  
+  /* Gradient and glow variables */
+  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+  --gradient-accent: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
+  --gradient-bg: linear-gradient(135deg, #0a1a26 0%, #142c3e 100%);
+  --glow-primary: 0 0 40px rgba(59, 130, 246, 0.5);
+  --glow-accent: 0 0 40px rgba(251, 191, 36, 0.5);
+}
+
+/* Winter is Coming theme */
+:root[data-theme="winter"] {
+  --bg-color: #1a1f26;
+  --text-color: #e1e8f0;
+  --primary-color: #60a5fa;
+  --secondary-color: #93c5fd;
+  --accent-color: #fbbf24;
+  --card-bg: #252b33;
+  --border-color: #374151;
+  --hover-color: #2e343e;
+  --shadow: rgba(96, 165, 250, 0.3);
+  
+  /* Gradient and glow variables */
+  --gradient-primary: linear-gradient(135deg, #60a5fa 0%, #93c5fd 100%);
+  --gradient-accent: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
+  --gradient-bg: linear-gradient(135deg, #1a1f26 0%, #252b33 100%);
+  --glow-primary: 0 0 40px rgba(96, 165, 250, 0.5);
+  --glow-accent: 0 0 40px rgba(251, 191, 36, 0.5);
+}
+
+/* Smith theme */
+:root[data-theme="smith"] {
+  --bg-image: url('');
+}
+
 /* Base styles */
 * {
   margin: 0;
@@ -293,7 +358,7 @@ a:hover {
     font-size: 18px;
   }
 
-  .btn {
+  .btn:not(.home-button):not(.logout-button) {
     display: block;
     width: 100%;
     margin: 10px 0;
@@ -301,18 +366,22 @@ a:hover {
 
   .home-button,
   .logout-button {
-    top: 15px;
-    padding: 8px 14px;
-    font-size: 0.9rem;
-    border-radius: 10px;
+    position: fixed !important;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    border-radius: 8px;
   }
 
   .home-button {
-    left: 15px;
+    top: 10px !important;
+    left: 10px !important;
+    bottom: auto !important;
   }
 
   .logout-button {
-    right: 15px;
+    top: auto !important;
+    bottom: 10px !important;
+    right: 10px !important;
   }
 }
 
@@ -329,25 +398,29 @@ a:hover {
     font-size: 16px;
   }
 
-  .btn {
+  .btn:not(.home-button):not(.logout-button) {
     padding: 10px 15px;
     font-size: 0.9rem;
   }
 
   .home-button,
   .logout-button {
-    top: 10px;
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    border-radius: 8px;
+    position: fixed !important;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    border-radius: 6px;
   }
 
   .home-button {
-    left: 10px;
+    top: 8px !important;
+    left: 8px !important;
+    bottom: auto !important;
   }
 
   .logout-button {
-    right: 10px;
+    top: auto !important;
+    bottom: 8px !important;
+    right: 8px !important;
   }
 }
 

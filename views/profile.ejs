@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Onebar - Profile</title>
+    <link rel="icon" type="image/x-icon" href="/img/pfp.png">
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/profile.css">
 </head>
@@ -13,7 +14,12 @@
 
     <div class="profile-container">
         <div class="profile-header">
-            <h1><%= user.displayName %></h1>
+            <h1>
+                <% if (selectedBadge && selectedBadge !== 'none') { %>
+                    <span class="profile-user-badge"><%= selectedBadge %></span>
+                <% } %>
+                <%= user.displayName %> Profile
+            </h1>
             <p class="profile-subtitle">Your stats and customization options</p>
         </div>
 
@@ -518,8 +524,12 @@
 
         // Theme customization functions
         const availableThemes = [
-            { name: 'Default', id: 'default', requirement: 'Starting Theme', requiredLevel: 1, unlocked: true, colors: ['black', 'black'] },
-            { name: 'Pink Paradise', id: 'pink', requirement: 'Battle Pass Level 35', requiredLevel: 35, unlocked: <%= (level || 1) >= 35 ? 'true' : 'false' %>, colors: ['#ec4899', '#f472b6'] }
+            { name: 'Default', id: 'default', requirement: 'Starting Theme', requiredLevel: 1, unlocked: true, colors: ['#0d1117', '#161b22'] },
+            { name: 'Ocean Breeze', id: 'ocean', requirement: 'Battle Pass Level 18', requiredLevel: 18, unlocked: <%= (level || 1) >= 18 ? 'true' : 'false' %>, colors: ['#3b82f6', '#60a5fa'] },
+            { name: 'Forest', id: 'forest', requirement: 'Battle Pass Level 21', requiredLevel: 21, unlocked: <%= (level || 1) >= 21 ? 'true' : 'false' %>, colors: ['#34d399', '#6ee7b7'] },
+            { name: 'Pink Paradise', id: 'pink', requirement: 'Battle Pass Level 40', requiredLevel: 40, unlocked: <%= (level || 1) >= 40 ? 'true' : 'false' %>, colors: ['#ec4899', '#f472b6'] },
+            { name: 'Winter is Coming', id: 'winter', requirement: 'Battle Pass Level 46', requiredLevel: 46, unlocked: <%= (level || 1) >= 46 ? 'true' : 'false' %>, colors: ['#60a5fa', '#93c5fd'] },
+            { name: 'Smith', id: 'smith', requirement: 'Battle Pass Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %>, colors: ['#8b949e', '#30363d'] }
         ];
 
         function loadThemeOptions() {

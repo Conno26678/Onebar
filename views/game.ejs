@@ -198,12 +198,27 @@
         console.log('Payment status updated in game:', hasPaid);
     });
     
+    // Badge to emoji mapping
+    function getBadgeEmoji(badge) {
+      if (!badge || badge === 'none') return '';
+      // If badge is already an emoji or custom value, return it as-is
+      // Otherwise map common text names to emojis
+      const badgeMap = {
+        'Trophy': '🏆',
+        'Gold': '🥇',
+        'Silver': '🥈',
+        'Bronze': '🥉',
+        'Premium Diamond': '💎'
+      };
+      return badgeMap[badge] || badge;
+    }
+    
     // Track current turn player
     let currentTurnPlayerId = null;
     let myPlayerId = null;
     let currentTableCard = null; // Track the card on top of discard pile
 
-    function showWinMedal(winnerName, isCurrentUserWinner) {
+    function showWinMedal(winnerName, isCurrentUserWinner, winnerTitle = 'Newbie', winnerTitleColor = 'white') {
       disableGameUI();
       
       // Play appropriate sound based on win/lose
@@ -231,7 +246,19 @@
 
       const winner = document.createElement('div');
       winner.className = 'win-modal-winner';
-      winner.textContent = winnerName;
+      
+      // Create title span
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = `[${winnerTitle}] `;
+      titleSpan.style.color = winnerTitleColor;
+      
+      // Create name span
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = winnerName;
+      nameSpan.style.color = winnerTitleColor;
+      
+      winner.appendChild(titleSpan);
+      winner.appendChild(nameSpan);
       modal.appendChild(winner);
 
       const subtitle = document.createElement('div');
@@ -662,9 +689,12 @@
 
     socket.on('playerList', (players) => {
         const el = document.getElementById('playerList');
-        if (el) el.innerHTML = 'Players: ' + players.map(p =>
-          `<span id="p_${p.id}">${p.name} (${p.cardCount ?? '?'})</span>`
-        ).join(' | ');
+        if (el) el.innerHTML = 'Players: ' + players.map(p => {
+          const badgeEmoji = getBadgeEmoji(p.selectedBadge);
+          const badge = badgeEmoji ? `<span class="player-badge">${badgeEmoji}</span> ` : '';
+          const titleColor = p.selectedTitleColor || 'inherit';
+          return `<span id="p_${p.id}" style="color: ${titleColor}">${badge}${p.name} (${p.cardCount ?? '?'})</span>`;
+        }).join(' | ');
     });
 
     let isInitialDeal = true;
@@ -718,9 +748,9 @@
         renderHand(currentHand, false);
     });
 
-    socket.on('playerWon', ({ playerId, playerName }) => {
+    socket.on('playerWon', ({ playerId, playerName, selectedTitle, selectedTitleColor }) => {
         const isCurrentUserWinner = (playerName === <%- JSON.stringify(user || 'Anonymous') %>);
-        showWinMedal(playerName, isCurrentUserWinner);
+        showWinMedal(playerName, isCurrentUserWinner, selectedTitle || 'Newbie', selectedTitleColor || 'white');
     });
 
     socket.on('gameEnded', (data) => {
@@ -732,7 +762,12 @@
         status.innerText = `Game over! Winner: ${winner.name || winner.id}`;
         if (!document.querySelector('.wub-medal-overlay')) {
           const isCurrentUserWinner = (winner.name === <%- JSON.stringify(user || 'Anonymous') %>);
-          showWinMedal(winner.name || winner.id, isCurrentUserWinner);
+          showWinMedal(
+            winner.name || winner.id, 
+            isCurrentUserWinner, 
+            winner.selectedTitle || 'Newbie', 
+            winner.selectedTitleColor || 'white'
+          );
         }
       }
     })

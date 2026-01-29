@@ -2,6 +2,21 @@
 document.addEventListener('DOMContentLoaded', () => {
   const socket = io();
 
+  // Badge to emoji mapping
+  function getBadgeEmoji(badge) {
+    if (!badge || badge === 'none') return '';
+    // If badge is already an emoji or custom value, return it as-is
+    // Otherwise map common text names to emojis
+    const badgeMap = {
+      'Trophy': '🏆',
+      'Gold': '🥇',
+      'Silver': '🥈',
+      'Bronze': '🥉',
+      'Premium Diamond': '💎'
+    };
+    return badgeMap[badge] || badge;
+  }
+
   const lobbyListEl = document.getElementById('lobbyList');
   const createBtn = document.getElementById('createLobbyBtn');
   const createName = document.getElementById('createLobbyName');
@@ -85,8 +100,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const pDiv = document.createElement('div');
       pDiv.className = 'player-tag' + (p.id === currentOwnerId ? ' host' : '');
 
+      // Add badge if player has one
+      if (p.selectedBadge && p.selectedBadge !== 'none') {
+        const badgeEmoji = getBadgeEmoji(p.selectedBadge);
+        if (badgeEmoji) {
+          const badgeSpan = document.createElement('span');
+          badgeSpan.className = 'lobby-player-badge';
+          badgeSpan.textContent = badgeEmoji;
+          pDiv.appendChild(badgeSpan);
+        }
+      }
+
       const nameSpan = document.createElement('span');
       nameSpan.textContent = p.name;
+      if (p.selectedTitleColor) {
+        nameSpan.style.color = p.selectedTitleColor;
+      }
       pDiv.appendChild(nameSpan);
 
       if (p.id === currentOwnerId) {

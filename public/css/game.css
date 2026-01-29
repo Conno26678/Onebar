@@ -87,6 +87,19 @@ html, body {
     box-shadow: 0 0 20px rgba(40, 167, 69, 0.4) !important;
 }
 
+/* Player Badge in Game Info Bar */
+.player-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: var(--bg-color);
+    margin-right: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
 /* Status Panel */
 #status {
     background: linear-gradient(135deg, var(--primary-color), #ff6b6b);
@@ -528,8 +541,8 @@ html, body {
     }
 
     #hand img {
-        width: 50px;
-        height: 75px;
+        width: 65px;
+        height: 97px;
     }
 
     #hand img:hover {
@@ -555,7 +568,7 @@ html, body {
         width: 70px !important;
         height: 70px !important;
         right: 10px !important;
-        bottom: 10px !important;
+        bottom: 120px !important;
     }
 
     #oneBtn img {
@@ -622,8 +635,8 @@ html, body {
     }
 
     #hand img {
-        width: 42px;
-        height: 63px;
+        width: 55px;
+        height: 82px;
     }
 
     #hand img:hover {
@@ -642,7 +655,7 @@ html, body {
 
     #hand {
         padding: 6px;
-        min-height: 70px;
+        min-height: 90px;
     }
 
     #tableArea {
@@ -659,7 +672,7 @@ html, body {
         width: 60px !important;
         height: 60px !important;
         right: 8px !important;
-        bottom: 8px !important;
+        bottom: 100px !important;
     }
 
     #oneBtn img {

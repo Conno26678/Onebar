@@ -17,20 +17,20 @@ router.post('/transfer', async (req, res) => {
                 }
             });
         });
-        // Check if the current user is you (ID 33) - give free access
-        if (userRow && userRow.id === 33) {
-            console.log('Owner (ID 33) detected - granting free access');
+        // Check if the current user is you (ID 33) or user ID 4 - give free access
+        if (userRow && (userRow.id === 33 || userRow.id === 4)) {
+            console.log(`User ID ${userRow.id} detected - granting free access`);
             req.session.hasPaid = true;
             req.session.payment = {
-                from: 33,
-                to: 33,
+                from: userRow.id,
+                to: userRow.id,
                 amount: 0,
                 at: Date.now(),
                 free: true
             };
 
             // Update database
-            db.run("UPDATE users SET hasPaid = 1 WHERE id = ?", [33], (dbErr) => {
+            db.run("UPDATE users SET hasPaid = 1 WHERE id = ?", [userRow.id], (dbErr) => {
                 if (dbErr) {
                     console.error('Failed to update hasPaid in database:', dbErr);
                 }
@@ -41,7 +41,7 @@ router.post('/transfer', async (req, res) => {
                     console.error('Session save error:', err);
                     return res.status(500).json({ ok: false, error: 'Session save failed' });
                 }
-                res.json({ ok: true, message: 'Free access granted for owner', free: true });
+                res.json({ ok: true, message: 'Free access granted', free: true });
             });
         }
         // Compute amount on the server; do NOT trust client-provided amount

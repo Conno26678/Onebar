@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Onebar - Game</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/cards-atlas.css">
     <link rel="stylesheet" href="/css/game.css">
@@ -218,82 +219,6 @@
     let myPlayerId = null;
     let currentTableCard = null; // Track the card on top of discard pile
 
-    function showWinMedal(winnerName, isCurrentUserWinner, winnerTitle = 'Newbie', winnerTitleColor = 'white') {
-      disableGameUI();
-      
-      // Play appropriate sound based on win/lose
-      if (isCurrentUserWinner) {
-        playSoundIfEnabled(getSoundPath('win'), 0.5);
-      } else {
-        playSoundIfEnabled(getSoundPath('lose'), 0.5);
-      }
-
-      const overlay = document.createElement('div');
-      overlay.className = 'win-modal-overlay';
-
-      const modal = document.createElement('div');
-      modal.className = 'win-modal';
-
-      const trophy = document.createElement('div');
-      trophy.className = 'win-modal-trophy';
-      trophy.textContent = isCurrentUserWinner ? '🏆' : '';
-      if (trophy.textContent) modal.appendChild(trophy);
-
-      const title = document.createElement('div');
-      title.className = 'win-modal-title';
-      title.textContent = isCurrentUserWinner ? 'Congratulations! You Won!' : `get gud`;
-      modal.appendChild(title);
-
-      const winner = document.createElement('div');
-      winner.className = 'win-modal-winner';
-      
-      // Create title span
-      const titleSpan = document.createElement('span');
-      titleSpan.textContent = `[${winnerTitle}] `;
-      titleSpan.style.color = winnerTitleColor;
-      
-      // Create name span
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = winnerName;
-      nameSpan.style.color = winnerTitleColor;
-      
-      winner.appendChild(titleSpan);
-      winner.appendChild(nameSpan);
-      modal.appendChild(winner);
-
-      const subtitle = document.createElement('div');
-      subtitle.className = 'win-modal-subtitle';
-      subtitle.textContent = isCurrentUserWinner ? 'Congrats on your win' : `${winnerName} has won the game!`;
-      modal.appendChild(subtitle);
-
-      const buttons = document.createElement('div');
-      buttons.className = 'win-modal-buttons';
-
-      const playAgainBtn = document.createElement('button');
-      playAgainBtn.className = 'win-modal-btn play-again';
-      playAgainBtn.textContent = 'Play Again';
-      playAgainBtn.addEventListener('click', () => {
-        window.location.href = '/room/' + encodeURIComponent(currentRommId);
-      });
-      buttons.appendChild(playAgainBtn);
-
-      const goHomeBtn = document.createElement('button');
-      goHomeBtn.className = 'win-modal-btn go-home';
-      goHomeBtn.textContent = 'Go to Home';
-      goHomeBtn.addEventListener('click', () => {
-        window.location.href = '/';
-      });
-      buttons.appendChild(goHomeBtn);
-
-      modal.appendChild(buttons);
-      overlay.appendChild(modal);
-      document.body.appendChild(overlay);
-
-      //Prevent clicking through overlay
-      overlay.addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
-    }
     
     // Helper function to fix card IDs for CSS sprite matching
     function fixCardId(id) {
@@ -380,7 +305,7 @@
       }
     });
 
-    socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError, payoutErrorMessage }) => {
+    socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError, payoutErrorMessage, selectedTitle, selectedTitleColor }) => {
   console.log('🏆 Winner screen data:', { winnerName, winnerId, digipogs, playerCount, payoutError });
   
   const isCurrentUserWinner = (winnerName === playerName);
@@ -424,11 +349,26 @@
   
   const name = document.createElement('div');
   name.className = 'winner-name';
-  name.textContent = isCurrentUserWinner ? 'You are the winner!' : `${winnerName} won`;
   name.style.fontSize = '2em';
-  name.style.color = '#fff';
   name.style.margin = '20px 0';
   name.style.fontWeight = 'bold';
+  
+  // Create title span
+  const titleSpan = document.createElement('span');
+  titleSpan.textContent = `[${selectedTitle || 'Newbie'}] `;
+  titleSpan.style.color = selectedTitleColor || 'white';
+  
+  // Create name span
+  const nameSpan = document.createElement('span');
+  if (isCurrentUserWinner) {
+    nameSpan.textContent = 'You are the winner!';
+  } else {
+    nameSpan.textContent = `${winnerName} won`;
+  }
+  nameSpan.style.color = selectedTitleColor || 'white';
+  
+  name.appendChild(titleSpan);
+  name.appendChild(nameSpan);
   content.appendChild(name);
   
   const amount = document.createElement('div');
@@ -748,28 +688,9 @@
         renderHand(currentHand, false);
     });
 
-    socket.on('playerWon', ({ playerId, playerName, selectedTitle, selectedTitleColor }) => {
-        const isCurrentUserWinner = (playerName === <%- JSON.stringify(user || 'Anonymous') %>);
-        showWinMedal(playerName, isCurrentUserWinner, selectedTitle || 'Newbie', selectedTitleColor || 'white');
-    });
-
     socket.on('gameEnded', (data) => {
       console.log('gameEnded', data)
       disableGameUI();
-      const winner = data?.winner;
-      if (winner) {
-        const status = document.getElementById('status');
-        status.innerText = `Game over! Winner: ${winner.name || winner.id}`;
-        if (!document.querySelector('.wub-medal-overlay')) {
-          const isCurrentUserWinner = (winner.name === <%- JSON.stringify(user || 'Anonymous') %>);
-          showWinMedal(
-            winner.name || winner.id, 
-            isCurrentUserWinner, 
-            winner.selectedTitle || 'Newbie', 
-            winner.selectedTitleColor || 'white'
-          );
-        }
-      }
     })
 
      function disableGameUI() {

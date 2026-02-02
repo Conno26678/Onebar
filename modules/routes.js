@@ -15,11 +15,44 @@ function setupRoutes(app) {
   });
 
   app.get('/game', isAuthenticated, (req, res) => {
-    res.render('game.ejs', { user: req.session.user, gameId: req.query.gameId || 'default' });
+    const userId = req.session.token?.id;
+    if (userId) {
+      db.get('SELECT selectedEmotes FROM users WHERE id = ?', [userId], (err, userData) => {
+        const selectedEmotes = userData?.selectedEmotes || '["wave","thumbsup","party","fire"]';
+        res.render('game.ejs', { 
+          user: req.session.user, 
+          gameId: req.query.gameId || 'default',
+          selectedEmotes: selectedEmotes
+        });
+      });
+    } else {
+      res.render('game.ejs', { 
+        user: req.session.user, 
+        gameId: req.query.gameId || 'default',
+        selectedEmotes: '["wave","thumbsup","party","fire"]'
+      });
+    }
   });
 
   app.get('/lobby', isAuthenticated, (req, res) => {
-    res.render('lobby.ejs', { user: req.session.user });
+    const userId = req.session.token?.id;
+    if (userId) {
+      db.get('SELECT selectedEmotes, selectedTheme FROM users WHERE id = ?', [userId], (err, userData) => {
+        const selectedEmotes = userData?.selectedEmotes || '["wave","thumbsup","party","fire"]';
+        const selectedTheme = userData?.selectedTheme || 'default';
+        res.render('lobby.ejs', { 
+          user: req.session.user,
+          selectedEmotes: selectedEmotes,
+          selectedTheme: selectedTheme
+        });
+      });
+    } else {
+      res.render('lobby.ejs', { 
+        user: req.session.user,
+        selectedEmotes: '["wave","thumbsup","party","fire"]',
+        selectedTheme: 'default'
+      });
+    }
   });
 
   app.get('/battlepass', isAuthenticated, (req, res) => {
@@ -68,7 +101,7 @@ function setupRoutes(app) {
           }
           
           // Get current user data
-          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, wins, hasBattlePassPremium FROM users WHERE id = ?', [userId], (err, userData) => {
+          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, selectedEmotes, wins, hasBattlePassPremium FROM users WHERE id = ?', [userId], (err, userData) => {
             if (err) {
               console.error('Error fetching user data:', err);
               res.render('profile.ejs', { 
@@ -84,6 +117,7 @@ function setupRoutes(app) {
                 selectedSoundPack: 'default',
                 selectedBadge: 'none',
                 selectedEmote: 'wave',
+                selectedEmotes: '["wave","thumbsup","party","fire"]',
                 wins: 0,
                 hasBattlePassPremium: false
               });
@@ -117,6 +151,8 @@ function setupRoutes(app) {
                 selectedSoundPack: userData?.selectedSoundPack || 'default',
                 selectedBadge: userData?.selectedBadge || 'none',
                 selectedEmote: userData?.selectedEmote || 'wave',
+                selectedEmotes: userData?.selectedEmotes || '["wave","thumbsup","party","fire"]',
+                selectedEffect: userData?.selectedEffect || 'sparkles',
                 wins: userData?.wins || 0,
                 hasBattlePassPremium: userData?.hasBattlePassPremium || false
               });
@@ -138,6 +174,7 @@ function setupRoutes(app) {
         selectedSoundPack: 'default',
         selectedBadge: 'none',
         selectedEmote: 'wave',
+        selectedEmotes: '["wave","thumbsup","party","fire"]',
         wins: 0,
         hasBattlePassPremium: false
       });
@@ -232,7 +269,11 @@ function setupRoutes(app) {
       '/img/king.png',
       '/img/Smiffers1984.png',
       '/img/Hayden.png',
-      '/img/glassesSmith.jpeg'
+      '/img/partySmith.png',
+      '/img/glassesSmith.jpeg',
+      '/img/closeUpSmith.png',
+      '/img/smithHidingSpot.png',
+      '/img/disasmithed.png'
     ];
 
     if (!allowedPictures.includes(profilePicture)) {
@@ -240,19 +281,24 @@ function setupRoutes(app) {
     }
 
     // Get user data to check unlock requirements
-    db.get('SELECT level FROM users WHERE id = ?', [userId], (err, userData) => {
+    db.get('SELECT level, wins FROM users WHERE id = ?', [userId], (err, userData) => {
       if (err) {
         console.error('Error fetching user data:', err);
         return res.json({ success: false, message: 'Database error' });
       }
 
       const userLevel = userData?.level || 1;
+      const userWins = userData?.wins || 0;
       
       // Check if user has unlocked this picture
       let unlocked = true;
       if (profilePicture === '/img/Smiffers1984.png' && userLevel < 10) unlocked = false;
       if (profilePicture === '/img/Hayden.png' && userLevel < 25) unlocked = false;
+      if (profilePicture === '/img/partySmith.png' && userLevel < 30) unlocked = false;
       if (profilePicture === '/img/glassesSmith.jpeg' && userLevel < 45) unlocked = false;
+      if (profilePicture === '/img/closeUpSmith.png' && userLevel < 48) unlocked = false;
+      if (profilePicture === '/img/smithHidingSpot.png' && userLevel < 50) unlocked = false;
+      if (profilePicture === '/img/disasmithed.png' && userWins < 100) unlocked = false;
       
       // King is handled separately by leaderboard position, skip it here
       if (profilePicture === '/img/king.png') {
@@ -323,7 +369,8 @@ function setupRoutes(app) {
         'Competitor': 10,
         'Champion': 20,
         'Legend': 35,
-        'Master': 50
+        'Master': 50,
+        'Max Gamer': 50
       };
 
       if (!titleRequirements.hasOwnProperty(title)) {
@@ -371,7 +418,8 @@ function setupRoutes(app) {
       // Define title color requirements
       const titleColorRequirements = {
         'white': 1,
-        'purple': 5
+        'purple': 5,
+        'blue': 10
       };
 
       if (!titleColorRequirements.hasOwnProperty(titleColor)) {
@@ -581,7 +629,10 @@ function setupRoutes(app) {
         'thumbsup': 5,
         'party': 15,
         'fire': 20,
+        'hearteyes': 20,
         'crown': 30,
+        'cool': 30,
+        'cowboy': 35,
         'rocket': 40,
         'star': 50
       };
@@ -599,6 +650,122 @@ function setupRoutes(app) {
         if (updateErr) {
           console.error('Error updating emote:', updateErr);
           return res.json({ success: false, message: 'Failed to update emote' });
+        }
+
+        res.json({ success: true });
+      });
+    });
+  });
+
+  // API endpoint to update multiple emojis (4 selected emojis)
+  app.post('/api/update-emojis', isAuthenticated, (req, res) => {
+    const userId = req.session.token?.id;
+    const { emojis } = req.body;
+
+    if (!userId) {
+      return res.json({ success: false, message: 'User not authenticated' });
+    }
+
+    if (!emojis || !Array.isArray(emojis) || emojis.length !== 4) {
+      return res.json({ success: false, message: 'Please select exactly 4 emojis' });
+    }
+
+    // Get user data to check unlock requirements
+    db.get('SELECT level, wins FROM users WHERE id = ?', [userId], (err, userData) => {
+      if (err) {
+        console.error('Error fetching user data:', err);
+        return res.json({ success: false, message: 'Database error' });
+      }
+
+      const userLevel = userData?.level || 1;
+      const userWins = userData?.wins || 0;
+      
+      // Define emoji requirements
+      const emojiRequirements = {
+        'wave': { level: 1, wins: 0 },
+        'thumbsup': { level: 5, wins: 0 },
+        'party': { level: 15, wins: 0 },
+        'fire': { level: 20, wins: 0 },
+        'hearteyes': { level: 20, wins: 0 },
+        'crown': { level: 30, wins: 0 },
+        'cool': { level: 30, wins: 0 },
+        'partysmith': { level: 35, wins: 0 },
+        'cowboy': { level: 35, wins: 0 },
+        'rocket': { level: 40, wins: 0 },
+        'star': { level: 50, wins: 0 },
+        'disasmithed': { level: 1, wins: 75 }
+      };
+
+      // Validate all emojis are unlocked
+      for (const emoji of emojis) {
+        if (!emojiRequirements.hasOwnProperty(emoji)) {
+          return res.json({ success: false, message: `Invalid emoji: ${emoji}` });
+        }
+
+        const req = emojiRequirements[emoji];
+        if (userLevel < req.level || userWins < req.wins) {
+          return res.json({ success: false, message: `You have not unlocked ${emoji} yet` });
+        }
+      }
+
+      // Update emojis in database as JSON string
+      const emojisJson = JSON.stringify(emojis);
+      db.run('UPDATE users SET selectedEmotes = ? WHERE id = ?', [emojisJson, userId], (updateErr) => {
+        if (updateErr) {
+          console.error('Error updating emojis:', updateErr);
+          return res.json({ success: false, message: 'Failed to update emojis' });
+        }
+
+        res.json({ success: true });
+      });
+    });
+  });
+
+  // API endpoint to update effect
+  app.post('/api/update-effect', isAuthenticated, (req, res) => {
+    const userId = req.session.token?.id;
+    const { effect } = req.body;
+
+    if (!userId) {
+      return res.json({ success: false, message: 'User not authenticated' });
+    }
+
+    if (!effect) {
+      return res.json({ success: false, message: 'No effect provided' });
+    }
+
+    // Get user data to check unlock requirements
+    db.get('SELECT level FROM users WHERE id = ?', [userId], (err, userData) => {
+      if (err) {
+        console.error('Error fetching user data:', err);
+        return res.json({ success: false, message: 'Database error' });
+      }
+
+      const userLevel = userData?.level || 1;
+      
+      // Define effect requirements
+      const effectRequirements = {
+        'sparkles': 1,
+        'confetti': 10,
+        'lightning': 20,
+        'rainbow': 30,
+        'flames': 40,
+        'golden': 50
+      };
+
+      if (!effectRequirements.hasOwnProperty(effect)) {
+        return res.json({ success: false, message: 'Invalid effect' });
+      }
+
+      if (userLevel < effectRequirements[effect]) {
+        return res.json({ success: false, message: 'You have not unlocked this effect yet' });
+      }
+
+      // Update effect in database
+      db.run('UPDATE users SET selectedEffect = ? WHERE id = ?', [effect, userId], (updateErr) => {
+        if (updateErr) {
+          console.error('Error updating effect:', updateErr);
+          return res.json({ success: false, message: 'Failed to update effect' });
         }
 
         res.json({ success: true });

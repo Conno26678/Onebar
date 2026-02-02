@@ -48,63 +48,75 @@
   --text-color: #d4edda;
   --primary-color: #34d399;
   --secondary-color: #6ee7b7;
-  --accent-color: #fbbf24;
-  --card-bg: #142914;
-  --border-color: #254225;
-  --hover-color: #1e331e;
+  --accent-color: #8b6f47;
+  --card-bg: #1a2617;
+  --border-color: #3d4a3a;
+  --hover-color: #3d4a3a;
   --shadow: rgba(52, 211, 153, 0.3);
   
   /* Gradient and glow variables */
   --gradient-primary: linear-gradient(135deg, #34d399 0%, #6ee7b7 100%);
-  --gradient-accent: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
-  --gradient-bg: linear-gradient(135deg, #0b1a0b 0%, #142914 100%);
+  --gradient-accent: linear-gradient(135deg, #8b6f47 0%, #a08560 100%);
+  --gradient-bg: linear-gradient(135deg, #0b1a0b 0%, #1a2617 100%);
   --glow-primary: 0 0 40px rgba(52, 211, 153, 0.5);
-  --glow-accent: 0 0 40px rgba(251, 191, 36, 0.5);
+  --glow-accent: 0 0 40px rgba(139, 111, 71, 0.4);
 }
 
 /* Ocean Breeze theme */
 :root[data-theme="ocean"] {
   --bg-color: #0a1a26;
-  --text-color: #d0e7f9;
+  --text-color: #ffffff;
   --primary-color: #3b82f6;
   --secondary-color: #60a5fa;
-  --accent-color: #fbbf24;
+  --accent-color: #d4b896;
   --card-bg: #142c3e;
   --border-color: #25475a;
-  --hover-color: #1e3a4e;
+  --hover-color: #25475a;
   --shadow: rgba(59, 130, 246, 0.3);
   
   /* Gradient and glow variables */
   --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-  --gradient-accent: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
+  --gradient-accent: linear-gradient(135deg, #d4b896 0%, #e5c9a7 100%);
   --gradient-bg: linear-gradient(135deg, #0a1a26 0%, #142c3e 100%);
   --glow-primary: 0 0 40px rgba(59, 130, 246, 0.5);
-  --glow-accent: 0 0 40px rgba(251, 191, 36, 0.5);
+  --glow-accent: 0 0 40px rgba(212, 184, 150, 0.4);
 }
 
 /* Winter is Coming theme */
 :root[data-theme="winter"] {
-  --bg-color: #1a1f26;
-  --text-color: #e1e8f0;
+  --bg-color: #f0f4f8;
+  --text-color: #60a5fa;
   --primary-color: #60a5fa;
   --secondary-color: #93c5fd;
-  --accent-color: #fbbf24;
-  --card-bg: #252b33;
-  --border-color: #374151;
-  --hover-color: #2e343e;
-  --shadow: rgba(96, 165, 250, 0.3);
+  --accent-color: #a0d2fa;
+  --card-bg: #d9e8f7;
+  --border-color: #b8d4f1;
+  --hover-color: #b8d4f1;
+  --shadow: rgba(96, 165, 250, 0.2);
   
   /* Gradient and glow variables */
   --gradient-primary: linear-gradient(135deg, #60a5fa 0%, #93c5fd 100%);
-  --gradient-accent: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
-  --gradient-bg: linear-gradient(135deg, #1a1f26 0%, #252b33 100%);
-  --glow-primary: 0 0 40px rgba(96, 165, 250, 0.5);
-  --glow-accent: 0 0 40px rgba(251, 191, 36, 0.5);
+  --gradient-accent: linear-gradient(135deg, #a0d2fa 0%, #c0e0ff 100%);
+  --gradient-bg: linear-gradient(135deg, #f0f4f8 0%, #d9e8f7 100%);
+  --glow-primary: 0 0 40px rgba(96, 165, 250, 0.3);
+  --glow-accent: 0 0 40px rgba(160, 210, 250, 0.3);
 }
 
 /* Smith theme */
 :root[data-theme="smith"] {
-  --bg-image: url('');
+  --text-color: #e9d5ff;
+  --primary-color: #a855f7;
+  --secondary-color: #c084fc;
+  --accent-color: #d8b4fe;
+  --card-bg: transparent;
+  --border-color: rgba(168, 85, 247, 0.5);
+  --hover-color: rgba(168, 85, 247, 0.2);
+  --shadow: rgba(0, 0, 0, 0.5);
+  
+  --gradient-primary: linear-gradient(135deg, #a855f7 0%, #c084fc 100%);
+  --gradient-accent: linear-gradient(135deg, #d8b4fe 0%, #e9d5ff 100%);
+  --glow-primary: 0 0 40px rgba(168, 85, 247, 0.6);
+  --glow-accent: 0 0 40px rgba(216, 180, 254, 0.6);
 }
 
 /* Base styles */
@@ -123,6 +135,32 @@ body {
   padding: 20px;
   min-height: 100vh;
 }
+
+/* Smith theme specific background */
+:root[data-theme="smith"] body {
+  background-color: #1a0d2e;
+  background-image: 
+    url('../img/glassesSmith.jpeg'),
+    url('../img/partySmith.png'),
+    url('../img/closeUpSmith.png'),
+    url('../img/smithHidingSpot.png'),
+    url('../img/disasmithed.png');
+  background-size: 200px 200px, 180px 180px, 190px 190px, 210px 210px, 195px 195px;
+  background-position: 
+    5% 10%, 85% 15%, 10% 60%, 90% 70%, 50% 85%;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  opacity: 0.95;
+}
+
+/* Smith theme card backgrounds
+[data-theme="smith"] .card {
+  background-image: url('../img/glassesSmith.jpeg');
+  background-size: cover;
+  background-position: center;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(168, 85, 247, 0.5);
+} */
 
 /* Theme toggle button - hidden (dark mode only) */
 .theme-toggle {

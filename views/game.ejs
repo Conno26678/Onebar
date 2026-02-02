@@ -81,6 +81,20 @@
 <body>
   <!-- Logout button (upper-left) -->
   <a href="/logout" class="btn logout-button">Logout</a>
+  
+  <!-- Emoji Reaction Button (upper-left) -->
+  <button class="emoji-reaction-button" id="emojiReactionBtn" onclick="toggleEmojiMenu()">😊</button>
+  
+  <!-- Emoji Selection Menu -->
+  <div class="emoji-menu" id="emojiMenu" style="display: none;">
+    <div class="emoji-menu-item" data-emoji="0"></div>
+    <div class="emoji-menu-item" data-emoji="1"></div>
+    <div class="emoji-menu-item" data-emoji="2"></div>
+    <div class="emoji-menu-item" data-emoji="3"></div>
+  </div>
+  
+  <!-- Emoji Reactions Display Area -->
+  <div class="emoji-reactions-area" id="emojiReactionsArea"></div>
 
   <div class="game-container">
     <h1 class="game-title">ONEBAR</h1>
@@ -184,6 +198,116 @@
 
     const playerName = <%- JSON.stringify(user || 'Anonymous') %>;
     
+    // Initialize user's selected emojis
+    const availableEmojis = [
+      { id: 'wave', icon: '👋' },
+      { id: 'thumbsup', icon: '👍' },
+      { id: 'party', icon: '🎉' },
+      { id: 'fire', icon: '🔥' },
+      { id: 'hearteyes', icon: '😍' },
+      { id: 'crown', icon: '👑' },
+      { id: 'cool', icon: '😎' },
+      { id: 'partysmith', icon: '🎊', image: 'partySmith.png' },
+      { id: 'cowboy', icon: '🤠' },
+      { id: 'rocket', icon: '🚀' },
+      { id: 'star', icon: '⭐' },
+      { id: 'disasmithed', icon: '😵', image: 'disasmithed.png' }
+    ];
+    
+    let selectedEmojis = [];
+    try {
+      const emotesData = '<%- typeof selectedEmotes !== "undefined" ? selectedEmotes : "[]" %>';
+      selectedEmojis = JSON.parse(emotesData);
+      if (!Array.isArray(selectedEmojis) || selectedEmojis.length !== 4) {
+        selectedEmojis = ['wave', 'thumbsup', 'party', 'fire'];
+      }
+    } catch (e) {
+      console.error('Error parsing selected emotes:', e);
+      selectedEmojis = ['wave', 'thumbsup', 'party', 'fire'];
+    }
+    
+    // Initialize emoji menu items
+    function initEmojiMenu() {
+      const menuItems = document.querySelectorAll('.emoji-menu-item');
+      selectedEmojis.forEach((emojiId, index) => {
+        const emoji = availableEmojis.find(e => e.id === emojiId);
+        if (emoji && menuItems[index]) {
+          if (emoji.image) {
+            menuItems[index].innerHTML = `<img src="/img/${emoji.image}" alt="${emoji.id}" style="width: 40px; height: 40px; border-radius: 5px;">`;
+          } else {
+            menuItems[index].textContent = emoji.icon;
+          }
+          menuItems[index].onclick = () => sendEmojiReaction(emojiId, emoji.icon, emoji.image);
+        }
+      });
+    }
+    
+    // Toggle emoji menu visibility
+    function toggleEmojiMenu() {
+      const menu = document.getElementById('emojiMenu');
+      if (menu.style.display === 'none') {
+        menu.style.display = 'flex';
+      } else {
+        menu.style.display = 'none';
+      }
+    }
+    
+    // Close emoji menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('emojiMenu');
+      const btn = document.getElementById('emojiReactionBtn');
+      if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
+    
+    // Send emoji reaction
+    function sendEmojiReaction(emojiId, emojiIcon, emojiImage) {
+      socket.emit('emojiReaction', { 
+        gameId, 
+        playerName,
+        emojiId, 
+        emojiIcon, 
+        emojiImage 
+      });
+      toggleEmojiMenu();
+    }
+    
+    // Display emoji reaction
+    function displayEmojiReaction(playerName, emojiIcon, emojiImage) {
+      const reactionsArea = document.getElementById('emojiReactionsArea');
+      const reaction = document.createElement('div');
+      reaction.className = 'emoji-reaction';
+      
+      if (emojiImage) {
+        reaction.innerHTML = `
+          <img src="/img/${emojiImage}" alt="${playerName}" style="width: 50px; height: 50px; border-radius: 10px;">
+          <span class="emoji-reaction-name">${playerName}</span>
+        `;
+      } else {
+        reaction.innerHTML = `
+          <span class="emoji-reaction-icon">${emojiIcon}</span>
+          <span class="emoji-reaction-name">${playerName}</span>
+        `;
+      }
+      
+      reactionsArea.appendChild(reaction);
+      
+      // Remove after animation
+      setTimeout(() => {
+        reaction.remove();
+      }, 3000);
+    }
+    
+    // Listen for emoji reactions from server
+    socket.on('emojiReaction', ({ playerName, emojiIcon, emojiImage }) => {
+      displayEmojiReaction(playerName, emojiIcon, emojiImage);
+      playSoundIfEnabled(getSoundPath('cardPlace'), 0.3);
+    });
+    
+    // Initialize emoji menu on page load
+    setTimeout(initEmojiMenu, 100);
+    
     // Track if this is the initial page load vs a reconnection
     let isInitialLoad = true;
 
@@ -202,14 +326,12 @@
     // Badge to emoji mapping
     function getBadgeEmoji(badge) {
       if (!badge || badge === 'none') return '';
-      // If badge is already an emoji or custom value, return it as-is
-      // Otherwise map common text names to emojis
       const badgeMap = {
-        'Trophy': '🏆',
-        'Gold': '🥇',
-        'Silver': '🥈',
-        'Bronze': '🥉',
-        'Premium Diamond': '💎'
+        'bronze': '🥉',
+        'silver': '🥈',
+        'gold': '🥇',
+        'trophy': '🏆',
+        'diamond': '💎'
       };
       return badgeMap[badge] || badge;
     }

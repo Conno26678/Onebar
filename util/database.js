@@ -118,6 +118,13 @@ db.run(`ALTER TABLE users ADD COLUMN selectedEmote TEXT DEFAULT 'wave'`, (err) =
     }
 });
 
+// Add selectedEmotes column (stores 4 emojis as JSON array) if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN selectedEmotes TEXT DEFAULT '["wave","thumbsup","party","fire"]'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding selectedEmotes column:', err.message);
+    }
+});
+
 // Add selectedTitleColor column if it doesn't exist
 db.run(`ALTER TABLE users ADD COLUMN selectedTitleColor TEXT DEFAULT 'white'`, (err) => {
     if (err && !err.message.includes('duplicate column name')) {

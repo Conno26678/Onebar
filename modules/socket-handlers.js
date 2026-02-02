@@ -1309,6 +1309,18 @@ function setupSocketHandlers(io) {
         }
       }
     });
+    
+    // Handle emoji reactions
+    socket.on('emojiReaction', ({ gameId, playerName, emojiId, emojiIcon, emojiImage }) => {
+      console.log(`Emoji reaction from ${playerName} in game ${gameId}: ${emojiId}`);
+      
+      // Broadcast to all players in the game
+      io.to(gameId).emit('emojiReaction', {
+        playerName,
+        emojiIcon,
+        emojiImage
+      });
+    });
   });
 }
 

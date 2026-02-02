@@ -15,10 +15,21 @@
     <div class="profile-container">
         <div class="profile-header">
             <h1>
+                <%= user.displayName %>
                 <% if (selectedBadge && selectedBadge !== 'none') { %>
-                    <span class="profile-user-badge"><%= selectedBadge %></span>
+                    <% 
+                        const badgeEmojis = {
+                            'bronze': '🥉',
+                            'silver': '🥈',
+                            'gold': '🥇',
+                            'trophy': '🏆',
+                            'diamond': '💎'
+                        };
+                        const badgeEmoji = badgeEmojis[selectedBadge] || '';
+                    %>
+                    <span class="profile-user-badge"><%= badgeEmoji %></span>
                 <% } %>
-                <%= user.displayName %> Profile
+                 Profile
             </h1>
             <p class="profile-subtitle">Your stats and customization options</p>
         </div>
@@ -92,7 +103,7 @@
                             <div class="customize-option">
                                 <h3>Effects</h3>
                                 <p>Liven up your gameplay with special effects</p>
-                                <button class="customize-option-btn">Customize</button>
+                                <button class="customize-option-btn" onclick="showEffectsPopup()">Customize</button>
                             </div>
                             <div class="customize-option">
                                 <h3>Emotes</h3>
@@ -161,10 +172,26 @@
                 <div id="emotePopup" class="customize-popup" style="display: none;">
                     <div class="customize-popup-content">
                         <span class="customize-popup-close" onclick="hideEmotePopup()">&times;</span>
-                        <h2>Select Your Emotes</h2>
-                        <p class="photo-subtitle">Unlock emotes through Battle Pass</p>
+                        <h2>Select Your Emojis (Choose 4)</h2>
+                        <p class="photo-subtitle">Unlock emojis through Battle Pass - Selected emojis will be available in-game</p>
+                        <div class="selected-emojis-preview" id="selectedEmojisPreview">
+                            <!-- Shows currently selected emojis -->
+                        </div>
                         <div class="customization-grid" id="emoteGrid">
                             <!-- Emotes will be dynamically loaded here -->
+                        </div>
+                        <button class="save-emojis-btn" onclick="saveSelectedEmojis()">Save Emoji Selection</button>
+                    </div>
+                </div>
+
+                <!-- Effects Customization Popup -->
+                <div id="effectsPopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideEffectsPopup()">&times;</span>
+                        <h2>Select Your Effects</h2>
+                        <p class="photo-subtitle">Unlock special effects through Battle Pass</p>
+                        <div class="customization-grid" id="effectsGrid">
+                            <!-- Effects will be dynamically loaded here -->
                         </div>
                     </div>
                 </div>
@@ -321,7 +348,11 @@
             { image: '/img/king.png', name: 'King', requirement: 'Reach #1 on Leaderboard', unlocked: <%= isFirstPlace ? 'true' : 'false' %> },
             { image: '/img/Smiffers1984.png', name: 'Smiffers1984', requirement: 'Battle Pass Level 10', unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %> },
             { image: '/img/Hayden.png', name: 'Hayden', requirement: 'Battle Pass Level 25', unlocked: <%= (level || 1) >= 25 ? 'true' : 'false' %> },
-            { image: '/img/glassesSmith.jpeg', name: 'Glasses Smith', requirement: 'Battle Pass Level 45', unlocked: <%= (level || 1) >= 45 ? 'true' : 'false' %> }
+            { image: '/img/partySmith.png', name: 'Party Smith', requirement: 'Battle Pass Level 30', unlocked: <%= (level || 1) >= 30 ? 'true' : 'false' %> },
+            { image: '/img/glassesSmith.jpeg', name: 'Glasses Smith', requirement: 'Battle Pass Level 45', unlocked: <%= (level || 1) >= 45 ? 'true' : 'false' %> },
+            { image: '/img/closeUpSmith.png', name: 'Close Up Smith', requirement: 'Battle Pass Level 48', unlocked: <%= (level || 1) >= 48 ? 'true' : 'false' %> },
+            { image: '/img/smithHidingSpot.png', name: 'Smith Hiding Spot', requirement: 'Battle Pass Level 50', unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %> },
+            { image: '/img/disasmithed.png', name: 'Disasmithed', requirement: 'Win 100 Games', unlocked: <%= (wins || 0) >= 100 ? 'true' : 'false' %> }
         ];
         
         function loadPhotoOptions() {
@@ -381,6 +412,7 @@
             const soundPackPopup = document.getElementById('soundPackPopup');
             const badgePopup = document.getElementById('badgePopup');
             const emotePopup = document.getElementById('emotePopup');
+            const effectsPopup = document.getElementById('effectsPopup');
             
             if (event.target === customizePopup) {
                 hideCustomizePopup();
@@ -403,6 +435,9 @@
             if (event.target === emotePopup) {
                 hideEmotePopup();
             }
+            if (event.target === effectsPopup) {
+                hideEffectsPopup();
+            }
         };
 
         // Title customization functions
@@ -411,7 +446,7 @@
             { name: 'Competitor', requirement: 'Reach Level 10', requiredLevel: 10, unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %> },
             { name: 'Champion', requirement: 'Reach Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %> },
             { name: 'Legend', requirement: 'Reach Level 35', requiredLevel: 35, unlocked: <%= (level || 1) >= 35 ? 'true' : 'false' %> },
-            { name: 'Master', requirement: 'Reach Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %> }
+            { name: 'Max Gamer', requirement: 'Reach Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %> }
         ];
 
         function loadTitleOptions() {
@@ -468,7 +503,8 @@
         // Title Color customization functions
         const availableTitleColors = [
             { name: 'White', id: 'white', color: '#ffffff', requirement: 'Default', requiredLevel: 1, unlocked: true },
-            { name: 'Purple', id: 'purple', color: '#a855f7', requirement: 'Battle Pass Level 5', requiredLevel: 5, unlocked: <%= (level || 1) >= 5 ? 'true' : 'false' %> }
+            { name: 'Purple', id: 'purple', color: '#a855f7', requirement: 'Battle Pass Level 5', requiredLevel: 5, unlocked: <%= (level || 1) >= 5 ? 'true' : 'false' %> },
+            { name: 'Blue', id: 'blue', color: '#3b82f6', requirement: 'Battle Pass Level 10', requiredLevel: 10, unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %> }
         ];
 
         function loadTitleColorOptions() {
@@ -707,23 +743,66 @@
             { name: 'Thumbs Up', id: 'thumbsup', requirement: 'Battle Pass Level 5', requiredLevel: 5, unlocked: <%= (level || 1) >= 5 ? 'true' : 'false' %>, icon: '👍' },
             { name: 'Party', id: 'party', requirement: 'Battle Pass Level 15', requiredLevel: 15, unlocked: <%= (level || 1) >= 15 ? 'true' : 'false' %>, icon: '🎉' },
             { name: 'Fire', id: 'fire', requirement: 'Battle Pass Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %>, icon: '🔥' },
+            { name: 'Heart Eyes', id: 'hearteyes', requirement: 'Battle Pass Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %>, icon: '😍' },
             { name: 'Crown', id: 'crown', requirement: 'Battle Pass Level 30', requiredLevel: 30, unlocked: <%= (level || 1) >= 30 ? 'true' : 'false' %>, icon: '👑' },
+            { name: 'Cool', id: 'cool', requirement: 'Battle Pass Level 30', requiredLevel: 30, unlocked: <%= (level || 1) >= 30 ? 'true' : 'false' %>, icon: '😎' },
+            { name: 'Party Smith', id: 'partysmith', requirement: 'Battle Pass Level 35', requiredLevel: 35, unlocked: <%= (level || 1) >= 35 ? 'true' : 'false' %>, image: 'partySmith.png' },
+            { name: 'Cowboy', id: 'cowboy', requirement: 'Battle Pass Level 35', requiredLevel: 35, unlocked: <%= (level || 1) >= 35 ? 'true' : 'false' %>, icon: '🤠' },
             { name: 'Rocket', id: 'rocket', requirement: 'Battle Pass Level 40', requiredLevel: 40, unlocked: <%= (level || 1) >= 40 ? 'true' : 'false' %>, icon: '🚀' },
-            { name: 'Star', id: 'star', requirement: 'Battle Pass Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %>, icon: '⭐' }
+            { name: 'Star', id: 'star', requirement: 'Battle Pass Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %>, icon: '⭐' },
+            { name: 'Disasmithed', id: 'disasmithed', requirement: 'Win 75 Games', requiredLevel: 1, unlocked: <%= (wins || 0) >= 75 ? 'true' : 'false' %>, image: 'disasmithed.png' }
         ];
+
+        // Track selected emojis (max 4)
+        let selectedEmojis = [];
+        try {
+            const emotesData = '<%- typeof selectedEmotes !== "undefined" ? selectedEmotes : "[]" %>';
+            selectedEmojis = JSON.parse(emotesData);
+            if (!Array.isArray(selectedEmojis) || selectedEmojis.length === 0) {
+                selectedEmojis = ['wave', 'thumbsup', 'party', 'fire'];
+            }
+        } catch (e) {
+            console.error('Error parsing selected emotes:', e);
+            selectedEmojis = ['wave', 'thumbsup', 'party', 'fire'];
+        }
+
+        function updateSelectedEmojisPreview() {
+            const preview = document.getElementById('selectedEmojisPreview');
+            if (!preview) return;
+            
+            preview.innerHTML = '<div style="font-weight: 600; margin-bottom: 10px;">Selected Emojis (' + selectedEmojis.length + '/4):</div>';
+            const container = document.createElement('div');
+            container.style.display = 'flex';
+            container.style.gap = '10px';
+            container.style.flexWrap = 'wrap';
+            container.style.justifyContent = 'center';
+            
+            selectedEmojis.forEach(emojiId => {
+                const emote = availableEmotes.find(e => e.id === emojiId);
+                if (emote) {
+                    const emojiDiv = document.createElement('div');
+                    emojiDiv.style.cssText = 'background: var(--card-bg); padding: 10px 15px; border-radius: 10px; border: 2px solid var(--accent-color); font-size: 1.2rem;';
+                    
+                    if (emote.image) {
+                        emojiDiv.innerHTML = `<img src="/img/${emote.image}" alt="${emote.name}" style="width: 40px; height: 40px; border-radius: 5px;">`;
+                    } else {
+                        emojiDiv.textContent = emote.icon;
+                    }
+                    container.appendChild(emojiDiv);
+                }
+            });
+            
+            preview.appendChild(container);
+        }
 
         function loadEmoteOptions() {
             const grid = document.getElementById('emoteGrid');
             grid.innerHTML = '';
-            const currentEmote = '<%= selectedEmote || "wave" %>';
 
             availableEmotes.forEach(emote => {
                 const emoteDiv = document.createElement('div');
-                emoteDiv.className = `customization-item ${emote.unlocked ? 'unlocked' : 'locked'}`;
-                
-                if (emote.unlocked && emote.id === currentEmote) {
-                    emoteDiv.classList.add('selected');
-                }
+                const isSelected = selectedEmojis.includes(emote.id);
+                emoteDiv.className = `customization-item ${emote.unlocked ? 'unlocked' : 'locked'} ${isSelected ? 'selected' : ''}`;
                 
                 const iconOrImage = emote.image 
                     ? `<img src="/img/${emote.image}" alt="${emote.name}" class="customization-item-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'customization-item-icon\\'>${emote.icon}</div>';">`
@@ -735,30 +814,128 @@
                         <div class="customization-item-name">${emote.name}</div>
                         ${!emote.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
                         ${!emote.unlocked ? `<div class="customization-item-requirement">${emote.requirement}</div>` : ''}
-                        ${emote.unlocked ? '<button class="customization-select-btn" onclick="selectEmote(\'' + emote.id + '\')">Select</button>' : ''}
+                        ${emote.unlocked ? '<button class="customization-select-btn" onclick="toggleEmoteSelection(\'' + emote.id + '\')">' + (isSelected ? 'Selected ✓' : 'Select') + '</button>' : ''}
                     </div>
                 `;
                 
                 grid.appendChild(emoteDiv);
             });
+            
+            updateSelectedEmojisPreview();
+        }
+
+        function toggleEmoteSelection(emojiId) {
+            const index = selectedEmojis.indexOf(emojiId);
+            
+            if (index > -1) {
+                // Remove from selection
+                selectedEmojis.splice(index, 1);
+            } else {
+                // Add to selection if less than 4
+                if (selectedEmojis.length < 4) {
+                    selectedEmojis.push(emojiId);
+                } else {
+                    alert('You can only select up to 4 emojis. Deselect one first.');
+                    return;
+                }
+            }
+            
+            loadEmoteOptions(); // Reload to update button states
+        }
+
+        function saveSelectedEmojis() {
+            if (selectedEmojis.length !== 4) {
+                alert('Please select exactly 4 emojis before saving.');
+                return;
+            }
+            
+            fetch('/api/update-emojis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emojis: selectedEmojis })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Emojis updated successfully!');
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update emojis');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating emojis:', err);
+                alert('An error occurred. Please try again.');
+            });
         }
 
         function selectEmote(emote) {
-            fetch('/api/update-emote', {
+            // Legacy function for backward compatibility
+            toggleEmoteSelection(emote);
+        }
+
+        // Effects customization functions
+        function showEffectsPopup() {
+            document.getElementById('effectsPopup').style.display = 'flex';
+            loadEffectsOptions();
+        }
+
+        function hideEffectsPopup() {
+            document.getElementById('effectsPopup').style.display = 'none';
+        }
+
+        const availableEffects = [
+            { name: 'Sparkles', id: 'sparkles', requirement: 'Starting Effect', requiredLevel: 1, unlocked: true, icon: '✨' },
+            { name: 'Confetti', id: 'confetti', requirement: 'Battle Pass Level 10', requiredLevel: 10, unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %>, icon: '🎊' },
+            { name: 'Lightning', id: 'lightning', requirement: 'Battle Pass Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %>, icon: '⚡' },
+            { name: 'Placeholder', id: 'placeholder', requirement: 'Battle Pass Level 30', requiredLevel: 30, unlocked: <%= (level || 1) >= 30 ? 'true' : 'false' %>, icon: '' },
+            { name: 'Flames', id: 'flames', requirement: 'Battle Pass Level 40', requiredLevel: 40, unlocked: <%= (level || 1) >= 40 ? 'true' : 'false' %>, icon: '🔥' },
+            { name: 'Golden Aura', id: 'golden', requirement: 'Battle Pass Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %>, icon: '⭐' }
+        ];
+
+        function loadEffectsOptions() {
+            const grid = document.getElementById('effectsGrid');
+            grid.innerHTML = '';
+            const currentEffect = '<%= selectedEffect || "sparkles" %>';
+
+            availableEffects.forEach(effect => {
+                const effectDiv = document.createElement('div');
+                effectDiv.className = `customization-item ${effect.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (effect.unlocked && effect.id === currentEffect) {
+                    effectDiv.classList.add('selected');
+                }
+                
+                effectDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        <div class="customization-item-icon">${effect.icon}</div>
+                        <div class="customization-item-name">${effect.name}</div>
+                        ${!effect.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!effect.unlocked ? `<div class="customization-item-requirement">${effect.requirement}</div>` : ''}
+                        ${effect.unlocked ? '<button class="customization-select-btn" onclick="selectEffect(\'' + effect.id + '\')">Select</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(effectDiv);
+            });
+        }
+
+        function selectEffect(effect) {
+            fetch('/api/update-effect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ emote })
+                body: JSON.stringify({ effect })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
                     location.reload();
                 } else {
-                    alert(data.message || 'Failed to update emote');
+                    alert(data.message || 'Failed to update effect');
                 }
             })
             .catch(err => {
-                console.error('Error updating emote:', err);
+                console.error('Error updating effect:', err);
                 alert('An error occurred. Please try again.');
             });
         }

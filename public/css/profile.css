@@ -39,15 +39,10 @@
 
 .profile-user-badge {
   display: inline-block;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 1.2rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-  color: var(--bg-color);
-  margin-right: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  font-size: 1.5rem;
+  margin-left: 8px;
   vertical-align: middle;
+  line-height: 1;
 }
 
 .profile-subtitle {
@@ -1090,4 +1085,38 @@ input:checked + .slider-toggle:before {
   .customization-item-name {
     font-size: 1rem;
   }
+}
+
+/* Emoji Selection Styles */
+.selected-emojis-preview {
+  background: linear-gradient(135deg, var(--card-bg) 0%, var(--hover-color) 100%);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 2px solid var(--border-color);
+  text-align: center;
+}
+
+.save-emojis-btn {
+  width: 100%;
+  padding: 15px 30px;
+  background: linear-gradient(135deg, var(--accent-color), #28a745);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.save-emojis-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+}
+
+.save-emojis-btn:active {
+  transform: translateY(0);
 }

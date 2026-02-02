@@ -12,6 +12,20 @@
     <a href="/" class="btn home-button">Home</a>
     <a href="/logout" class="btn logout-button">Logout</a>
     
+    <!-- Emoji Reaction Button (upper-left, shown when in room) -->
+    <button class="emoji-reaction-button" id="emojiReactionBtn" onclick="toggleEmojiMenu()" style="display: none;">😊</button>
+    
+    <!-- Emoji Selection Menu -->
+    <div class="emoji-menu" id="emojiMenu" style="display: none;">
+        <div class="emoji-menu-item" data-emoji="0"></div>
+        <div class="emoji-menu-item" data-emoji="1"></div>
+        <div class="emoji-menu-item" data-emoji="2"></div>
+        <div class="emoji-menu-item" data-emoji="3"></div>
+    </div>
+    
+    <!-- Emoji Reactions Display Area -->
+    <div class="emoji-reactions-area" id="emojiReactionsArea"></div>
+    
     <div class="lobby-container">
         <h1 class="lobby-title">Game Lobby</h1>
         
@@ -67,6 +81,10 @@
     </div>
 
     <script>window.CURRENT_USER = "<%= user %>";</script>
+    <script>
+        // Pass selected emotes to JavaScript
+        document.body.setAttribute('data-selected-emotes', '<%- typeof selectedEmotes !== "undefined" ? selectedEmotes : "[]" %>');
+    </script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
     <script src="/js/lobby.js"></script>

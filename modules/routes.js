@@ -101,7 +101,7 @@ function setupRoutes(app) {
           }
           
           // Get current user data
-          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, selectedEmotes, wins, hasBattlePassPremium FROM users WHERE id = ?', [userId], (err, userData) => {
+          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, selectedEmotes, selectedEffect, wins, hasBattlePassPremium FROM users WHERE id = ?', [userId], (err, userData) => {
             if (err) {
               console.error('Error fetching user data:', err);
               res.render('profile.ejs', { 
@@ -118,6 +118,7 @@ function setupRoutes(app) {
                 selectedBadge: 'none',
                 selectedEmote: 'wave',
                 selectedEmotes: '["wave","thumbsup","party","fire"]',
+                selectedEffect: 'confetti',
                 wins: 0,
                 hasBattlePassPremium: false
               });
@@ -175,6 +176,7 @@ function setupRoutes(app) {
         selectedBadge: 'none',
         selectedEmote: 'wave',
         selectedEmotes: '["wave","thumbsup","party","fire"]',
+        selectedEffect: 'confetti',
         wins: 0,
         hasBattlePassPremium: false
       });

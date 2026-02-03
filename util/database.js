@@ -132,6 +132,13 @@ db.run(`ALTER TABLE users ADD COLUMN selectedTitleColor TEXT DEFAULT 'white'`, (
     }
 });
 
+// Add selectedEffect column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN selectedEffect TEXT DEFAULT 'confetti'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding selectedEffect column:', err.message);
+    }
+});
+
 /**
  * Calculate XP required for a given level
  * Progressive system: Each level requires more XP than the last

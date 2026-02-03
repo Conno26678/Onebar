@@ -885,10 +885,9 @@
         }
 
         const availableEffects = [
-            { name: 'Sparkles', id: 'sparkles', requirement: 'Starting Effect', requiredLevel: 1, unlocked: true, icon: '✨' },
-            { name: 'Confetti', id: 'confetti', requirement: 'Battle Pass Level 10', requiredLevel: 10, unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %>, icon: '🎊' },
+            { name: 'Confetti', id: 'confetti', requirement: 'Starting Effect', requiredLevel: 1, unlocked: true, icon: '🎊' },
+            { name: 'Sparkles', id: 'sparkles', requirement: 'Battle Pass Level 10', requiredLevel: 10, unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %>, icon: '✨' },
             { name: 'Lightning', id: 'lightning', requirement: 'Battle Pass Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %>, icon: '⚡' },
-            { name: 'Placeholder', id: 'placeholder', requirement: 'Battle Pass Level 30', requiredLevel: 30, unlocked: <%= (level || 1) >= 30 ? 'true' : 'false' %>, icon: '' },
             { name: 'Flames', id: 'flames', requirement: 'Battle Pass Level 40', requiredLevel: 40, unlocked: <%= (level || 1) >= 40 ? 'true' : 'false' %>, icon: '🔥' },
             { name: 'Golden Aura', id: 'golden', requirement: 'Battle Pass Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %>, icon: '⭐' }
         ];
@@ -896,7 +895,7 @@
         function loadEffectsOptions() {
             const grid = document.getElementById('effectsGrid');
             grid.innerHTML = '';
-            const currentEffect = '<%= selectedEffect || "sparkles" %>';
+            const currentEffect = '<%= selectedEffect || "confetti" %>';
 
             availableEffects.forEach(effect => {
                 const effectDiv = document.createElement('div');

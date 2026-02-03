@@ -19,12 +19,12 @@ function broadcastLobbyList(io) {
 // Helper to fetch user customization data
 function fetchUserCustomization(userId, callback) {
   if (!userId) {
-    callback(null, { selectedTitle: 'Newbie', selectedTitleColor: 'white', selectedBadge: 'none' });
+    callback(null, { selectedTitle: 'Newbie', selectedTitleColor: 'white', selectedBadge: 'none', selectedEffect: 'confetti' });
     return;
   }
-  db.get('SELECT selectedTitle, selectedTitleColor, selectedBadge FROM users WHERE id = ?', [userId], (err, row) => {
+  db.get('SELECT selectedTitle, selectedTitleColor, selectedBadge, selectedEffect FROM users WHERE id = ?', [userId], (err, row) => {
     if (err || !row) {
-      callback(err, { selectedTitle: 'Newbie', selectedTitleColor: 'white', selectedBadge: 'none' });
+      callback(err, { selectedTitle: 'Newbie', selectedTitleColor: 'white', selectedBadge: 'none', selectedEffect: 'confetti' });
     } else {
       callback(null, row);
     }
@@ -122,7 +122,8 @@ function setupSocketHandlers(io) {
             userId: userId,
             selectedTitle: customization.selectedTitle,
             selectedTitleColor: customization.selectedTitleColor,
-            selectedBadge: customization.selectedBadge
+            selectedBadge: customization.selectedBadge,
+            selectedEffect: customization.selectedEffect
           };
           game.players.push(player);
           socket.join(gameId);
@@ -190,7 +191,8 @@ function setupSocketHandlers(io) {
             userId: userId,
             selectedTitle: customization.selectedTitle,
             selectedTitleColor: customization.selectedTitleColor,
-            selectedBadge: customization.selectedBadge
+            selectedBadge: customization.selectedBadge,
+            selectedEffect: customization.selectedEffect
           };
           game.players.push(player);
           console.log(`New player ${name} joined game ${gameId}`);
@@ -359,7 +361,8 @@ function setupSocketHandlers(io) {
           ready: false,
           selectedTitle: customization.selectedTitle,
           selectedTitleColor: customization.selectedTitleColor,
-          selectedBadge: customization.selectedBadge
+          selectedBadge: customization.selectedBadge,
+          selectedEffect: customization.selectedEffect
         };
         game.players.push(player);
         socket.join(gameId);
@@ -1064,7 +1067,8 @@ function setupSocketHandlers(io) {
                   digipogs: result.amount,
                   playerCount: playerCount,
                   selectedTitle: player.selectedTitle || 'Newbie',
-                  selectedTitleColor: player.selectedTitleColor || 'white'
+                  selectedTitleColor: player.selectedTitleColor || 'white',
+                  selectedEffect: player.selectedEffect || 'confetti'
                 });
                 
                 io.to(player.socketId).emit('payoutSuccess', {
@@ -1084,7 +1088,8 @@ function setupSocketHandlers(io) {
                   payoutError: true,
                   payoutErrorMessage: result.error || 'Failed to process winner payout',
                   selectedTitle: player.selectedTitle || 'Newbie',
-                  selectedTitleColor: player.selectedTitleColor || 'white'
+                  selectedTitleColor: player.selectedTitleColor || 'white',
+                  selectedEffect: player.selectedEffect || 'confetti'
                 });
                 
                 io.to(player.socketId).emit('payoutFailed', {
@@ -1105,7 +1110,8 @@ function setupSocketHandlers(io) {
                 payoutError: true,
                 payoutErrorMessage: err?.message || 'Unexpected error processing payout',
                 selectedTitle: player.selectedTitle || 'Newbie',
-                selectedTitleColor: player.selectedTitleColor || 'white'
+                selectedTitleColor: player.selectedTitleColor || 'white',
+                selectedEffect: player.selectedEffect || 'confetti'
               });
               
               io.to(player.socketId).emit('payoutFailed', {
@@ -1123,7 +1129,8 @@ function setupSocketHandlers(io) {
             digipogs: 0,
             playerCount: playerCount,
             selectedTitle: player.selectedTitle || 'Newbie',
-            selectedTitleColor: player.selectedTitleColor || 'white'
+            selectedTitleColor: player.selectedTitleColor || 'white',
+            selectedEffect: player.selectedEffect || 'confetti'
           });
           
           io.to(player.socketId).emit('payoutSuccess', {
@@ -1143,7 +1150,8 @@ function setupSocketHandlers(io) {
             payoutError: true,
             payoutErrorMessage: 'Winner has no user account linked',
             selectedTitle: player.selectedTitle || 'Newbie',
-            selectedTitleColor: player.selectedTitleColor || 'white'
+            selectedTitleColor: player.selectedTitleColor || 'white',
+            selectedEffect: player.selectedEffect || 'confetti'
           });
           
           io.to(player.socketId).emit('payoutFailed', {

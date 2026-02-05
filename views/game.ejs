@@ -2,7 +2,11 @@
 <html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#f85149">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
     <title>Onebar - Game</title>
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="/css/theme.css">
@@ -10,6 +14,7 @@
     <link rel="stylesheet" href="/css/game.css">
     <link rel="stylesheet" href="/css/lobby.css">
     <link rel="stylesheet" href="/css/room.css">
+    <link rel="stylesheet" href="/css/mobile.css">
     <style>
         @keyframes popIn {
             0% {
@@ -109,6 +114,383 @@
                 opacity: 0;
             }
         }
+        
+        /* Lightning bolt effect for ONE button */
+        .lightning-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 99999;
+            overflow: visible;
+        }
+        
+        .lightning-bolt {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 99999;
+        }
+        
+        .lightning-bolt svg {
+            filter: drop-shadow(0 0 15px rgba(150, 200, 255, 1))
+                    drop-shadow(0 0 30px rgba(100, 150, 255, 0.8))
+                    drop-shadow(0 0 45px rgba(50, 100, 255, 0.6));
+            animation: lightning-pulse 0.6s ease-out forwards;
+        }
+        
+        @keyframes lightning-pulse {
+            0% {
+                opacity: 0;
+                filter: brightness(3) drop-shadow(0 0 20px rgba(255, 255, 255, 1));
+            }
+            15% {
+                opacity: 1;
+                filter: brightness(3) drop-shadow(0 0 25px rgba(200, 220, 255, 1));
+            }
+            30% {
+                opacity: 1;
+                filter: brightness(2.5) drop-shadow(0 0 20px rgba(150, 200, 255, 0.9));
+            }
+            50% {
+                opacity: 0.8;
+                filter: brightness(2) drop-shadow(0 0 15px rgba(100, 150, 255, 0.7));
+            }
+            70% {
+                opacity: 0.4;
+                filter: brightness(1.5) drop-shadow(0 0 10px rgba(50, 100, 255, 0.5));
+            }
+            100% {
+                opacity: 0;
+                filter: brightness(1) drop-shadow(0 0 5px rgba(50, 100, 255, 0.2));
+            }
+        }
+        
+        .lightning-flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+            z-index: 9997;
+            animation: flash 0.5s ease-out forwards;
+        }
+        
+        @keyframes flash {
+            0% {
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.8;
+            }
+            30% {
+                opacity: 0.4;
+            }
+            50% {
+                opacity: 0.2;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+        
+        .lightning-glow {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9996;
+            animation: glow-expand 0.8s ease-out forwards;
+        }
+        
+        @keyframes glow-expand {
+            0% {
+                width: 50px;
+                height: 50px;
+                opacity: 1;
+                box-shadow: 0 0 20px 10px rgba(255, 255, 150, 0.8);
+            }
+            50% {
+                opacity: 0.6;
+                box-shadow: 0 0 40px 20px rgba(200, 200, 255, 0.6);
+            }
+            100% {
+                width: 200px;
+                height: 200px;
+                opacity: 0;
+                box-shadow: 0 0 60px 30px rgba(100, 100, 255, 0.2);
+            }
+        }
+        
+        /* Sparkle effect for last card */
+        #hand .card.sparkle-glow {
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8),
+                        0 0 40px rgba(255, 215, 0, 0.6),
+                        0 0 60px rgba(255, 215, 0, 0.4) !important;
+            animation: sparkle-pulse 1.5s ease-in-out infinite !important;
+            position: relative;
+            z-index: 50 !important;
+        }
+        
+        @keyframes sparkle-pulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(255, 215, 0, 0.8),
+                            0 0 40px rgba(255, 215, 0, 0.6),
+                            0 0 60px rgba(255, 215, 0, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(255, 215, 0, 1),
+                            0 0 60px rgba(255, 215, 0, 0.8),
+                            0 0 90px rgba(255, 215, 0, 0.6);
+            }
+        }
+        
+        .sparkle-particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 215, 0, 1) 50%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9995;
+            animation: sparkle-float linear forwards;
+        }
+        
+        @keyframes sparkle-float {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--sparkle-x), var(--sparkle-y)) scale(0.3);
+            }
+        }
+        
+        /* Fire effect for +2 cards */
+        .fire-particle {
+            position: absolute;
+            width: 12px;
+            height: 16px;
+            background: radial-gradient(ellipse at bottom, rgba(255, 100, 0, 1) 0%, rgba(255, 200, 0, 0.9) 30%, rgba(255, 100, 0, 0.5) 60%, transparent 100%);
+            border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%;
+            pointer-events: none;
+            z-index: 9995;
+            animation: fire-rise linear forwards;
+        }
+        
+        @keyframes fire-rise {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1) rotate(0deg);
+            }
+            50% {
+                opacity: 0.8;
+                transform: translate(var(--fire-x), calc(var(--fire-y) * 0.5)) scale(1.2) rotate(var(--fire-rotation));
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--fire-x), var(--fire-y)) scale(0.5) rotate(calc(var(--fire-rotation) * 2));
+            }
+        }
+        
+        /* Sparkle effect for last card */
+        .sparkle-glow {
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8),
+                        0 0 40px rgba(255, 215, 0, 0.6),
+                        0 0 60px rgba(255, 215, 0, 0.4) !important;
+            animation: sparkle-pulse 1.5s ease-in-out infinite !important;
+        }
+        
+        @keyframes sparkle-pulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(255, 215, 0, 0.8),
+                            0 0 40px rgba(255, 215, 0, 0.6),
+                            0 0 60px rgba(255, 215, 0, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(255, 215, 0, 1),
+                            0 0 60px rgba(255, 215, 0, 0.8),
+                            0 0 90px rgba(255, 215, 0, 0.6);
+            }
+        }
+        
+        .sparkle-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 215, 0, 1) 50%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9995;
+            animation: sparkle-float linear forwards;
+        }
+        
+        @keyframes sparkle-float {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--sparkle-x), var(--sparkle-y)) scale(0.3);
+            }
+        }
+        
+        /* Skip effect - red prohibition symbol */
+        .skip-symbol {
+            position: fixed;
+            width: 200px;
+            height: 200px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            pointer-events: none;
+            z-index: 99999;
+            animation: skip-popup 1.2s ease-out forwards;
+        }
+        
+        .skip-symbol::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 20px solid #ff0000;
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.8),
+                        0 0 60px rgba(255, 0, 0, 0.5),
+                        inset 0 0 30px rgba(255, 0, 0, 0.3);
+        }
+        
+        .skip-symbol::after {
+            content: '';
+            position: absolute;
+            width: 180px;
+            height: 20px;
+            background: #ff0000;
+            top: calc(50% - 10px);
+            left: calc(50% - 90px);
+            transform: rotate(0deg);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.8),
+                        0 0 40px rgba(255, 0, 0, 0.5);
+        }
+        
+        @keyframes skip-popup {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0) rotate(-180deg);
+            }
+            40% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2) rotate(10deg);
+            }
+            60% {
+                transform: translate(-50%, -50%) scale(0.95) rotate(-5deg);
+            }
+            80% {
+                transform: translate(-50%, -50%) scale(1.05) rotate(2deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8) rotate(0deg);
+            }
+        }
+        
+        /* Bow and arrow effect */
+        .bow-arrow {
+            position: fixed;
+            width: 100px;
+            height: 100px;
+            pointer-events: none;
+            z-index: 99999;
+        }
+        
+        .bow-arrow-bow {
+            position: absolute;
+            width: 60px;
+            height: 80px;
+            left: 20px;
+            top: 10px;
+            border: 4px solid #8B4513;
+            border-right: none;
+            border-radius: 40px 0 0 40px;
+            box-shadow: 0 0 10px rgba(139, 69, 19, 0.8);
+            opacity: 0;
+        }
+        
+        .bow-arrow-string {
+            position: absolute;
+            width: 2px;
+            height: 80px;
+            background: #DEB887;
+            left: 20px;
+            top: 10px;
+            box-shadow: 0 0 5px rgba(222, 184, 135, 0.8);
+            opacity: 0;
+        }
+        
+        .bow-arrow-arrow {
+            position: absolute;
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(to right, #8B4513 0%, #D2691E 60%, #FFD700 100%);
+            top: 48px;
+            left: 10px;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+            animation: arrow-shoot 0.8s ease-out forwards;
+        }
+        
+        .bow-arrow-arrow::before {
+            content: '';
+            position: absolute;
+            right: -10px;
+            top: -6px;
+            width: 0;
+            height: 0;
+            border-left: 15px solid #FFD700;
+            border-top: 7px solid transparent;
+            border-bottom: 7px solid transparent;
+        }
+        
+        .bow-arrow-arrow::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: -3px;
+            width: 15px;
+            height: 10px;
+            background: #8B4513;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        @keyframes arrow-shoot {
+            0% {
+                transform: translateY(0) rotate(90deg) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(120vh) rotate(90deg) scale(1);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes bow-fade {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
     </style>
 </head>
 <body>
@@ -159,6 +541,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Lightning Container for ONE button effect -->
+  <div id="lightningContainer" class="lightning-container"></div>
 
   <!-- Payment Modal -->
   <div id="paymentModal" class="payment-modal" style="display: none;">
@@ -227,8 +612,18 @@
         originalAlert.call(window, message);
     };
     
+    // Mobile detection utility
+    function isMobileDevice() {
+        return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+    
     // Confetti effect function
     function triggerConfetti(duration = 6000) {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Confetti disabled on mobile');
+            return;
+        }
         const container = document.getElementById('confettiContainer');
         if (!container) return;
         
@@ -253,6 +648,380 @@
                     confetti.remove();
                 }, 7000);
             }, Math.random() * duration);
+        }
+    }
+    
+    // Skip effect function - shows red prohibition symbol
+    function triggerSkipEffect() {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Skip effect disabled on mobile');
+            return;
+        }
+        const symbol = document.createElement('div');
+        symbol.className = 'skip-symbol';
+        document.body.appendChild(symbol);
+        
+        // Remove after animation completes
+        setTimeout(() => {
+            symbol.remove();
+        }, 1200);
+    }
+    
+    // Bow and arrow effect function
+    function triggerBowArrowEffect() {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Bow arrow effect disabled on mobile');
+            return;
+        }
+        const arrowCount = 15;
+        
+        for (let i = 0; i < arrowCount; i++) {
+            setTimeout(() => {
+                const container = document.createElement('div');
+                container.className = 'bow-arrow';
+                
+                // Position at top of screen with random horizontal positions
+                const randomX = Math.random() * window.innerWidth;
+                container.style.top = '-100px';
+                container.style.left = randomX + 'px';
+                
+                // Create bow (hidden)
+                const bow = document.createElement('div');
+                bow.className = 'bow-arrow-bow';
+                container.appendChild(bow);
+                
+                // Create string (hidden)
+                const string = document.createElement('div');
+                string.className = 'bow-arrow-string';
+                container.appendChild(string);
+                
+                // Create arrow
+                const arrow = document.createElement('div');
+                arrow.className = 'bow-arrow-arrow';
+                container.appendChild(arrow);
+                
+                document.body.appendChild(container);
+                
+                // Remove after animation completes
+                setTimeout(() => {
+                    container.remove();
+                }, 2000);
+            }, i * 80);
+        }
+    }
+    
+    // Lightning effect function for ONE button
+    function triggerLightningEffect(targetElement) {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Lightning effect disabled on mobile');
+            return;
+        }
+        const container = document.getElementById('lightningContainer');
+        if (!container) return;
+        
+        // Get the position of the target element (ONE button)
+        const rect = targetElement.getBoundingClientRect();
+        const targetX = rect.left + rect.width / 2;
+        const targetY = rect.top + rect.height / 2;
+        
+        // Create flash effect
+        const flash = document.createElement('div');
+        flash.className = 'lightning-flash';
+        document.body.appendChild(flash);
+        
+        // Create glow at button location
+        const glow = document.createElement('div');
+        glow.className = 'lightning-glow';
+        glow.style.left = (targetX - 25) + 'px';
+        glow.style.top = (targetY - 25) + 'px';
+        document.body.appendChild(glow);
+        
+        // Create multiple lightning bolts striking the button
+        const boltCount = 3;
+        for (let i = 0; i < boltCount; i++) {
+            setTimeout(() => {
+                const bolt = document.createElement('div');
+                bolt.className = 'lightning-bolt';
+                
+                // Random starting position at top of screen
+                const startX = (Math.random() * 200 - 100) + targetX;
+                
+                // Create SVG lightning bolt
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.position = 'absolute';
+                svg.style.left = '0';
+                svg.style.top = '0';
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                svg.style.pointerEvents = 'none';
+                svg.setAttribute('width', window.innerWidth);
+                svg.setAttribute('height', window.innerHeight);
+                
+                // Generate jagged lightning path
+                let pathData = `M ${startX} 0`;
+                let currentX = startX;
+                let currentY = 0;
+                const segments = 8 + Math.floor(Math.random() * 4);
+                const segmentHeight = targetY / segments;
+                
+                for (let j = 1; j <= segments; j++) {
+                    const nextY = j * segmentHeight;
+                    // Add randomness to X position, but trend toward target
+                    const targetProgress = j / segments;
+                    const targetXAtSegment = startX + (targetX - startX) * targetProgress;
+                    const jitter = (Math.random() - 0.5) * 40 * (1 - targetProgress * 0.7);
+                    currentX = targetXAtSegment + jitter;
+                    currentY = nextY;
+                    pathData += ` L ${currentX} ${currentY}`;
+                }
+                
+                // Final segment to exact target
+                pathData += ` L ${targetX} ${targetY}`;
+                
+                // Create outer glow path
+                const outerPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                outerPath.setAttribute('d', pathData);
+                outerPath.setAttribute('stroke', '#4d94ff');
+                outerPath.setAttribute('stroke-width', '12');
+                outerPath.setAttribute('fill', 'none');
+                outerPath.setAttribute('stroke-linecap', 'round');
+                outerPath.setAttribute('opacity', '0.6');
+                svg.appendChild(outerPath);
+                
+                // Create main lightning path
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathData);
+                path.setAttribute('stroke', '#b3d9ff');
+                path.setAttribute('stroke-width', '6');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke-linecap', 'round');
+                svg.appendChild(path);
+                
+                // Create inner glow path
+                const innerPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                innerPath.setAttribute('d', pathData);
+                innerPath.setAttribute('stroke', '#ffffff');
+                innerPath.setAttribute('stroke-width', '3');
+                innerPath.setAttribute('fill', 'none');
+                innerPath.setAttribute('stroke-linecap', 'round');
+                svg.appendChild(innerPath);
+                
+                bolt.appendChild(svg);
+                container.appendChild(bolt);
+                
+                // Remove bolt after animation
+                setTimeout(() => {
+                    bolt.remove();
+                }, 700);
+            }, i * 80);
+        }
+        
+        // Remove flash and glow after animation
+        setTimeout(() => {
+            flash.remove();
+            glow.remove();
+        }, 900);
+    }
+    
+    // Sparkle effect function for last card
+    function addSparkleEffect(element) {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Sparkle effect disabled on mobile');
+            return;
+        }
+        console.log('🌟 Adding sparkle effect to element:', element);
+        // Add glow to the element
+        element.classList.add('sparkle-glow');
+        console.log('Element classes after adding sparkle:', element.className);
+        
+        // Create sparkle particles continuously
+        const sparkleInterval = setInterval(() => {
+            const rect = element.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // Create 3-5 sparkles at random positions around the card
+            const sparkleCount = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < sparkleCount; i++) {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle-particle';
+                
+                // Random starting position around the card
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 30 + Math.random() * 40;
+                const startX = Math.cos(angle) * radius;
+                const startY = Math.sin(angle) * radius;
+                
+                sparkle.style.left = (centerX + startX) + 'px';
+                sparkle.style.top = (centerY + startY) + 'px';
+                
+                // Random movement direction
+                const moveAngle = Math.random() * Math.PI * 2;
+                const moveDistance = 40 + Math.random() * 60;
+                const moveX = Math.cos(moveAngle) * moveDistance;
+                const moveY = Math.sin(moveAngle) * moveDistance - 30; // Bias upward
+                
+                sparkle.style.setProperty('--sparkle-x', moveX + 'px');
+                sparkle.style.setProperty('--sparkle-y', moveY + 'px');
+                sparkle.style.animationDuration = (0.8 + Math.random() * 0.6) + 's';
+                
+                document.body.appendChild(sparkle);
+                
+                // Remove sparkle after animation
+                setTimeout(() => sparkle.remove(), 1500);
+            }
+        }, 300);
+        
+        // Store interval ID on the element so we can clear it later
+        element.dataset.sparkleInterval = sparkleInterval;
+        console.log('✅ Sparkle effect added, interval ID:', sparkleInterval);
+    }
+    
+    function removeSparkleEffect(element) {
+        if (!element) return;
+        element.classList.remove('sparkle-glow');
+        if (element.dataset.sparkleInterval) {
+            clearInterval(element.dataset.sparkleInterval);
+            delete element.dataset.sparkleInterval;
+        }
+    }
+    
+    function triggerDrawPileSparkles() {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Draw pile sparkles disabled on mobile');
+            return;
+        }
+        const drawPile = document.getElementById('drawPileImg');
+        if (!drawPile) return;
+        
+        console.log('🌟 Triggering draw pile sparkles');
+        const rect = drawPile.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        // Create burst of sparkles
+        const sparkleCount = 15 + Math.floor(Math.random() * 10);
+        for (let i = 0; i < sparkleCount; i++) {
+            setTimeout(() => {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle-particle';
+                
+                // Random starting position around the draw pile
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 10 + Math.random() * 30;
+                const startX = Math.cos(angle) * radius;
+                const startY = Math.sin(angle) * radius;
+                
+                sparkle.style.left = (centerX + startX) + 'px';
+                sparkle.style.top = (centerY + startY) + 'px';
+                
+                // Random movement direction for burst effect
+                const moveAngle = Math.random() * Math.PI * 2;
+                const moveDistance = 60 + Math.random() * 80;
+                const moveX = Math.cos(moveAngle) * moveDistance;
+                const moveY = Math.sin(moveAngle) * moveDistance - 20;
+                
+                sparkle.style.setProperty('--sparkle-x', moveX + 'px');
+                sparkle.style.setProperty('--sparkle-y', moveY + 'px');
+                sparkle.style.animationDuration = (1 + Math.random() * 0.8) + 's';
+                
+                document.body.appendChild(sparkle);
+                
+                // Remove sparkle after animation
+                setTimeout(() => sparkle.remove(), 2000);
+            }, i * 20); // Stagger the sparkle creation
+        }
+    }
+    
+    function triggerBackgroundFireEffect() {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Fire effect disabled on mobile');
+            return;
+        }
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+        
+        // Create large background flames
+        const largeFlameCount = 8 + Math.floor(Math.random() * 5);
+        for (let i = 0; i < largeFlameCount; i++) {
+            setTimeout(() => {
+                const flame = document.createElement('div');
+                flame.className = 'fire-particle';
+                
+                // Position along bottom of screen
+                const startX = (screenWidth / largeFlameCount) * i + (Math.random() * (screenWidth / largeFlameCount));
+                const startY = screenHeight - 20;
+                
+                flame.style.left = startX + 'px';
+                flame.style.top = startY + 'px';
+                
+                // Make them larger
+                flame.style.width = '40px';
+                flame.style.height = '60px';
+                
+                // Large flames rise high
+                const driftX = (Math.random() - 0.5) * 100;
+                const riseY = -300 - Math.random() * 200;
+                const rotation = (Math.random() - 0.5) * 180;
+                
+                flame.style.setProperty('--fire-x', driftX + 'px');
+                flame.style.setProperty('--fire-y', riseY + 'px');
+                flame.style.setProperty('--fire-rotation', rotation + 'deg');
+                flame.style.animationDuration = (2 + Math.random() * 1) + 's';
+                
+                document.body.appendChild(flame);
+                
+                setTimeout(() => flame.remove(), 3500);
+            }, i * 80);
+        }
+        
+        // Create smaller flames across the bottom and sides of the screen
+        const flameCount = 40 + Math.floor(Math.random() * 20);
+        for (let i = 0; i < flameCount; i++) {
+            setTimeout(() => {
+                const flame = document.createElement('div');
+                flame.className = 'fire-particle';
+                
+                // Random starting position along bottom and sides
+                let startX, startY;
+                const position = Math.random();
+                if (position < 0.6) {
+                    // Bottom of screen
+                    startX = Math.random() * screenWidth;
+                    startY = screenHeight - 20;
+                } else if (position < 0.8) {
+                    // Left side
+                    startX = Math.random() * 100;
+                    startY = Math.random() * screenHeight;
+                } else {
+                    // Right side
+                    startX = screenWidth - (Math.random() * 100);
+                    startY = Math.random() * screenHeight;
+                }
+                
+                flame.style.left = startX + 'px';
+                flame.style.top = startY + 'px';
+                
+                // Flames rise upward with drift
+                const driftX = (Math.random() - 0.5) * 60;
+                const riseY = -100 - Math.random() * 150;
+                const rotation = (Math.random() - 0.5) * 180;
+                
+                flame.style.setProperty('--fire-x', driftX + 'px');
+                flame.style.setProperty('--fire-y', riseY + 'px');
+                flame.style.setProperty('--fire-rotation', rotation + 'deg');
+                flame.style.animationDuration = (1.5 + Math.random() * 1) + 's';
+                
+                document.body.appendChild(flame);
+                
+                setTimeout(() => flame.remove(), 2800);
+            }, i * 20);
         }
     }
 
@@ -290,6 +1059,16 @@
       console.error('Error parsing selected emotes:', e);
       selectedEmojis = ['wave', 'thumbsup', 'party', 'fire'];
     }
+    
+    // Get user's selected effects (can be multiple)
+    let userSelectedEffects = [];
+    try {
+      const effectData = '<%- typeof selectedEffect !== "undefined" ? selectedEffect : "confetti" %>';
+      userSelectedEffects = effectData.startsWith('[') ? JSON.parse(effectData) : [effectData];
+    } catch(e) {
+      userSelectedEffects = ['confetti'];
+    }
+    console.log('User selected effects:', userSelectedEffects);
     
     // Initialize emoji menu items
     function initEmojiMenu() {
@@ -340,6 +1119,11 @@
     
     // Display emoji reaction
     function displayEmojiReaction(playerName, emojiIcon, emojiImage) {
+      // Optionally disable reactions on mobile (comment this out if you want to keep reactions on mobile)
+      if (isMobileDevice()) {
+        console.log('Emoji reactions disabled on mobile');
+        return;
+      }
       const reactionsArea = document.getElementById('emojiReactionsArea');
       const reaction = document.createElement('div');
       reaction.className = 'emoji-reaction';
@@ -498,11 +1282,17 @@
   const isCurrentUserWinner = (winnerName === playerName);
   
   // Trigger confetti effect if user won and has confetti effect equipped
-  if (isCurrentUserWinner && selectedEffect === 'confetti') {
-    triggerConfetti();
+  if (isCurrentUserWinner) {
+    let winnerEffects = [];
+    try {
+      winnerEffects = selectedEffect?.startsWith('[') ? JSON.parse(selectedEffect) : [selectedEffect];
+    } catch(e) {
+      winnerEffects = selectedEffect ? [selectedEffect] : ['confetti'];
+    }
+    if (winnerEffects.includes('confetti')) {
+      triggerConfetti();
+    }
   }
-  
-  // Note: XP notification is now handled by the xpGained event from the server
   
   // Create winner modal overlay
   const overlay = document.createElement('div');
@@ -864,6 +1654,27 @@
         // Update local hand tracking
         currentHand = currentHand.filter(c => c.id !== card.id);
         
+        // Check if fire effect should trigger on +2 cards
+        if (userSelectedEffects.includes('flames') && playerId === myPlayerId) {
+          if (card.value === 'Draw Two' || card.id?.includes('DrawTwo')) {
+            triggerBackgroundFireEffect();
+          }
+        }
+        
+        // Check if skip effect should trigger on skip cards
+        if (userSelectedEffects.includes('skip') && playerId === myPlayerId) {
+          if (card.value === 'Skip') {
+            triggerSkipEffect();
+          }
+        }
+        
+        // Check if bow effect should trigger on +4 cards
+        if (userSelectedEffects.includes('bow') && playerId === myPlayerId) {
+          if (card.value === 'Wild Draw Four' || card.id?.includes('WildDrawFour')) {
+            triggerBowArrowEffect();
+          }
+        }
+        
         // Play sound effects based on card type
         if (card.value === 'Skip') {
           playSoundIfEnabled(getSoundPath('skip'), 0.4);
@@ -998,7 +1809,13 @@
 
     function renderHand(hand, animateAll = false) {
       const container = document.getElementById('hand');
+      
+      // Clean up any existing sparkle effects before clearing the hand
+      const existingCards = container.querySelectorAll('.card');
+      existingCards.forEach(card => removeSparkleEffect(card));
+      
       container.innerHTML = '';
+      
       hand.forEach((card, index) => {
         const cardEl = document.createElement('div');
         cardEl.classList.add('card');
@@ -1027,6 +1844,9 @@
             alert("You can't play that card! It doesn't match the color or value.");
             return;
           }
+          
+          // Remove sparkle effect before playing the card
+          removeSparkleEffect(cardEl);
           
           // Animate card to discard pile
           await animateCardToDiscard(cardEl, card.img);
@@ -1148,6 +1968,11 @@
       if (handCount !== 1) {
         alert('You can only call ONE when you have exactly 1 card left!');
         return;
+      }
+      
+      // Trigger lightning effect if user has it equipped
+      if (userSelectedEffects.includes('lightning')) {
+        triggerLightningEffect(oneBtn);
       }
       
       // Clear the countdown timer when ONE is pressed
@@ -1370,6 +2195,11 @@ drawImg.addEventListener('click', async () => {
   if (currentTurnPlayerId !== myPlayerId) {
     alert("It's not your turn! Wait for your turn to draw.");
     return;
+  }
+  
+  // Trigger sparkles if equipped
+  if (userSelectedEffects.includes('sparkles')) {
+    triggerDrawPileSparkles();
   }
   
   // Animate card from deck to hand

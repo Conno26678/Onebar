@@ -2,6 +2,11 @@
 document.addEventListener('DOMContentLoaded', () => {
   const socket = io();
 
+  // Mobile detection utility
+  function isMobileDevice() {
+    return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  }
+
   // Initialize user's selected emojis from server
   const availableEmojis = [
     { id: 'wave', icon: '👋' },
@@ -86,6 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Display emoji reaction
   function displayEmojiReaction(playerName, emojiIcon, emojiImage) {
+    // Optionally disable reactions on mobile (comment this out if you want to keep reactions on mobile)
+    if (isMobileDevice()) {
+      console.log('Emoji reactions disabled on mobile');
+      return;
+    }
     const reactionsArea = document.getElementById('emojiReactionsArea');
     const reaction = document.createElement('div');
     reaction.className = 'emoji-reaction';

@@ -102,6 +102,11 @@
   --glow-accent: 0 0 40px rgba(160, 210, 250, 0.3);
 }
 
+/* Isaiah theme */
+:root[data-theme="isaiah"] {
+  --background-image: url('../img/isaiahStare.jpeg');
+}
+
 /* Smith theme */
 :root[data-theme="smith"] {
   --text-color: #e9d5ff;

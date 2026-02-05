@@ -2,11 +2,16 @@
 <html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#f85149">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
     <title>Onebar - Profile</title>
     <link rel="icon" type="image/x-icon" href="/img/pfp.png">
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/profile.css">
+    <link rel="stylesheet" href="/css/mobile.css">
 </head>
 <body>
     <a href="/" class="btn home-button">Home</a>
@@ -189,10 +194,14 @@
                     <div class="customize-popup-content">
                         <span class="customize-popup-close" onclick="hideEffectsPopup()">&times;</span>
                         <h2>Select Your Effects</h2>
-                        <p class="photo-subtitle">Unlock special effects through Battle Pass</p>
+                        <p class="photo-subtitle">Unlock special effects through Battle Pass - Select multiple effects to use simultaneously</p>
+                        <div class="selected-emojis-preview" id="selectedEffectsPreview">
+                            <!-- Shows currently selected effects -->
+                        </div>
                         <div class="customization-grid" id="effectsGrid">
                             <!-- Effects will be dynamically loaded here -->
                         </div>
+                        <button class="save-emojis-btn" onclick="saveSelectedEffects()">Save Effect Selection</button>
                     </div>
                 </div>
             </div>
@@ -886,24 +895,59 @@
 
         const availableEffects = [
             { name: 'Confetti', id: 'confetti', requirement: 'Starting Effect', requiredLevel: 1, unlocked: true, icon: '🎊' },
-            { name: 'Sparkles', id: 'sparkles', requirement: 'Battle Pass Level 10', requiredLevel: 10, unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %>, icon: '✨' },
-            { name: 'Lightning', id: 'lightning', requirement: 'Battle Pass Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %>, icon: '⚡' },
+            { name: 'Sparkles', id: 'sparkles', requirement: 'Battle Pass Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %>, icon: '✨' },
+            { name: 'Lightning', id: 'lightning', requirement: 'Battle Pass Level 26', requiredLevel: 26, unlocked: <%= (level || 1) >= 26 ? 'true' : 'false' %>, icon: '⚡' },
+            { name: 'Skip', id: 'skip', requirement: 'Battle Pass Level 31', requiredLevel: 31, unlocked: <%= (level || 1) >= 31 ? 'true' : 'false' %>, icon: '⛔' },
             { name: 'Flames', id: 'flames', requirement: 'Battle Pass Level 40', requiredLevel: 40, unlocked: <%= (level || 1) >= 40 ? 'true' : 'false' %>, icon: '🔥' },
-            { name: 'Golden Aura', id: 'golden', requirement: 'Battle Pass Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %>, icon: '⭐' }
+            { name: 'Bow N Arrow', id: 'bow', requirement: 'Battle Pass Level 41', requiredLevel: 41, unlocked: <%= (level || 1) >= 41 ? 'true' : 'false' %>, icon: '🏹' }
         ];
+
+        let selectedEffects = [];
+        try {
+            const effectData = '<%- typeof selectedEffect !== "undefined" ? selectedEffect : "" %>';
+            if (effectData) {
+                selectedEffects = effectData.startsWith('[') ? JSON.parse(effectData) : [effectData];
+            }
+            if (!Array.isArray(selectedEffects) || selectedEffects.length === 0) {
+                selectedEffects = ['confetti'];
+            }
+        } catch(e) {
+            console.error('Error parsing selected effects:', e);
+            selectedEffects = ['confetti'];
+        }
+
+        function updateSelectedEffectsPreview() {
+            const preview = document.getElementById('selectedEffectsPreview');
+            if (!preview) return;
+            
+            preview.innerHTML = '<div style="font-weight: 600; margin-bottom: 10px;">Selected Effects (' + selectedEffects.length + '):</div>';
+            const container = document.createElement('div');
+            container.style.display = 'flex';
+            container.style.gap = '10px';
+            container.style.flexWrap = 'wrap';
+            container.style.justifyContent = 'center';
+            
+            selectedEffects.forEach(effectId => {
+                const effect = availableEffects.find(e => e.id === effectId);
+                if (effect) {
+                    const effectDiv = document.createElement('div');
+                    effectDiv.style.cssText = 'background: var(--card-bg); padding: 10px 15px; border-radius: 10px; border: 2px solid var(--accent-color); font-size: 1.2rem;';
+                    effectDiv.textContent = effect.icon;
+                    container.appendChild(effectDiv);
+                }
+            });
+            
+            preview.appendChild(container);
+        }
 
         function loadEffectsOptions() {
             const grid = document.getElementById('effectsGrid');
             grid.innerHTML = '';
-            const currentEffect = '<%= selectedEffect || "confetti" %>';
 
             availableEffects.forEach(effect => {
                 const effectDiv = document.createElement('div');
-                effectDiv.className = `customization-item ${effect.unlocked ? 'unlocked' : 'locked'}`;
-                
-                if (effect.unlocked && effect.id === currentEffect) {
-                    effectDiv.classList.add('selected');
-                }
+                const isSelected = selectedEffects.includes(effect.id);
+                effectDiv.className = `customization-item ${effect.unlocked ? 'unlocked' : 'locked'} ${isSelected ? 'selected' : ''}`;
                 
                 effectDiv.innerHTML = `
                     <div class="customization-item-content">
@@ -911,30 +955,52 @@
                         <div class="customization-item-name">${effect.name}</div>
                         ${!effect.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
                         ${!effect.unlocked ? `<div class="customization-item-requirement">${effect.requirement}</div>` : ''}
-                        ${effect.unlocked ? '<button class="customization-select-btn" onclick="selectEffect(\'' + effect.id + '\')">Select</button>' : ''}
+                        ${effect.unlocked ? '<button class="customization-select-btn" onclick="toggleEffectSelection(\'' + effect.id + '\')">' + (isSelected ? 'Selected ✓' : 'Select') + '</button>' : ''}
                     </div>
                 `;
                 
                 grid.appendChild(effectDiv);
             });
+            
+            updateSelectedEffectsPreview();
         }
 
-        function selectEffect(effect) {
+        function toggleEffectSelection(effectId) {
+            const index = selectedEffects.indexOf(effectId);
+            
+            if (index > -1) {
+                // Remove from selection
+                selectedEffects.splice(index, 1);
+            } else {
+                // Add to selection
+                selectedEffects.push(effectId);
+            }
+            
+            loadEffectsOptions(); // Reload to update button states
+        }
+
+        function saveSelectedEffects() {
+            if (selectedEffects.length === 0) {
+                alert('Please select at least one effect before saving.');
+                return;
+            }
+            
             fetch('/api/update-effect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ effect })
+                body: JSON.stringify({ effects: selectedEffects })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
+                    alert('Effects updated successfully!');
                     location.reload();
                 } else {
-                    alert(data.message || 'Failed to update effect');
+                    alert(data.message || 'Failed to update effects');
                 }
             })
             .catch(err => {
-                console.error('Error updating effect:', err);
+                console.error('Error updating effects:', err);
                 alert('An error occurred. Please try again.');
             });
         }

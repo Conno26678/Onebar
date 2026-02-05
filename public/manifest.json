@@ -1,0 +1,50 @@
+{
+  "name": "Onebar Card Game",
+  "short_name": "Onebar",
+  "description": "Play Onebar card game online with friends",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#f85149",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/img/ONElogo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/img/ONElogo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Join Lobby",
+      "short_name": "Lobby",
+      "description": "View and join game lobbies",
+      "url": "/lobby",
+      "icons": []
+    },
+    {
+      "name": "Profile",
+      "short_name": "Profile",
+      "description": "View your profile and stats",
+      "url": "/profile",
+      "icons": []
+    },
+    {
+      "name": "Leaderboard",
+      "short_name": "Leaderboard",
+      "description": "View the leaderboard",
+      "url": "/leaderboard",
+      "icons": []
+    }
+  ],
+  "prefer_related_applications": false
+}

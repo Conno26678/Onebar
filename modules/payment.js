@@ -318,5 +318,133 @@ router.post('/getPin', (req, res) => {
     });
 });
 
+// Route to use a free game token
+router.post('/useFreeGame', async (req, res) => {
+    try {
+        if (!req.session.token || !req.session.token.id) {
+            return res.status(401).json({ ok: false, error: 'Not authenticated' });
+        }
+
+        const userId = req.session.token.id;
+
+        // Get the user's current free game token count
+        const userRow = await new Promise((resolve, reject) => {
+            db.get("SELECT freeGameTokens FROM users WHERE id = ?", [userId], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row);
+                }
+            });
+        });
+
+        if (!userRow) {
+            return res.status(404).json({ ok: false, error: 'User not found' });
+        }
+
+        const tokenCount = userRow.freeGameTokens || 0;
+
+        if (tokenCount <= 0) {
+            return res.status(400).json({ ok: false, error: 'No free game tokens available' });
+        }
+
+        // Deduct one token and set hasPaid
+        await new Promise((resolve, reject) => {
+            db.run(
+                "UPDATE users SET freeGameTokens = freeGameTokens - 1, hasPaid = 1 WHERE id = ?",
+                [userId],
+                (err) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                }
+            );
+        });
+
+        // Set session variables
+        req.session.hasPaid = true;
+        req.session.payment = {
+            from: userId,
+            to: userId,
+            amount: 0,
+            at: Date.now(),
+            freeToken: true
+        };
+
+        return req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).json({ ok: false, error: 'Session save failed' });
+            }
+            console.log(`User ${userId} used a free game token. Remaining: ${tokenCount - 1}`);
+            res.json({ ok: true, message: 'Free game token used successfully', remainingTokens: tokenCount - 1 });
+        });
+
+    } catch (err) {
+        console.error('Free game token error:', err);
+        res.status(500).json({ ok: false, error: 'Failed to use free game token', details: err?.message || String(err) });
+    }
+});
+
+// Route to get the user's free game token count
+router.post('/getFreeGameTokens', (req, res) => {
+    if (!req.session.token || !req.session.token.id) {
+        return res.status(401).json({ ok: false, error: 'Not authenticated' });
+    }
+
+    db.get("SELECT freeGameTokens FROM users WHERE id = ?", [req.session.token.id], (err, row) => {
+        if (err) {
+            console.error('Database error:', err.message);
+            return res.status(500).json({ ok: false, error: 'Database error' });
+        }
+        if (!row) {
+            return res.status(404).json({ ok: false, error: 'User not found' });
+        }
+        res.json({ ok: true, tokens: row.freeGameTokens || 0 });
+    });
+});
+
+// Admin route to grant free game tokens (for testing/admin purposes)
+router.post('/grantFreeGameTokens', (req, res) => {
+    if (!req.session.token || !req.session.token.id) {
+        return res.status(401).json({ ok: false, error: 'Not authenticated' });
+    }
+
+    const { amount } = req.body || {};
+    const userId = req.session.token.id;
+
+    // Only allow certain users to grant tokens (you can modify this check)
+    if (userId !== 33 && userId !== 4) {
+        return res.status(403).json({ ok: false, error: 'Unauthorized' });
+    }
+
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ ok: false, error: 'Invalid amount' });
+    }
+
+    db.run(
+        "UPDATE users SET freeGameTokens = freeGameTokens + ? WHERE id = ?",
+        [amount, userId],
+        function (err) {
+            if (err) {
+                console.error('Database error:', err.message);
+                return res.status(500).json({ ok: false, error: 'Database error' });
+            }
+            
+            // Get the new token count
+            db.get("SELECT freeGameTokens FROM users WHERE id = ?", [userId], (err, row) => {
+                if (err) {
+                    console.error('Database error:', err.message);
+                    return res.status(500).json({ ok: false, error: 'Database error' });
+                }
+                console.log(`Granted ${amount} free game tokens to user ${userId}. New total: ${row.freeGameTokens}`);
+                res.json({ ok: true, tokensGranted: amount, totalTokens: row.freeGameTokens || 0 });
+            });
+        }
+    );
+});
+
 module.exports = router;
 module.exports.processWinnerPayout = processWinnerPayout;

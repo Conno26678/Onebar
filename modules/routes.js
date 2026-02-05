@@ -17,19 +17,22 @@ function setupRoutes(app) {
   app.get('/game', isAuthenticated, (req, res) => {
     const userId = req.session.token?.id;
     if (userId) {
-      db.get('SELECT selectedEmotes FROM users WHERE id = ?', [userId], (err, userData) => {
+      db.get('SELECT selectedEmotes, selectedEffect FROM users WHERE id = ?', [userId], (err, userData) => {
         const selectedEmotes = userData?.selectedEmotes || '["wave","thumbsup","party","fire"]';
+        const selectedEffect = userData?.selectedEffect || 'confetti';
         res.render('game.ejs', { 
           user: req.session.user, 
           gameId: req.query.gameId || 'default',
-          selectedEmotes: selectedEmotes
+          selectedEmotes: selectedEmotes,
+          selectedEffect: selectedEffect
         });
       });
     } else {
       res.render('game.ejs', { 
         user: req.session.user, 
         gameId: req.query.gameId || 'default',
-        selectedEmotes: '["wave","thumbsup","party","fire"]'
+        selectedEmotes: '["wave","thumbsup","party","fire"]',
+        selectedEffect: 'confetti'
       });
     }
   });
@@ -726,14 +729,20 @@ function setupRoutes(app) {
   // API endpoint to update effect
   app.post('/api/update-effect', isAuthenticated, (req, res) => {
     const userId = req.session.token?.id;
-    const { effect } = req.body;
+    const { effect, effects } = req.body;
 
     if (!userId) {
       return res.json({ success: false, message: 'User not authenticated' });
     }
 
-    if (!effect) {
-      return res.json({ success: false, message: 'No effect provided' });
+    // Handle both single effect (legacy) and multiple effects
+    let effectsToSave = [];
+    if (effects && Array.isArray(effects)) {
+      effectsToSave = effects;
+    } else if (effect) {
+      effectsToSave = [effect];
+    } else {
+      return res.json({ success: false, message: 'No effects provided' });
     }
 
     // Get user data to check unlock requirements
@@ -747,27 +756,31 @@ function setupRoutes(app) {
       
       // Define effect requirements
       const effectRequirements = {
-        'sparkles': 1,
-        'confetti': 10,
-        'lightning': 20,
-        'rainbow': 30,
+        'confetti': 1,
+        'sparkles': 20,
+        'lightning': 26,
+        'skip': 31,
         'flames': 40,
-        'golden': 50
+        'bow': 41
       };
 
-      if (!effectRequirements.hasOwnProperty(effect)) {
-        return res.json({ success: false, message: 'Invalid effect' });
+      // Validate all effects
+      for (const eff of effectsToSave) {
+        if (!effectRequirements.hasOwnProperty(eff)) {
+          return res.json({ success: false, message: `Invalid effect: ${eff}` });
+        }
+
+        if (userLevel < effectRequirements[eff]) {
+          return res.json({ success: false, message: `You have not unlocked ${eff} yet` });
+        }
       }
 
-      if (userLevel < effectRequirements[effect]) {
-        return res.json({ success: false, message: 'You have not unlocked this effect yet' });
-      }
-
-      // Update effect in database
-      db.run('UPDATE users SET selectedEffect = ? WHERE id = ?', [effect, userId], (updateErr) => {
+      // Update effects in database as JSON array
+      const effectsJson = JSON.stringify(effectsToSave);
+      db.run('UPDATE users SET selectedEffect = ? WHERE id = ?', [effectsJson, userId], (updateErr) => {
         if (updateErr) {
-          console.error('Error updating effect:', updateErr);
-          return res.json({ success: false, message: 'Failed to update effect' });
+          console.error('Error updating effects:', updateErr);
+          return res.json({ success: false, message: 'Failed to update effects' });
         }
 
         res.json({ success: true });

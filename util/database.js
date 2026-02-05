@@ -139,6 +139,13 @@ db.run(`ALTER TABLE users ADD COLUMN selectedEffect TEXT DEFAULT 'confetti'`, (e
     }
 });
 
+// Add freeGameTokens column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN freeGameTokens INTEGER DEFAULT 0`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding freeGameTokens column:', err.message);
+    }
+});
+
 /**
  * Calculate XP required for a given level
  * Progressive system: Each level requires more XP than the last
@@ -160,7 +167,7 @@ function calculateXPForLevel(level) {
  * @param {function} callback - Callback function (err, result)
  */
 function addXP(userId, xpToAdd, callback) {
-    db.get('SELECT xp, level FROM users WHERE id = ?', [userId], (err, user) => {
+    db.get('SELECT xp, level, hasBattlePassPremium FROM users WHERE id = ?', [userId], (err, user) => {
         if (err || !user) {
             return callback(err || new Error('User not found'), null);
         }
@@ -168,6 +175,7 @@ function addXP(userId, xpToAdd, callback) {
         let currentXP = user.xp + xpToAdd;
         let currentLevel = user.level;
         let levelsGained = 0;
+        let levelsReached = [];
         
         // Check for level ups
         while (true) {
@@ -176,28 +184,52 @@ function addXP(userId, xpToAdd, callback) {
                 currentXP -= xpNeeded;
                 currentLevel++;
                 levelsGained++;
+                levelsReached.push(currentLevel);
             } else {
                 break;
             }
         }
         
-        // Update the database
-        db.run(
-            'UPDATE users SET xp = ?, level = ? WHERE id = ?',
-            [currentXP, currentLevel, userId],
-            (updateErr) => {
-                if (updateErr) {
-                    return callback(updateErr, null);
-                }
-                callback(null, {
-                    xp: currentXP,
-                    level: currentLevel,
-                    levelsGained,
-                    xpAdded: xpToAdd,
-                    xpForNextLevel: calculateXPForLevel(currentLevel + 1)
-                });
+        // Define which levels grant free game tokens
+        const freePassTokenLevels = [5, 15, 25, 35, 45];
+        const premiumPassTokenLevels = [9, 13, 19, 29, 39, 49];
+        
+        // Calculate how many tokens to grant
+        let tokensToGrant = 0;
+        levelsReached.forEach(level => {
+            // Free pass tokens (available to all)
+            if (freePassTokenLevels.includes(level)) {
+                tokensToGrant++;
             }
-        );
+            // Premium pass tokens (only if user has premium)
+            if (user.hasBattlePassPremium && premiumPassTokenLevels.includes(level)) {
+                tokensToGrant++;
+            }
+        });
+        
+        // Update the database
+        let updateQuery = 'UPDATE users SET xp = ?, level = ? WHERE id = ?';
+        let updateParams = [currentXP, currentLevel, userId];
+        
+        // If tokens should be granted, add to update query
+        if (tokensToGrant > 0) {
+            updateQuery = 'UPDATE users SET xp = ?, level = ?, freeGameTokens = freeGameTokens + ? WHERE id = ?';
+            updateParams = [currentXP, currentLevel, tokensToGrant, userId];
+        }
+        
+        db.run(updateQuery, updateParams, (updateErr) => {
+            if (updateErr) {
+                return callback(updateErr, null);
+            }
+            callback(null, {
+                xp: currentXP,
+                level: currentLevel,
+                levelsGained,
+                xpAdded: xpToAdd,
+                xpForNextLevel: calculateXPForLevel(currentLevel + 1),
+                freeGameTokensGranted: tokensToGrant
+            });
+        });
     });
 }
 

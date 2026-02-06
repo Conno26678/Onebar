@@ -17,8 +17,8 @@ router.post('/transfer', async (req, res) => {
                 }
             });
         });
-        // Check if the current user is you (ID 33) or user ID 4 - give free access
-        if (userRow && (userRow.id === 33 || userRow.id === 4)) {
+        // Check if the current user is you (ID 33) - give free access
+        if (userRow && userRow.id === 33) {
             console.log(`User ID ${userRow.id} detected - granting free access`);
             req.session.hasPaid = true;
             req.session.payment = {
@@ -416,7 +416,7 @@ router.post('/grantFreeGameTokens', (req, res) => {
     const userId = req.session.token.id;
 
     // Only allow certain users to grant tokens (you can modify this check)
-    if (userId !== 33 && userId !== 4) {
+    if (userId !== 33) {
         return res.status(403).json({ ok: false, error: 'Unauthorized' });
     }
 
@@ -442,6 +442,97 @@ router.post('/grantFreeGameTokens', (req, res) => {
                 console.log(`Granted ${amount} free game tokens to user ${userId}. New total: ${row.freeGameTokens}`);
                 res.json({ ok: true, tokensGranted: amount, totalTokens: row.freeGameTokens || 0 });
             });
+        }
+    );
+});
+
+// Route to claim retroactive battle pass rewards for already-reached levels
+router.post('/claimBattlePassRewards', (req, res) => {
+    if (!req.session.token || !req.session.token.id) {
+        return res.status(401).json({ ok: false, error: 'Not authenticated' });
+    }
+
+    const userId = req.session.token.id;
+
+    // Get user's current level and claimed levels
+    db.get(
+        "SELECT level, hasBattlePassPremium, claimedBattlePassLevels, freeGameTokens FROM users WHERE id = ?",
+        [userId],
+        (err, user) => {
+            if (err) {
+                console.error('Database error:', err.message);
+                return res.status(500).json({ ok: false, error: 'Database error' });
+            }
+            if (!user) {
+                return res.status(404).json({ ok: false, error: 'User not found' });
+            }
+
+            const currentLevel = user.level || 1;
+            const hasPremium = user.hasBattlePassPremium || 0;
+            
+            // Parse claimed levels
+            let claimedLevels = [];
+            try {
+                claimedLevels = JSON.parse(user.claimedBattlePassLevels || '[]');
+            } catch (e) {
+                claimedLevels = [];
+            }
+
+            // Define which levels grant free game tokens
+            const freePassTokenLevels = [5, 15, 25, 35, 45];
+            const premiumPassTokenLevels = [9, 13, 19, 29, 39, 49];
+
+            // Calculate unclaimed tokens
+            let tokensToGrant = 0;
+            const newlyClaimedLevels = [];
+
+            // Check all levels up to current level
+            for (let level = 1; level <= currentLevel; level++) {
+                if (claimedLevels.includes(level)) {
+                    continue; // Already claimed
+                }
+
+                // Free pass tokens
+                if (freePassTokenLevels.includes(level)) {
+                    tokensToGrant++;
+                    newlyClaimedLevels.push(level);
+                }
+
+                // Premium pass tokens
+                if (hasPremium && premiumPassTokenLevels.includes(level)) {
+                    tokensToGrant++;
+                    newlyClaimedLevels.push(level);
+                }
+            }
+
+            if (tokensToGrant === 0) {
+                return res.json({ ok: true, message: 'No unclaimed rewards', tokensGranted: 0, totalTokens: user.freeGameTokens || 0 });
+            }
+
+            // Update claimed levels
+            const updatedClaimedLevels = [...new Set([...claimedLevels, ...newlyClaimedLevels])];
+
+            // Grant tokens and update claimed levels
+            db.run(
+                "UPDATE users SET freeGameTokens = freeGameTokens + ?, claimedBattlePassLevels = ? WHERE id = ?",
+                [tokensToGrant, JSON.stringify(updatedClaimedLevels), userId],
+                function (err) {
+                    if (err) {
+                        console.error('Database error:', err.message);
+                        return res.status(500).json({ ok: false, error: 'Database error' });
+                    }
+
+                    const newTotal = (user.freeGameTokens || 0) + tokensToGrant;
+                    console.log(`User ${userId} claimed ${tokensToGrant} retroactive tokens. New total: ${newTotal}`);
+                    res.json({ 
+                        ok: true, 
+                        message: `Claimed ${tokensToGrant} free game token(s)!`,
+                        tokensGranted: tokensToGrant, 
+                        totalTokens: newTotal,
+                        claimedLevels: newlyClaimedLevels
+                    });
+                }
+            );
         }
     );
 });

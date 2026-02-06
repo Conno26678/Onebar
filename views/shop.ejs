@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#f85149">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
+    <title>Onebar - Shop</title>
+    <link rel="icon" type="image/x-icon" href="/img/pfp.png">
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/shop.css">
+    <link rel="stylesheet" href="/css/mobile.css">
+</head>
+<body>
+    <div class="background-animation"></div>
+    
+    <a href="/" class="btn home-button">Home</a>
+    <a href="/logout" class="btn logout-button">Logout</a>
+    
+    <div class="shop-container">
+        <div class="market-banner">
+            <h1 class="shop-title">
+                <span class="title-icon">💰</span>
+                Onebar Market
+                <span class="title-icon">💵</span>
+            </h1>
+            <p class="market-subtitle">Finest Goods & Collectibles</p>
+        </div>
+        
+        <!-- Oncells Top-Up Section -->
+        <div class="currency-section">
+            <h2 class="currency-title">💰 Top Up Oncells</h2>
+            <p class="currency-description">Purchase Oncells using your Digipogs</p>
+            <div class="currency-grid">
+                <div class="currency-option" data-amount="10">
+                    <div class="currency-amount">10 Oncells</div>
+                    <div class="currency-price">50 Digipogs</div>
+                    <button class="currency-button" onclick="buyOncells(10, 50)">Buy Now</button>
+                </div>
+                <div class="currency-option" data-amount="25">
+                    <div class="currency-amount">25 Oncells</div>
+                    <div class="currency-price">100 Digipogs</div>
+                    <button class="currency-button" onclick="buyOncells(25, 100)">Buy Now</button>
+                </div>
+                <div class="currency-option popular-option" data-amount="50">
+                    <div class="currency-badge">BEST VALUE</div>
+                    <div class="currency-amount">50 Oncells</div>
+                    <div class="currency-price">180 Digipogs</div>
+                    <div class="currency-savings">Save 20 Digipogs!</div>
+                    <button class="currency-button" onclick="buyOncells(50, 180)">Buy Now</button>
+                </div>
+                <div class="currency-option" data-amount="100">
+                    <div class="currency-amount">100 Oncells</div>
+                    <div class="currency-price">350 Digipogs</div>
+                    <div class="currency-savings">Save 50 Digipogs!</div>
+                    <button class="currency-button" onclick="buyOncells(100, 350)">Buy Now</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Shop Items with Pagination -->
+        <div class="shop-pagination-container">
+            <button class="shop-nav-arrow shop-nav-left" id="shopNavLeft" disabled>
+                ◀
+            </button>
+            <div class="shop-grid" id="shopGrid">
+                <!-- Page 1: Free Games, Distraction, Isaiah Theme -->
+                <div class="shop-page" data-page="1" style="display: grid;">
+                    <!-- Free Games Item -->
+                    <div class="shop-item" data-item="free-games">
+                        <div class="item-badge">One per/bulk</div>
+                        <div class="item-icon">🎮</div>
+                        <h2 class="item-title">Free Games</h2>
+                        <p class="item-description">
+                            Buy free game tokens in bulk and get a discount!
+                        </p>
+                        <div class="item-features">
+                            <div class="feature"> Cheaper than paying for individual games</div>
+                            <div class="feature"> Though the name is free, technically yes you are paying for them. Ignore that</div>
+                            <div class="feature"> Never run out, the tokens last forever until you use them.</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">---Onecells</span>
+                            <span class="price-period">/per</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseItem('free-games')">
+                            <span class="button-text">Purchase Now</span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Distraction Item -->
+                    <div class="shop-item" data-item="distraction">
+                        <div class="item-badge popular">One per use</div>
+                        <div class="item-icon">💥</div>
+                        <h2 class="item-title">Distractions</h2>
+                        <p class="item-description">
+                            Ultimate distraction tools to confuse your opponents. Includes special effects and animations to distract your opponents.
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">Different options to choose from</div>
+                            <div class="feature">Custom animations</div>
+                            <div class="feature">Once you use a distraction it will be consumed</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">---Onecells</span>
+                            <span class="price-period">/per</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseItem('distraction')">
+                            <span class="button-text">Choose Distraction</span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Isaiah Theme Item -->
+                    <div class="shop-item" data-item="isaiah-theme">
+                        <div class="item-badge new">New look</div>
+                        <div class="item-icon">
+                            <img src="/img/Isaiah.png" alt="Isaiah" class="item-image">
+                        </div>
+                        <h2 class="item-title">Isaiah Theme</h2>
+                        <p class="item-description">
+                            Experience the Isaiah theme with Isaiahs face plastered all over the game. This theme includes custom colors, fonts, and pics.
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">✓ Unique color scheme</div>
+                            <div class="feature">✓ Custom fonts & Isaiah avatar</div>
+                            <div class="feature">✓ Isaiah background</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">---Onecells</span>
+                            <span class="price-period">/one-time</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseItem('isaiah-theme')">
+                            <span class="button-text">Purchase Now</span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Page 2: John Theme and future items -->
+                <div class="shop-page" data-page="2" style="display: none;">
+                    <!-- John Theme Item -->
+                    <div class="shop-item" data-item="john-theme">
+                        <div class="item-badge new">New look</div>
+                        <div class="item-icon">
+                            <img src="/img/John.png" alt="John" class="item-image">
+                        </div>
+                        <h2 class="item-title">John Theme</h2>
+                        <p class="item-description">
+                            Experience the wacky fella known as John and his theme with custom colors, fonts, and Johns face throughout the game.
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">✓ Unique color scheme</div>
+                            <div class="feature">✓ Custom fonts & John avatar</div>
+                            <div class="feature">✓ John background</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">---Onecells</span>
+                            <span class="price-period">/one-time</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseItem('john-theme')">
+                            <span class="button-text">Purchase Now</span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button class="shop-nav-arrow shop-nav-right" id="shopNavRight">
+                ▶
+            </button>
+        </div>
+        <div class="shop-pagination-info">
+            <span id="shopPageInfo">Page 1 of 2</span>
+        </div>
+        
+        <div class="shop-footer">
+            <p>All purchases are secure and processed through our payment system.</p>
+            <p class="footer-note">Need help? <a href="/about">Contact Support</a></p>
+        </div>
+    </div>
+
+    <script>
+        let currentShopPage = 1;
+        const totalShopPages = 2;
+        
+        function purchaseItem(itemId) {
+            // Show a fancy alert for now (placeholder)
+            const itemNames = {
+                'free-games': 'Free Games',
+                'distraction': 'Distraction Pack',
+                'isaiah-theme': 'Isaiah Theme',
+                'john-theme': 'John Theme'
+            };
+            
+            const itemElement = document.querySelector(`[data-item="${itemId}"]`);
+            itemElement.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                itemElement.style.transform = 'scale(1)';
+            }, 200);
+            
+            alert(`🛒 Purchase initiated for: ${itemNames[itemId]}\n\nThis is a placeholder. Payment integration coming soon!`);
+        }
+        
+        function buyOncells(amount, cost) {
+            // Placeholder for buying oncells with digipogs
+            alert(`💰 Purchase ${amount} Oncells for ${cost} Digipogs\n\nThis is a placeholder. Payment integration coming soon!`);
+        }
+        
+        function updateShopPage(direction = null) {
+            const shopGrid = document.getElementById('shopGrid');
+            
+            // If direction specified, animate out first
+            if (direction) {
+                const outClass = direction === 'right' ? 'slide-out-left' : 'slide-out-right';
+                const inClass = direction === 'right' ? 'slide-in-right' : 'slide-in-left';
+                
+                shopGrid.classList.add(outClass);
+                
+                setTimeout(() => {
+                    shopGrid.classList.remove(outClass);
+                    renderShopPage();
+                    shopGrid.classList.add(inClass);
+                    
+                    setTimeout(() => {
+                        shopGrid.classList.remove(inClass);
+                    }, 400);
+                }, 400);
+            } else {
+                renderShopPage();
+            }
+        }
+        
+        function renderShopPage() {
+            // Hide all pages
+            document.querySelectorAll('.shop-page').forEach(page => {
+                page.style.display = 'none';
+            });
+            
+            // Show current page
+            const currentPage = document.querySelector(`.shop-page[data-page="${currentShopPage}"]`);
+            if (currentPage) {
+                currentPage.style.display = 'grid';
+            }
+            
+            // Update navigation buttons
+            document.getElementById('shopNavLeft').disabled = currentShopPage === 1;
+            document.getElementById('shopNavRight').disabled = currentShopPage === totalShopPages;
+            
+            // Update page info
+            document.getElementById('shopPageInfo').textContent = `Page ${currentShopPage} of ${totalShopPages}`;
+        }
+        
+        // Navigation button handlers
+        document.getElementById('shopNavLeft').addEventListener('click', function() {
+            if (currentShopPage > 1) {
+                currentShopPage--;
+                updateShopPage('left');
+            }
+        });
+        
+        document.getElementById('shopNavRight').addEventListener('click', function() {
+            if (currentShopPage < totalShopPages) {
+                currentShopPage++;
+                updateShopPage('right');
+            }
+        });
+        
+        // Initialize on page load
+        updateShopPage();
+    </script>
+</body>
+</html>

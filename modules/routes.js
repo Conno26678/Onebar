@@ -58,6 +58,10 @@ function setupRoutes(app) {
     }
   });
 
+  app.get('/shop', isAuthenticated, (req, res) => {
+    res.render('shop.ejs', { user: req.session.user });
+  });
+
   app.get('/battlepass', isAuthenticated, (req, res) => {
     const userId = req.session.token?.id;
     if (userId) {

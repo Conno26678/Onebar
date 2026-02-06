@@ -43,6 +43,10 @@
              Unlock Premium Pass - 1000 digipogs
         </button>
         <p>Pay 1000 digipogs to earn up to 2500 digipogs with the premium pass!</p>
+        <button class="premium-button" id="claimRewardsBtn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); margin-top: 10px; padding: 8px 16px; font-size: 14px; max-width: 600px;">
+            🎁 Claim Rewards
+        </button>
+        <p id="claimStatus" style="margin-top: 5px; margin-bottom: 10px; color: #4CAF50; font-weight: bold; min-height: 24px;"></p>
         <a href="/profile">Click me to go back to your profile.</a>
     </div>
     
@@ -281,7 +285,7 @@
                     if (data.success) {
                         alert('Premium Pass unlocked!');
                         hasPremium = true;
-                        document.getElementById('premiumStatus').querySelector('.status-value').textContent = 'Premium Pass ⭐';
+                        document.getElementById('premiumStatus').querySelector('.status-value').textContent = 'Premium Pass';
                         document.getElementById('purchasePremium').textContent = '✅ Premium Pass Owned';
                         document.getElementById('purchasePremium').disabled = true;
                         generateBattlePass();
@@ -294,6 +298,51 @@
                     alert('An error occurred. Please try again.');
                 });
             }
+        });
+        
+        // Claim Rewards button
+        document.getElementById('claimRewardsBtn')?.addEventListener('click', function() {
+            const statusEl = document.getElementById('claimStatus');
+            const btn = document.getElementById('claimRewardsBtn');
+            
+            btn.disabled = true;
+            btn.textContent = 'Claiming...';
+            statusEl.textContent = '';
+            
+            fetch('/claimBattlePassRewards', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.ok) {
+                    statusEl.textContent = data.message + ` You now have ${data.totalTokens} free game token(s)!`;
+                    statusEl.style.color = '#4CAF50';
+                    btn.textContent = '✅ Rewards Claimed';
+                    
+                    if (data.tokensGranted > 0) {
+                        alert(`Success! You received ${data.tokensGranted} free game token(s)!\\nTotal tokens: ${data.totalTokens}`);
+                    } else {
+                        btn.textContent = '✅ All Rewards Claimed';
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.textContent = '🎁 Claim Rewards';
+                        }, 3000);
+                    }
+                } else {
+                    statusEl.textContent = 'Error: ' + (data.error || 'Failed to claim');
+                    statusEl.style.color = '#f44336';
+                    btn.disabled = false;
+                    btn.textContent = '🎁 Claim Rewards';
+                }
+            })
+            .catch(err => {
+                console.error('Claim error:', err);
+                statusEl.textContent = 'An error occurred. Please try again.';
+                statusEl.style.color = '#f44336';
+                btn.disabled = false;
+                btn.textContent = '🎁 Claim Rewards';
+            });
         });
         
         // Initialize on page load

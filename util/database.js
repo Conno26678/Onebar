@@ -146,6 +146,13 @@ db.run(`ALTER TABLE users ADD COLUMN freeGameTokens INTEGER DEFAULT 0`, (err) =>
     }
 });
 
+// Add claimedBattlePassLevels column to track which levels have been claimed (stores JSON array)
+db.run(`ALTER TABLE users ADD COLUMN claimedBattlePassLevels TEXT DEFAULT '[]'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding claimedBattlePassLevels column:', err.message);
+    }
+});
+
 /**
  * Calculate XP required for a given level
  * Progressive system: Each level requires more XP than the last
@@ -167,7 +174,7 @@ function calculateXPForLevel(level) {
  * @param {function} callback - Callback function (err, result)
  */
 function addXP(userId, xpToAdd, callback) {
-    db.get('SELECT xp, level, hasBattlePassPremium FROM users WHERE id = ?', [userId], (err, user) => {
+    db.get('SELECT xp, level, hasBattlePassPremium, claimedBattlePassLevels FROM users WHERE id = ?', [userId], (err, user) => {
         if (err || !user) {
             return callback(err || new Error('User not found'), null);
         }
@@ -194,27 +201,42 @@ function addXP(userId, xpToAdd, callback) {
         const freePassTokenLevels = [5, 15, 25, 35, 45];
         const premiumPassTokenLevels = [9, 13, 19, 29, 39, 49];
         
+        // Get already claimed levels
+        let claimedLevels = [];
+        try {
+            claimedLevels = JSON.parse(user.claimedBattlePassLevels || '[]');
+        } catch (e) {
+            claimedLevels = [];
+        }
+        
         // Calculate how many tokens to grant
         let tokensToGrant = 0;
         levelsReached.forEach(level => {
+            // Skip if already claimed
+            if (claimedLevels.includes(level)) {
+                return;
+            }
+            
             // Free pass tokens (available to all)
             if (freePassTokenLevels.includes(level)) {
                 tokensToGrant++;
+                claimedLevels.push(level);
             }
             // Premium pass tokens (only if user has premium)
             if (user.hasBattlePassPremium && premiumPassTokenLevels.includes(level)) {
                 tokensToGrant++;
+                claimedLevels.push(level);
             }
         });
         
         // Update the database
-        let updateQuery = 'UPDATE users SET xp = ?, level = ? WHERE id = ?';
-        let updateParams = [currentXP, currentLevel, userId];
+        let updateQuery = 'UPDATE users SET xp = ?, level = ?, claimedBattlePassLevels = ? WHERE id = ?';
+        let updateParams = [currentXP, currentLevel, JSON.stringify(claimedLevels), userId];
         
         // If tokens should be granted, add to update query
         if (tokensToGrant > 0) {
-            updateQuery = 'UPDATE users SET xp = ?, level = ?, freeGameTokens = freeGameTokens + ? WHERE id = ?';
-            updateParams = [currentXP, currentLevel, tokensToGrant, userId];
+            updateQuery = 'UPDATE users SET xp = ?, level = ?, freeGameTokens = freeGameTokens + ?, claimedBattlePassLevels = ? WHERE id = ?';
+            updateParams = [currentXP, currentLevel, tokensToGrant, JSON.stringify(claimedLevels), userId];
         }
         
         db.run(updateQuery, updateParams, (updateErr) => {

@@ -86,9 +86,9 @@ function setupSocketHandlers(io) {
         const currentSess = socket.request.session;
         const userId = currentSess?.token?.id;
         
-        // Check payment status (user ID 4 gets to play for free)
+        // Check payment status
         const hasPaid = currentSess && currentSess.hasPaid;
-        if (!hasPaid && userId !== 4) {
+        if (!hasPaid) {
           socket.emit('createLobbyError', { 
             reason: 'Payment required to create lobbies',
             requiresPayment: true 
@@ -1119,25 +1119,6 @@ function setupSocketHandlers(io) {
                 message: 'Failed to process payout. Please contact support.'
               });
             });
-        } else if (winnerId === 4) {
-          console.log(`User ID 4 wins but doesn't earn money (plays for free)`);
-          
-          // Show winner screen without payout for user ID 4
-          io.to(gameId).emit('showWinnerScreen', {
-            winnerName: player.name,
-            winnerId: player.id,
-            digipogs: 0,
-            playerCount: playerCount,
-            selectedTitle: player.selectedTitle || 'Newbie',
-            selectedTitleColor: player.selectedTitleColor || 'white',
-            selectedEffect: player.selectedEffect || 'confetti'
-          });
-          
-          io.to(player.socketId).emit('payoutSuccess', {
-            amount: 0,
-            playerCount: playerCount,
-            message: 'You won! (Free play - no payout)'
-          });
         } else {
           console.warn(`Winner ${player.name} has no userId, cannot process payout`);
           

@@ -27,35 +27,44 @@
                 <span class="title-icon">💵</span>
             </h1>
             <p class="market-subtitle">Finest Goods & Collectibles</p>
+            
+            <!-- Currency Display -->
+            <div class="currency-display">
+                <div class="currency-item">
+                    <span class="currency-icon">🪙</span>
+                    <span class="currency-label">Onecells:</span>
+                    <span class="currency-value" id="onecellsDisplay"><%= onecells || 0 %></span>
+                </div>
+            </div>
         </div>
         
         <!-- Oncells Top-Up Section -->
         <div class="currency-section">
-            <h2 class="currency-title">💰 Top Up Oncells</h2>
-            <p class="currency-description">Purchase Oncells using your Digipogs</p>
+            <h2 class="currency-title">💰 Top Up Onecells</h2>
+            <p class="currency-description">Purchase Onecells using your Digipogs</p>
             <div class="currency-grid">
                 <div class="currency-option" data-amount="10">
-                    <div class="currency-amount">10 Oncells</div>
+                    <div class="currency-amount">10 Onecells</div>
                     <div class="currency-price">50 Digipogs</div>
-                    <button class="currency-button" onclick="buyOncells(10, 50)">Buy Now</button>
+                    <button class="currency-button" onclick="buyOnecells(10, 50)">Buy Now</button>
                 </div>
                 <div class="currency-option" data-amount="25">
-                    <div class="currency-amount">25 Oncells</div>
+                    <div class="currency-amount">25 Onecells</div>
                     <div class="currency-price">100 Digipogs</div>
-                    <button class="currency-button" onclick="buyOncells(25, 100)">Buy Now</button>
+                    <button class="currency-button" onclick="buyOnecells(25, 100)">Buy Now</button>
                 </div>
                 <div class="currency-option popular-option" data-amount="50">
                     <div class="currency-badge">BEST VALUE</div>
-                    <div class="currency-amount">50 Oncells</div>
+                    <div class="currency-amount">50 Onecells</div>
                     <div class="currency-price">180 Digipogs</div>
                     <div class="currency-savings">Save 20 Digipogs!</div>
-                    <button class="currency-button" onclick="buyOncells(50, 180)">Buy Now</button>
+                    <button class="currency-button" onclick="buyOnecells(50, 180)">Buy Now</button>
                 </div>
                 <div class="currency-option" data-amount="100">
-                    <div class="currency-amount">100 Oncells</div>
+                    <div class="currency-amount">100 Onecells</div>
                     <div class="currency-price">350 Digipogs</div>
                     <div class="currency-savings">Save 50 Digipogs!</div>
-                    <button class="currency-button" onclick="buyOncells(100, 350)">Buy Now</button>
+                    <button class="currency-button" onclick="buyOnecells(100, 350)">Buy Now</button>
                 </div>
             </div>
         </div>
@@ -140,7 +149,7 @@
                     </div>
                 </div>
 
-                <!-- Page 2: John Theme and future items -->
+                <!-- Page 2: John Theme, Robert Theme, Chickens Memory Theme -->
                 <div class="shop-page" data-page="2" style="display: none;">
                     <!-- John Theme Item -->
                     <div class="shop-item" data-item="john-theme">
@@ -166,6 +175,56 @@
                             <span class="button-icon">→</span>
                         </button>
                     </div>
+
+                    <!-- Robert Theme Item -->
+                    <div class="shop-item" data-item="robert-theme">
+                        <div class="item-badge new">New look</div>
+                        <div class="item-icon">
+                            <img src="/img/Robert.png" alt="Robert" class="item-image">
+                        </div>
+                        <h2 class="item-title">Robert Theme</h2>
+                        <p class="item-description">
+                            Experience the world through Roberts eyes with the Robert theme. Become schizophrenic with Roberts face.
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">✓ Unique schizo features</div>
+                            <div class="feature">✓ Custom animations & Robert avatar</div>
+                            <div class="feature">✓ Robert background</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">---Onecells</span>
+                            <span class="price-period">/one-time</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseItem('robert-theme')">
+                            <span class="button-text">Purchase Now</span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Chickens Memory Item -->
+                    <div class="shop-item" data-item="chickens-memory-theme">
+                        <div class="item-badge new">New look</div>
+                        <div class="item-icon">
+                            <img src="/img/Peak.png" alt="Chickens Memory" class="item-image">
+                        </div>
+                        <h2 class="item-title">Chickens Memory Theme</h2>
+                        <p class="item-description">
+                            Remember the fallen with the Chickens Memory theme. Featuring a peak throwback and chicken sandwhiches.
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">✓ Unique Chicken sandwiches theme</div>
+                            <div class="feature">✓ Custom chicken & Peak avatar</div>
+                            <div class="feature">✓ Peak background</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">---Onecells</span>
+                            <span class="price-period">/one-time</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseItem('chickens-memory-theme')">
+                            <span class="button-text">Purchase Now</span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
                 </div>
             </div>
             <button class="shop-nav-arrow shop-nav-right" id="shopNavRight">
@@ -177,7 +236,7 @@
         </div>
         
         <div class="shop-footer">
-            <p>All purchases are secure and processed through our payment system.</p>
+            <p>All purchases are secure, please give me your money.</p>
             <p class="footer-note">Need help? <a href="/about">Contact Support</a></p>
         </div>
     </div>
@@ -192,7 +251,9 @@
                 'free-games': 'Free Games',
                 'distraction': 'Distraction Pack',
                 'isaiah-theme': 'Isaiah Theme',
-                'john-theme': 'John Theme'
+                'john-theme': 'John Theme',
+                'robert-theme': 'Robert Theme',
+                'chickens-memory-theme': 'Chickens Memory Theme'
             };
             
             const itemElement = document.querySelector(`[data-item="${itemId}"]`);
@@ -204,9 +265,44 @@
             alert(`🛒 Purchase initiated for: ${itemNames[itemId]}\n\nThis is a placeholder. Payment integration coming soon!`);
         }
         
-        function buyOncells(amount, cost) {
-            // Placeholder for buying oncells with digipogs
-            alert(`💰 Purchase ${amount} Oncells for ${cost} Digipogs\n\nThis is a placeholder. Payment integration coming soon!`);
+        function buyOnecells(amount, cost) {
+            // Confirm purchase
+            if (!confirm(`Purchase ${amount} Onecells for ${cost} Digipogs?`)) {
+                return;
+            }
+            
+            // Prompt for PIN
+            const pin = prompt('Enter your PIN to confirm the purchase:');
+            if (!pin) {
+                alert('❌ Purchase cancelled - PIN is required');
+                return;
+            }
+            
+            // Send purchase request to server
+            fetch('/api/buy-onecells', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ amount, cost, pin })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the displayed values
+                    document.getElementById('onecellsDisplay').textContent = data.newOnecells;
+                    document.getElementById('digipogsDisplay').textContent = data.newDigipogs;
+                    
+                    // Show success message
+                    alert(`✅ ${data.message}\n\nYour new balance:\n🪙 Onecells: ${data.newOnecells}\n💎 Digipogs: ${data.newDigipogs}`);
+                } else {
+                    alert(`❌ Purchase Failed\n\n${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('❌ An error occurred while processing your purchase. Please try again.');
+            });
         }
         
         function updateShopPage(direction = null) {

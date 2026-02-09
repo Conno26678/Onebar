@@ -146,6 +146,13 @@ db.run(`ALTER TABLE users ADD COLUMN freeGameTokens INTEGER DEFAULT 0`, (err) =>
     }
 });
 
+// Add onecells column if it doesn't exist
+db.run(`ALTER TABLE users ADD COLUMN onecells INTEGER DEFAULT 0`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding onecells column:', err.message);
+    }
+});
+
 // Add claimedBattlePassLevels column to track which levels have been claimed (stores JSON array)
 db.run(`ALTER TABLE users ADD COLUMN claimedBattlePassLevels TEXT DEFAULT '[]'`, (err) => {
     if (err && !err.message.includes('duplicate column name')) {

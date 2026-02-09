@@ -3,6 +3,22 @@ const { isAuthenticated, handleLogin } = require('./middleware');
 const { games } = require('./game');
 const paymentRouter = require('./payment');
 const db = require('../util/database');
+const FORMBAR_ADDRESS = process.env.FORMBAR_ADDRESS || 'https://formbeta.yorktechapps.com';
+
+// Helper function to fetch digipogs balance from external API
+async function fetchDigipogsBalance(userId) {
+  try {
+    const response = await fetch(`${FORMBAR_ADDRESS}/api/digipogs/balance/${userId}`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.balance || 0;
+    }
+    return 0;
+  } catch (error) {
+    console.error('Error fetching digipogs balance:', error);
+    return 0;
+  }
+}
 
 function setupRoutes(app) {
   // Mount payment routes (must be before other routes to handle POST requests)
@@ -58,8 +74,33 @@ function setupRoutes(app) {
     }
   });
 
-  app.get('/shop', isAuthenticated, (req, res) => {
-    res.render('shop.ejs', { user: req.session.user });
+  app.get('/shop', isAuthenticated, async (req, res) => {
+    const userId = req.session.token?.id;
+    if (userId) {
+      try {
+        // Fetch onecells from local DB and digipogs from external API
+        const userData = await new Promise((resolve, reject) => {
+          db.get('SELECT onecells FROM users WHERE id = ?', [userId], (err, data) => {
+            if (err) reject(err);
+            else resolve(data);
+          });
+        });
+        
+        const digipogs = await fetchDigipogsBalance(userId);
+        const onecells = userData?.onecells || 0;
+        
+        res.render('shop.ejs', { 
+          user: req.session.user, 
+          onecells,
+          digipogs
+        });
+      } catch (err) {
+        console.error('Error fetching shop data:', err);
+        res.render('shop.ejs', { user: req.session.user, onecells: 0, digipogs: 0 });
+      }
+    } else {
+      res.render('shop.ejs', { user: req.session.user, onecells: 0, digipogs: 0 });
+    }
   });
 
   app.get('/battlepass', isAuthenticated, (req, res) => {
@@ -108,7 +149,10 @@ function setupRoutes(app) {
           }
           
           // Get current user data
-          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, selectedEmotes, selectedEffect, wins, hasBattlePassPremium FROM users WHERE id = ?', [userId], (err, userData) => {
+          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, selectedEmotes, selectedEffect, wins, hasBattlePassPremium, onecells FROM users WHERE id = ?', [userId], async (err, userData) => {
+            // Fetch digipogs from external API
+            const digipogs = userId ? await fetchDigipogsBalance(userId) : 0;
+            
             if (err) {
               console.error('Error fetching user data:', err);
               res.render('profile.ejs', { 
@@ -127,7 +171,9 @@ function setupRoutes(app) {
                 selectedEmotes: '["wave","thumbsup","party","fire"]',
                 selectedEffect: 'confetti',
                 wins: 0,
-                hasBattlePassPremium: false
+                hasBattlePassPremium: false,
+                onecells: 0,
+                digipogs: 0
               });
             } else {
               const currentXP = userData?.xp || 0;
@@ -162,7 +208,9 @@ function setupRoutes(app) {
                 selectedEmotes: userData?.selectedEmotes || '["wave","thumbsup","party","fire"]',
                 selectedEffect: userData?.selectedEffect || 'sparkles',
                 wins: userData?.wins || 0,
-                hasBattlePassPremium: userData?.hasBattlePassPremium || false
+                hasBattlePassPremium: userData?.hasBattlePassPremium || false,
+                onecells: userData?.onecells || 0,
+                digipogs: userData?.digipogs || 0
               });
             }
           });
@@ -185,7 +233,9 @@ function setupRoutes(app) {
         selectedEmotes: '["wave","thumbsup","party","fire"]',
         selectedEffect: 'confetti',
         wins: 0,
-        hasBattlePassPremium: false
+        hasBattlePassPremium: false,
+        onecells: 0,
+        digipogs: 0
       });
     }
   });
@@ -259,6 +309,133 @@ function setupRoutes(app) {
     });
   });
 
+  // API endpoint to buy onecells with digipogs
+  app.post('/api/buy-onecells', isAuthenticated, async (req, res) => {
+    const userId = req.session.token?.id;
+    const { amount, cost, pin } = req.body;
+
+    if (!userId) {
+      return res.json({ success: false, message: 'User not authenticated' });
+    }
+
+    if (!amount || !cost || amount <= 0 || cost <= 0) {
+      return res.json({ success: false, message: 'Invalid amount or cost' });
+    }
+
+    if (!pin) {
+      return res.json({ success: false, message: 'PIN is required' });
+    }
+
+    // Validate the transaction (prevent cheating)
+    const validTransactions = [
+      { amount: 10, cost: 50 },
+      { amount: 25, cost: 100 },
+      { amount: 50, cost: 180 },
+      { amount: 100, cost: 350 }
+    ];
+
+    const isValid = validTransactions.some(t => t.amount === amount && t.cost === cost);
+    if (!isValid) {
+      return res.json({ success: false, message: 'Invalid transaction' });
+    }
+
+    try {
+      // Transfer digipogs to the server owner (ID 33) using external API
+      const transferPayload = {
+        from: Number(userId),
+        to: 33, // Server owner
+        amount: Number(cost),
+        pin: Number(pin),
+        reason: `Purchase ${amount} Onecells in shop`
+      };
+
+      const transferResult = await fetch(`${FORMBAR_ADDRESS}/api/digipogs/transfer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(transferPayload)
+      });
+
+      const contentType = transferResult.headers.get('content-type');
+      let responseJson;
+
+      if (contentType && contentType.includes('application/json')) {
+        responseJson = await transferResult.json();
+      } else {
+        const responseText = await transferResult.text();
+        console.error('Transfer API returned non-JSON response:', responseText.substring(0, 200));
+        return res.json({ 
+          success: false, 
+          message: 'Purchase failed: Server error' 
+        });
+      }
+
+      // Check if the transfer was successful
+      if (transferResult.ok && responseJson) {
+        // Add onecells to user's local account
+        db.get('SELECT onecells FROM users WHERE id = ?', [userId], (err, userData) => {
+          if (err) {
+            console.error('Error fetching user onecells:', err);
+            return res.json({ success: false, message: 'Database error' });
+          }
+
+          const currentOnecells = userData?.onecells || 0;
+          const newOnecells = currentOnecells + amount;
+
+          db.run(
+            'UPDATE users SET onecells = ? WHERE id = ?', 
+            [newOnecells, userId], 
+            async (updateErr) => {
+              if (updateErr) {
+                console.error('Error updating onecells:', updateErr);
+                return res.json({ success: false, message: 'Failed to add onecells' });
+              }
+
+              // Fetch updated digipogs balance from external API
+              const newDigipogs = await fetchDigipogsBalance(userId);
+
+              console.log(`User ${userId} bought ${amount} Onecells for ${cost} Digipogs`);
+              res.json({ 
+                success: true, 
+                message: `Successfully purchased ${amount} Onecells!`,
+                newOnecells,
+                newDigipogs
+              });
+            }
+          );
+        });
+      } else {
+        // Extract error message
+        let errorMessage = 'Purchase failed';
+        
+        if (responseJson && responseJson.token) {
+          try {
+            const jwt = require('jsonwebtoken');
+            const decoded = jwt.decode(responseJson.token);
+            if (decoded && decoded.message) {
+              errorMessage = decoded.message;
+            }
+          } catch (err) {
+            console.error('Failed to decode JWT token:', err);
+          }
+        }
+
+        if (errorMessage === 'Purchase failed' && responseJson) {
+          if (responseJson.message) {
+            errorMessage = responseJson.message;
+          } else if (responseJson.error) {
+            errorMessage = responseJson.error;
+          }
+        }
+
+        console.error(`Onecells purchase failed for user ${userId}:`, errorMessage);
+        return res.json({ success: false, message: errorMessage });
+      }
+    } catch (err) {
+      console.error('Error processing onecells purchase:', err);
+      return res.json({ success: false, message: 'Purchase failed: Network error' });
+    }
+  });
+
   // API endpoint to update profile picture
   app.post('/api/update-profile-picture', isAuthenticated, (req, res) => {
     const userId = req.session.token?.id;
@@ -282,7 +459,8 @@ function setupRoutes(app) {
       '/img/glassesSmith.jpeg',
       '/img/closeUpSmith.png',
       '/img/smithHidingSpot.png',
-      '/img/disasmithed.png'
+      '/img/disasmithed.png',
+      '/img/cornConnor.jpg'
     ];
 
     if (!allowedPictures.includes(profilePicture)) {
@@ -308,6 +486,7 @@ function setupRoutes(app) {
       if (profilePicture === '/img/closeUpSmith.png' && userLevel < 48) unlocked = false;
       if (profilePicture === '/img/smithHidingSpot.png' && userLevel < 50) unlocked = false;
       if (profilePicture === '/img/disasmithed.png' && userWins < 100) unlocked = false;
+      if (profilePicture === '/img/cornConnor.jpg' && userWins < 100) unlocked = false;
       
       // King is handled separately by leaderboard position, skip it here
       if (profilePicture === '/img/king.png') {

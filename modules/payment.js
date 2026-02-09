@@ -3,6 +3,25 @@ const router = express.Router();
 const db = require('../util/database');
 const FORMBAR_ADDRESS = process.env.FORMBAR_ADDRESS || 'https://formbeta.yorktechapps.com';
 
+// Helper function to fetch digipogs balance from external API
+async function fetchDigipogsBalance(userId) {
+    try {
+        const response = await fetch(`${FORMBAR_ADDRESS}/api/digipogs/balance/${userId}`);
+        if (response.ok) {
+            const data = await response.json();
+            return data.balance || 0;
+        }
+        console.error(`Failed to fetch digipogs balance for user ${userId}`);
+        return 0;
+    } catch (error) {
+        console.error('Error fetching digipogs balance:', error);
+        return 0;
+    }
+}
+
+// Export helper function
+router.fetchDigipogsBalance = fetchDigipogsBalance;
+
 router.post('/transfer', async (req, res) => {
     try {
         const to = 33;

@@ -166,6 +166,49 @@ body {
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
+/* Currency Display */
+.currency-display {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 25px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    border: 2px solid var(--shop-primary);
+    backdrop-filter: blur(5px);
+}
+
+.currency-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Georgia', serif;
+}
+
+.currency-icon {
+    font-size: 1.8rem;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.currency-label {
+    font-size: 1.1rem;
+    color: var(--shop-parchment);
+    font-weight: 600;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.currency-value {
+    font-size: 1.4rem;
+    color: var(--shop-accent);
+    font-weight: 900;
+    text-shadow: 
+        2px 2px 0 var(--shop-wood),
+        3px 3px 6px rgba(0, 0, 0, 0.5);
+    min-width: 60px;
+    text-align: right;
+}
+
 /* Shop Title */
 .shop-title {
     text-align: center;
@@ -209,6 +252,256 @@ body {
     50% {
         transform: translateY(-10px);
     }
+}
+
+/* Currency Section - Onecells Top-Up */
+.currency-section {
+    margin-bottom: 60px;
+    padding: 40px;
+    background: 
+        linear-gradient(135deg, var(--shop-card-bg) 0%, #1c0e05 100%),
+        repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 10px,
+            rgba(120, 53, 15, 0.1) 10px,
+            rgba(120, 53, 15, 0.1) 11px
+        );
+    border: 4px solid var(--shop-border);
+    border-radius: 16px;
+    box-shadow: 
+        0 0 0 3px var(--shop-dark),
+        0 10px 30px rgba(217, 119, 6, 0.4),
+        inset 0 2px 10px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.currency-section::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    height: 30px;
+    background: repeating-linear-gradient(
+        90deg,
+        var(--shop-accent) 0px,
+        var(--shop-accent) 20px,
+        #fef3c7 20px,
+        #fef3c7 40px
+    );
+    opacity: 0.8;
+    z-index: 0;
+    border-radius: 12px 12px 0 0;
+}
+
+.currency-section > * {
+    position: relative;
+    z-index: 1;
+}
+
+.currency-title {
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin: 10px 0 15px 0;
+    color: var(--shop-parchment);
+    text-shadow: 
+        3px 3px 0 var(--shop-wood),
+        4px 4px 10px rgba(0, 0, 0, 0.5);
+    font-family: 'Georgia', serif;
+    letter-spacing: 2px;
+}
+
+.currency-description {
+    text-align: center;
+    font-size: 1.1rem;
+    color: #d6b894;
+    margin-bottom: 35px;
+    font-family: 'Georgia', serif;
+    font-style: italic;
+}
+
+.currency-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.currency-option {
+    background: linear-gradient(135deg, rgba(120, 53, 15, 0.4) 0%, rgba(28, 14, 5, 0.6) 100%);
+    border: 3px solid var(--shop-border);
+    border-radius: 12px;
+    padding: 30px 20px;
+    text-align: center;
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: 
+        0 0 0 2px rgba(217, 119, 6, 0.2),
+        0 6px 0 rgba(0, 0, 0, 0.3),
+        0 8px 16px rgba(0, 0, 0, 0.4),
+        inset 0 2px 5px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+}
+
+.currency-option:hover {
+    transform: translateY(-5px);
+    border-color: var(--shop-primary);
+    box-shadow: 
+        0 0 0 2px var(--shop-primary),
+        0 10px 0 rgba(0, 0, 0, 0.3),
+        0 12px 25px rgba(217, 119, 6, 0.6),
+        inset 0 2px 5px rgba(255, 255, 255, 0.1);
+}
+
+.popular-option {
+    border-color: var(--shop-accent);
+    background: linear-gradient(135deg, rgba(217, 119, 6, 0.3) 0%, rgba(146, 64, 14, 0.5) 100%);
+    box-shadow: 
+        0 0 0 3px var(--shop-accent),
+        0 8px 0 rgba(0, 0, 0, 0.3),
+        0 10px 30px rgba(251, 191, 36, 0.5),
+        inset 0 2px 5px rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+.popular-option:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 
+        0 0 0 3px var(--shop-accent),
+        0 12px 0 rgba(0, 0, 0, 0.3),
+        0 14px 35px rgba(251, 191, 36, 0.7),
+        inset 0 2px 5px rgba(255, 255, 255, 0.3);
+}
+
+.currency-badge {
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, var(--shop-accent) 0%, #d97706 100%);
+    color: var(--shop-dark);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    box-shadow: 
+        0 0 0 3px var(--shop-dark),
+        0 4px 12px rgba(251, 191, 36, 0.7),
+        inset 0 2px 5px rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(0, 0, 0, 0.5);
+    font-family: 'Georgia', serif;
+    animation: pulseBadge 2s ease-in-out infinite;
+}
+
+@keyframes pulseBadge {
+    0%, 100% {
+        transform: translateX(-50%) scale(1);
+    }
+    50% {
+        transform: translateX(-50%) scale(1.05);
+    }
+}
+
+.currency-amount {
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--shop-parchment);
+    margin-bottom: 15px;
+    text-shadow: 
+        2px 2px 0 var(--shop-wood),
+        3px 3px 8px rgba(0, 0, 0, 0.6);
+    font-family: 'Georgia', serif;
+    display: block;
+}
+
+.currency-price {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--shop-accent);
+    margin-bottom: 12px;
+    font-family: 'Georgia', serif;
+    display: block;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.currency-savings {
+    font-size: 0.9rem;
+    color: var(--market-green);
+    font-weight: 700;
+    margin-bottom: 20px;
+    font-family: 'Georgia', serif;
+    display: block;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+    animation: savingsGlow 2s ease-in-out infinite;
+}
+
+@keyframes savingsGlow {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.currency-button {
+    width: 100%;
+    padding: 14px 28px;
+    background: linear-gradient(135deg, var(--shop-primary) 0%, var(--shop-wood-light) 100%);
+    color: var(--shop-parchment);
+    border: 3px solid var(--shop-wood);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    font-family: 'Georgia', serif;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    box-shadow: 
+        0 0 0 2px rgba(0, 0, 0, 0.3),
+        0 5px 0 var(--shop-wood),
+        0 7px 12px rgba(0, 0, 0, 0.5),
+        inset 0 2px 5px rgba(255, 255, 255, 0.2);
+}
+
+.currency-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.currency-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 0 0 2px rgba(0, 0, 0, 0.3),
+        0 7px 0 var(--shop-wood),
+        0 10px 20px rgba(217, 119, 6, 0.7),
+        inset 0 2px 5px rgba(255, 255, 255, 0.3);
+}
+
+.currency-button:hover::before {
+    left: 100%;
+}
+
+.currency-button:active {
+    transform: translateY(1px);
+    box-shadow: 
+        0 0 0 2px rgba(0, 0, 0, 0.3),
+        0 3px 0 var(--shop-wood),
+        0 5px 10px rgba(0, 0, 0, 0.5),
+        inset 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
 /* Shop Grid */
@@ -696,6 +989,67 @@ body {
     .shop-title {
         font-size: 2.5rem;
         margin-bottom: 40px;
+    }
+    
+    .currency-display {
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px;
+    }
+    
+    .currency-item {
+        justify-content: center;
+    }
+    
+    .currency-icon {
+        font-size: 1.5rem;
+    }
+    
+    .currency-label {
+        font-size: 1rem;
+    }
+    
+    .currency-value {
+        font-size: 1.2rem;
+    }
+    
+    .currency-section {
+        padding: 30px 20px;
+        margin-bottom: 40px;
+    }
+    
+    .currency-title {
+        font-size: 1.8rem;
+    }
+    
+    .currency-description {
+        font-size: 1rem;
+        margin-bottom: 25px;
+    }
+    
+    .currency-grid {
+        grid-template-columns: 1fr;
+        gap: 25px;
+    }
+    
+    .currency-option {
+        padding: 25px 15px;
+    }
+    
+    .popular-option {
+        transform: scale(1);
+    }
+    
+    .popular-option:hover {
+        transform: translateY(-5px) scale(1);
+    }
+    
+    .currency-amount {
+        font-size: 1.6rem;
+    }
+    
+    .currency-price {
+        font-size: 1.1rem;
     }
     
     .shop-grid {

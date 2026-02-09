@@ -252,6 +252,22 @@
                         <span><%= Math.min(100, Math.floor(((xp || 0) / (xpForNextLevel || 100)) * 100)) %>% to next level</span>
                     </div>
                 </div>
+
+                <!-- Onecells Card -->
+                <div class="stat-card currency-card">
+                    <h2>🪙 Onecells</h2>
+                    <div class="stat-value currency-value"><%= onecells || 0 %></div>
+                    <a href="/shop" class="stat-label currency-link">Visit Shop to buy more!</a>
+                    <p class="currency-description">Use Onecells to purchase items in the shop</p>
+                </div>
+
+                <!-- Digipogs Card -->
+                <div class="stat-card currency-card">
+                    <h2>💎 Digipogs</h2>
+                    <div class="stat-value currency-value"><%= digipogs || 0 %></div>
+                    <p class="stat-label">Earned from winning games</p>
+                    <p class="currency-description">Convert Digipogs to Onecells in the shop</p>
+                </div>
             </div>
         </div>
     </div>
@@ -361,7 +377,8 @@
             { image: '/img/glassesSmith.jpeg', name: 'Glasses Smith', requirement: 'Battle Pass Level 45', unlocked: <%= (level || 1) >= 45 ? 'true' : 'false' %> },
             { image: '/img/closeUpSmith.png', name: 'Close Up Smith', requirement: 'Battle Pass Level 48', unlocked: <%= (level || 1) >= 48 ? 'true' : 'false' %> },
             { image: '/img/smithHidingSpot.png', name: 'Smith Hiding Spot', requirement: 'Battle Pass Level 50', unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %> },
-            { image: '/img/disasmithed.png', name: 'Disasmithed', requirement: 'Win 100 Games', unlocked: <%= (wins || 0) >= 100 ? 'true' : 'false' %> }
+            { image: '/img/disasmithed.png', name: 'Disasmithed', requirement: 'Win 100 Games', unlocked: <%= (wins || 0) >= 100 ? 'true' : 'false' %> },
+            { image: '/img/cornConnor.jpg', name: 'Corn Connor', requirement: 'Win 100 Games', unlocked: <%= (wins || 0) >= 100 ? 'true' : 'false' %> }
         ];
         
         function loadPhotoOptions() {

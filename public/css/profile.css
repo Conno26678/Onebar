@@ -342,6 +342,40 @@
   color: var(--accent-color);
 }
 
+/* Currency Cards */
+.currency-card {
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(146, 64, 14, 0.05) 100%);
+  border: 2px solid rgba(217, 119, 6, 0.3);
+}
+
+.currency-card h2::before {
+  background: #fbbf24;
+  box-shadow: 0 0 10px #fbbf24;
+}
+
+.currency-value {
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+
+.currency-link {
+  color: var(--accent-color) !important;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.currency-link:hover {
+  color: var(--primary-color) !important;
+}
+
+.currency-description {
+  font-size: 0.85rem;
+  color: var(--secondary-color);
+  margin-top: 8px;
+  font-style: italic;
+}
+
 /* Sound Control Toggle */
 .sound-control {
   display: flex;

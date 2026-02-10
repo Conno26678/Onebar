@@ -153,6 +153,20 @@ db.run(`ALTER TABLE users ADD COLUMN onecells INTEGER DEFAULT 0`, (err) => {
     }
 });
 
+// Add purchasedThemes column if it doesn't exist (stores JSON array of purchased theme names)
+db.run(`ALTER TABLE users ADD COLUMN purchasedThemes TEXT DEFAULT '[]'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding purchasedThemes column:', err.message);
+    }
+});
+
+// Add distractionsInventory column if it doesn't exist (stores JSON object of distraction counts)
+db.run(`ALTER TABLE users ADD COLUMN distractionsInventory TEXT DEFAULT '{}'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding distractionsInventory column:', err.message);
+    }
+});
+
 // Add claimedBattlePassLevels column to track which levels have been claimed (stores JSON array)
 db.run(`ALTER TABLE users ADD COLUMN claimedBattlePassLevels TEXT DEFAULT '[]'`, (err) => {
     if (err && !err.message.includes('duplicate column name')) {

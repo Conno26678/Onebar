@@ -261,12 +261,53 @@
                     <p class="currency-description">Use Onecells to purchase items in the shop</p>
                 </div>
 
-                <!-- Digipogs Card -->
-                <div class="stat-card currency-card">
-                    <h2>💎 Digipogs</h2>
-                    <div class="stat-value currency-value"><%= digipogs || 0 %></div>
-                    <p class="stat-label">Earned from winning games</p>
-                    <p class="currency-description">Convert Digipogs to Onecells in the shop</p>
+                <!-- Distractions Inventory Card -->
+                <div class="stat-card inventory-card">
+                    <h2>🎯 Distractions Inventory</h2>
+                    <p class="stat-label">Your collection of game distractions</p>
+                    <div class="inventory-grid">
+                        <% 
+                            let inventory = {};
+                            try {
+                                inventory = JSON.parse(distractionsInventory || '{}');
+                            } catch (e) {
+                                inventory = {};
+                            }
+                            const distractionEmojis = {
+                                'Flashbang': '💥',
+                                'Jumpscare': '😱',
+                                'SubwaySurfers': '🚇',
+                                'PeterGriffin': '👨',
+                                'Shake': '📳',
+                                'SixSeven': '🎵',
+                                'Trollface': '😈'
+                            };
+                            const distractionNames = {
+                                'Flashbang': 'Flashbang',
+                                'Jumpscare': 'Jumpscare',
+                                'SubwaySurfers': 'Subway Surfers',
+                                'PeterGriffin': 'Peter Griffin',
+                                'Shake': 'Shake',
+                                'SixSeven': 'Six Seven',
+                                'Trollface': 'Trollface'
+                            };
+                            const hasDistractions = Object.keys(inventory).length > 0;
+                        %>
+                        <% if (hasDistractions) { %>
+                            <% Object.entries(inventory).forEach(([type, count]) => { %>
+                                <div class="inventory-item">
+                                    <span class="inventory-icon"><%= distractionEmojis[type] || '🎮' %></span>
+                                    <span class="inventory-name"><%= distractionNames[type] || type %></span>
+                                    <span class="inventory-count">×<%= count %></span>
+                                </div>
+                            <% }); %>
+                        <% } else { %>
+                            <div class="inventory-empty">
+                                <p>No distractions yet!</p>
+                                <a href="/shop" style="color: var(--primary-color); text-decoration: underline;">Visit the shop to purchase some</a>
+                            </div>
+                        <% } %>
+                    </div>
                 </div>
             </div>
         </div>
@@ -585,13 +626,19 @@
         }
 
         // Theme customization functions
+        const purchasedThemesData = JSON.parse('<%- purchasedThemes %>');
+        
         const availableThemes = [
             { name: 'Default', id: 'default', requirement: 'Starting Theme', requiredLevel: 1, unlocked: true, colors: ['#0d1117', '#161b22'] },
             { name: 'Ocean Breeze', id: 'ocean', requirement: 'Battle Pass Level 18', requiredLevel: 18, unlocked: <%= (level || 1) >= 18 ? 'true' : 'false' %>, colors: ['#3b82f6', '#60a5fa'] },
             { name: 'Forest', id: 'forest', requirement: 'Battle Pass Level 21', requiredLevel: 21, unlocked: <%= (level || 1) >= 21 ? 'true' : 'false' %>, colors: ['#34d399', '#6ee7b7'] },
             { name: 'Pink Paradise', id: 'pink', requirement: 'Battle Pass Level 40', requiredLevel: 40, unlocked: <%= (level || 1) >= 40 ? 'true' : 'false' %>, colors: ['#ec4899', '#f472b6'] },
             { name: 'Winter is Coming', id: 'winter', requirement: 'Battle Pass Level 46', requiredLevel: 46, unlocked: <%= (level || 1) >= 46 ? 'true' : 'false' %>, colors: ['#60a5fa', '#93c5fd'] },
-            { name: 'Smith', id: 'smith', requirement: 'Battle Pass Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %>, colors: ['#8b949e', '#30363d'] }
+            { name: 'Smith', id: 'smith', requirement: 'Battle Pass Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %>, colors: ['#8b949e', '#30363d'] },
+            { name: 'Isaiah', id: 'isaiah', requirement: 'Purchase in Shop (75 Onecells)', isPurchasable: true, unlocked: purchasedThemesData.includes('isaiah'), colors: ['#92400e', '#d97706'] },
+            { name: 'John Showman', id: 'john', requirement: 'Purchase in Shop (50 Onecells)', isPurchasable: true, unlocked: purchasedThemesData.includes('john'), colors: ['#dc2626', '#ef4444'] },
+            { name: 'Robert', id: 'robert', requirement: 'Purchase in Shop (125 Onecells)', isPurchasable: true, unlocked: purchasedThemesData.includes('robert'), colors: ['#a855f7', '#c084fc'] },
+            { name: 'Chickens Memory', id: 'peak', requirement: 'Purchase in Shop (100 Onecells)', isPurchasable: true, unlocked: purchasedThemesData.includes('peak'), colors: ['#f59e0b', '#fbbf24'] }
         ];
 
         function loadThemeOptions() {

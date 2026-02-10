@@ -1003,3 +1003,254 @@ html, body {
     text-overflow: ellipsis;
     max-width: 80px;
 }
+
+/* Distraction Button Styles */
+.distraction-button {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border: 3px solid var(--border-color);
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.distraction-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+}
+
+.distraction-menu {
+    position: fixed;
+    top: 120px;
+    right: 20px;
+    background: var(--card-bg);
+    border: 2px solid rgba(167, 139, 250, 0.5);
+    border-radius: 15px;
+    padding: 10px;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    animation: slideInRight 0.3s ease-out;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.distraction-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 15px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(79, 70, 229, 0.1) 100%);
+    border: 2px solid rgba(167, 139, 250, 0.3);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 180px;
+}
+
+.distraction-menu-item:hover {
+    transform: translateX(-5px);
+    border-color: #a78bfa;
+    box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
+}
+
+.distraction-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.distraction-name {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.distraction-count {
+    font-weight: 700;
+    color: #a78bfa;
+    font-size: 0.95rem;
+    padding: 2px 8px;
+    background: rgba(167, 139, 250, 0.2);
+    border-radius: 6px;
+}
+
+.distraction-menu-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* Distraction Effects Animations */
+.distraction-notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.95), rgba(167, 139, 250, 0.95));
+    color: white;
+    padding: 20px 30px;
+    border-radius: 15px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    box-shadow: 0 8px 30px rgba(124, 58, 237, 0.6);
+    z-index: 9997;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    animation: distractionPulse 3s ease-out forwards;
+}
+
+.distraction-notif-icon {
+    font-size: 2rem;
+}
+
+.distraction-notif-text {
+    font-size: 1.2rem;
+}
+
+@keyframes distractionPulse {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+    10% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+    20% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    80% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+}
+
+@keyframes flashbang {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translate(0, 0);
+    }
+    10% {
+        transform: translate(-10px, -10px);
+    }
+    20% {
+        transform: translate(10px, 10px);
+    }
+    30% {
+        transform: translate(-10px, 10px);
+    }
+    40% {
+        transform: translate(10px, -10px);
+    }
+    50% {
+        transform: translate(-10px, -10px);
+    }
+    60% {
+        transform: translate(10px, 10px);
+    }
+    70% {
+        transform: translate(-10px, 10px);
+    }
+    80% {
+        transform: translate(10px, -10px);
+    }
+    90% {
+        transform: translate(-10px, -10px);
+    }
+}
+
+@keyframes jumpscare {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.5);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInBottom {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    50% {
+        transform: translateX(-50%) translateY(-20px);
+    }
+}
+
+@keyframes trollRotate {
+    from {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    to {
+        transform: translate(-50%, -50%) rotate(720deg);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.1);
+        opacity: 0.9;
+    }
+}

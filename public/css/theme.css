@@ -104,7 +104,154 @@
 
 /* Isaiah theme */
 :root[data-theme="isaiah"] {
-  --background-image: url('../img/isaiahStare.jpeg');
+  --bg-color: #1a1108;
+  --text-color: #fef3d4;
+  --primary-color: #92400e;
+  --secondary-color: #b45309;
+  --accent-color: #d97706;
+  --card-bg: #2d1e0a;
+  --border-color: #78350f;
+  --hover-color: #451a03;
+  --shadow: rgba(146, 64, 14, 0.4);
+  
+  --gradient-primary: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+  --gradient-accent: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  --gradient-bg: linear-gradient(135deg, #1a1108 0%, #2d1e0a 100%);
+  --glow-primary: 0 0 40px rgba(146, 64, 14, 0.6);
+  --glow-accent: 0 0 40px rgba(217, 119, 6, 0.5);
+}
+
+:root[data-theme="isaiah"] body {
+  background-color: #1a1108;
+  background-image: url('../img/Isaiah.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+:root[data-theme="isaiah"] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(26, 17, 8, 0.7);
+  z-index: -1;
+}
+
+/* John Showman theme */
+:root[data-theme="john"] {
+  --bg-color: #1a0505;
+  --text-color: #ffe6e6;
+  --primary-color: #dc2626;
+  --secondary-color: #ef4444;
+  --accent-color: #fca5a5;
+  --card-bg: #2d0a0a;
+  --border-color: #7f1d1d;
+  --hover-color: #450a0a;
+  --shadow: rgba(220, 38, 38, 0.4);
+  
+  --gradient-primary: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  --gradient-accent: linear-gradient(135deg, #fca5a5 0%, #fecaca 100%);
+  --gradient-bg: linear-gradient(135deg, #1a0505 0%, #2d0a0a 100%);
+  --glow-primary: 0 0 40px rgba(220, 38, 38, 0.6);
+  --glow-accent: 0 0 40px rgba(252, 165, 165, 0.5);
+}
+
+:root[data-theme="john"] body {
+  background-color: #1a0505;
+  background-image: url('../img/John.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+:root[data-theme="john"] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(26, 5, 5, 0.7);
+  z-index: -1;
+}
+
+/* Robert theme */
+:root[data-theme="robert"] {
+  --bg-color: #0f0a1a;
+  --text-color: #e8d4f8;
+  --primary-color: #a855f7;
+  --secondary-color: #c084fc;
+  --accent-color: #e9d5ff;
+  --card-bg: #1a0f2e;
+  --border-color: #6b21a8;
+  --hover-color: #2e1a4a;
+  --shadow: rgba(168, 85, 247, 0.4);
+  
+  --gradient-primary: linear-gradient(135deg, #a855f7 0%, #c084fc 100%);
+  --gradient-accent: linear-gradient(135deg, #e9d5ff 0%, #f3e8ff 100%);
+  --gradient-bg: linear-gradient(135deg, #0f0a1a 0%, #1a0f2e 100%);
+  --glow-primary: 0 0 40px rgba(168, 85, 247, 0.6);
+  --glow-accent: 0 0 40px rgba(233, 213, 255, 0.5);
+}
+
+:root[data-theme="robert"] body {
+  background-color: #0f0a1a;
+  background-image: 
+    url('../img/Robert.png'),
+    url('../img/Robert.png'),
+    url('../img/Robert.png');
+  background-size: 300px 300px, 250px 250px, 280px 280px;
+  background-position: 10% 20%, 85% 30%, 50% 75%;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  opacity: 0.95;
+}
+
+/* Chickens Memory (Peak) theme */
+:root[data-theme="peak"] {
+  --bg-color: #1a1410;
+  --text-color: #fef3c7;
+  --primary-color: #f59e0b;
+  --secondary-color: #fbbf24;
+  --accent-color: #fde68a;
+  --card-bg: #2d2415;
+  --border-color: #92400e;
+  --hover-color: #451a03;
+  --shadow: rgba(245, 158, 11, 0.4);
+  
+  --gradient-primary: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  --gradient-accent: linear-gradient(135deg, #fde68a 0%, #fef3c7 100%);
+  --gradient-bg: linear-gradient(135deg, #1a1410 0%, #2d2415 100%);
+  --glow-primary: 0 0 40px rgba(245, 158, 11, 0.6);
+  --glow-accent: 0 0 40px rgba(253, 230, 138, 0.5);
+}
+
+:root[data-theme="peak"] body {
+  background-color: #1a1410;
+  background-image: url('../img/Peak.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+:root[data-theme="peak"] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(26, 20, 16, 0.65);
+  z-index: -1;
 }
 
 /* Smith theme */

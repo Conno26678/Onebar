@@ -33,14 +33,16 @@ function setupRoutes(app) {
   app.get('/game', isAuthenticated, (req, res) => {
     const userId = req.session.token?.id;
     if (userId) {
-      db.get('SELECT selectedEmotes, selectedEffect FROM users WHERE id = ?', [userId], (err, userData) => {
+      db.get('SELECT selectedEmotes, selectedEffect, distractionsInventory FROM users WHERE id = ?', [userId], (err, userData) => {
         const selectedEmotes = userData?.selectedEmotes || '["wave","thumbsup","party","fire"]';
         const selectedEffect = userData?.selectedEffect || 'confetti';
+        const distractionsInventory = userData?.distractionsInventory || '{}';
         res.render('game.ejs', { 
           user: req.session.user, 
           gameId: req.query.gameId || 'default',
           selectedEmotes: selectedEmotes,
-          selectedEffect: selectedEffect
+          selectedEffect: selectedEffect,
+          distractionsInventory: distractionsInventory
         });
       });
     } else {
@@ -48,7 +50,8 @@ function setupRoutes(app) {
         user: req.session.user, 
         gameId: req.query.gameId || 'default',
         selectedEmotes: '["wave","thumbsup","party","fire"]',
-        selectedEffect: 'confetti'
+        selectedEffect: 'confetti',
+        distractionsInventory: '{}'
       });
     }
   });
@@ -78,9 +81,9 @@ function setupRoutes(app) {
     const userId = req.session.token?.id;
     if (userId) {
       try {
-        // Fetch onecells from local DB and digipogs from external API
+        // Fetch onecells and purchasedThemes from local DB
         const userData = await new Promise((resolve, reject) => {
-          db.get('SELECT onecells FROM users WHERE id = ?', [userId], (err, data) => {
+          db.get('SELECT onecells, purchasedThemes FROM users WHERE id = ?', [userId], (err, data) => {
             if (err) reject(err);
             else resolve(data);
           });
@@ -88,18 +91,26 @@ function setupRoutes(app) {
         
         const digipogs = await fetchDigipogsBalance(userId);
         const onecells = userData?.onecells || 0;
+        let purchasedThemes = [];
+        
+        try {
+          purchasedThemes = JSON.parse(userData?.purchasedThemes || '[]');
+        } catch (e) {
+          purchasedThemes = [];
+        }
         
         res.render('shop.ejs', { 
           user: req.session.user, 
           onecells,
-          digipogs
+          digipogs,
+          purchasedThemes
         });
       } catch (err) {
         console.error('Error fetching shop data:', err);
-        res.render('shop.ejs', { user: req.session.user, onecells: 0, digipogs: 0 });
+        res.render('shop.ejs', { user: req.session.user, onecells: 0, digipogs: 0, purchasedThemes: [] });
       }
     } else {
-      res.render('shop.ejs', { user: req.session.user, onecells: 0, digipogs: 0 });
+      res.render('shop.ejs', { user: req.session.user, onecells: 0, digipogs: 0, purchasedThemes: [] });
     }
   });
 
@@ -149,7 +160,7 @@ function setupRoutes(app) {
           }
           
           // Get current user data
-          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, selectedEmotes, selectedEffect, wins, hasBattlePassPremium, onecells FROM users WHERE id = ?', [userId], async (err, userData) => {
+          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, selectedEmotes, selectedEffect, wins, hasBattlePassPremium, onecells, purchasedThemes, distractionsInventory FROM users WHERE id = ?', [userId], async (err, userData) => {
             // Fetch digipogs from external API
             const digipogs = userId ? await fetchDigipogsBalance(userId) : 0;
             
@@ -173,13 +184,29 @@ function setupRoutes(app) {
                 wins: 0,
                 hasBattlePassPremium: false,
                 onecells: 0,
-                digipogs: 0
+                digipogs: 0,
+                purchasedThemes: '[]',
+                distractionsInventory: '{}'
               });
             } else {
               const currentXP = userData?.xp || 0;
               const currentLevel = userData?.level || 1;
               const xpForNextLevel = db.calculateXPForLevel(currentLevel + 1);
               const currentPfp = userData?.profilePicture || defaultPicture;
+              
+              let purchasedThemes = [];
+              try {
+                purchasedThemes = JSON.parse(userData?.purchasedThemes || '[]');
+              } catch (e) {
+                purchasedThemes = [];
+              }
+              
+              let distractionsInventory = {};
+              try {
+                distractionsInventory = JSON.parse(userData?.distractionsInventory || '{}');
+              } catch (e) {
+                distractionsInventory = {};
+              }
               
               // Auto-assign king picture when reaching #1, but don't force removal when losing it
               // Users can manually change their picture regardless of leaderboard position
@@ -210,7 +237,9 @@ function setupRoutes(app) {
                 wins: userData?.wins || 0,
                 hasBattlePassPremium: userData?.hasBattlePassPremium || false,
                 onecells: userData?.onecells || 0,
-                digipogs: userData?.digipogs || 0
+                digipogs: userData?.digipogs || 0,
+                purchasedThemes: JSON.stringify(purchasedThemes),
+                distractionsInventory: JSON.stringify(distractionsInventory)
               });
             }
           });
@@ -235,7 +264,9 @@ function setupRoutes(app) {
         wins: 0,
         hasBattlePassPremium: false,
         onecells: 0,
-        digipogs: 0
+        digipogs: 0,
+        purchasedThemes: '[]',
+        distractionsInventory: '{}'
       });
     }
   });
@@ -371,11 +402,13 @@ function setupRoutes(app) {
 
       // Check if the transfer was successful
       if (transferResult.ok && responseJson) {
+        console.log('Transfer successful, response:', JSON.stringify(responseJson).substring(0, 200));
+        
         // Add onecells to user's local account
         db.get('SELECT onecells FROM users WHERE id = ?', [userId], (err, userData) => {
           if (err) {
             console.error('Error fetching user onecells:', err);
-            return res.json({ success: false, message: 'Database error' });
+            return res.status(200).json({ success: false, message: 'Database error' });
           }
 
           const currentOnecells = userData?.onecells || 0;
@@ -384,26 +417,38 @@ function setupRoutes(app) {
           db.run(
             'UPDATE users SET onecells = ? WHERE id = ?', 
             [newOnecells, userId], 
-            async (updateErr) => {
+            (updateErr) => {
               if (updateErr) {
                 console.error('Error updating onecells:', updateErr);
-                return res.json({ success: false, message: 'Failed to add onecells' });
+                return res.status(200).json({ success: false, message: 'Failed to add onecells' });
               }
 
               // Fetch updated digipogs balance from external API
-              const newDigipogs = await fetchDigipogsBalance(userId);
-
-              console.log(`User ${userId} bought ${amount} Onecells for ${cost} Digipogs`);
-              res.json({ 
-                success: true, 
-                message: `Successfully purchased ${amount} Onecells!`,
-                newOnecells,
-                newDigipogs
+              fetchDigipogsBalance(userId).then(newDigipogs => {
+                console.log(`User ${userId} bought ${amount} Onecells for ${cost} Digipogs - Success!`);
+                res.status(200).json({ 
+                  success: true, 
+                  message: `Successfully purchased ${amount} Onecells!`,
+                  newOnecells,
+                  newDigipogs
+                });
+              }).catch(balanceError => {
+                console.error('Error fetching updated balance:', balanceError);
+                // Still return success since the purchase went through
+                console.log(`User ${userId} bought ${amount} Onecells for ${cost} Digipogs - Success (balance fetch failed)`);
+                res.status(200).json({ 
+                  success: true, 
+                  message: `Successfully purchased ${amount} Onecells!`,
+                  newOnecells,
+                  newDigipogs: 0 // Fallback value
+                });
               });
             }
           );
         });
       } else {
+        console.log('Transfer failed. Status:', transferResult.status, 'Response:', JSON.stringify(responseJson).substring(0, 200));
+        
         // Extract error message
         let errorMessage = 'Purchase failed';
         
@@ -411,6 +456,7 @@ function setupRoutes(app) {
           try {
             const jwt = require('jsonwebtoken');
             const decoded = jwt.decode(responseJson.token);
+            console.log('Decoded token:', decoded);
             if (decoded && decoded.message) {
               errorMessage = decoded.message;
             }
@@ -434,6 +480,218 @@ function setupRoutes(app) {
       console.error('Error processing onecells purchase:', err);
       return res.json({ success: false, message: 'Purchase failed: Network error' });
     }
+  });
+
+  // API endpoint to purchase themes with onecells
+  app.post('/api/purchase-theme', isAuthenticated, (req, res) => {
+    const userId = req.session.token?.id;
+    const { themeId } = req.body;
+
+    if (!userId) {
+      return res.status(200).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Define theme prices and names
+    const themes = {
+      'isaiah': { name: 'Isaiah Theme', price: 75, themeValue: 'isaiah' },
+      'john': { name: 'John Showman Theme', price: 50, themeValue: 'john' },
+      'robert': { name: 'Robert Theme', price: 125, themeValue: 'robert' },
+      'peak': { name: 'Chickens Memory Theme', price: 100, themeValue: 'peak' }
+    };
+
+    const theme = themes[themeId];
+    if (!theme) {
+      return res.status(200).json({ success: false, message: 'Invalid theme' });
+    }
+
+    // Get user's current onecells and purchased themes
+    db.get('SELECT onecells, purchasedThemes FROM users WHERE id = ?', [userId], (err, userData) => {
+      if (err) {
+        console.error('Error fetching user data:', err);
+        return res.status(200).json({ success: false, message: 'Database error' });
+      }
+
+      const currentOnecells = userData?.onecells || 0;
+      let purchasedThemes = [];
+      
+      try {
+        purchasedThemes = JSON.parse(userData?.purchasedThemes || '[]');
+      } catch (e) {
+        purchasedThemes = [];
+      }
+
+      // Check if user already owns this theme
+      if (purchasedThemes.includes(theme.themeValue)) {
+        return res.status(200).json({ success: false, message: 'You already own this theme!' });
+      }
+
+      // Check if user has enough onecells
+      if (currentOnecells < theme.price) {
+        return res.status(200).json({ 
+          success: false, 
+          message: `Not enough Onecells! You need ${theme.price} Onecells (you have ${currentOnecells})` 
+        });
+      }
+
+      // Deduct onecells and add theme to purchased list
+      const newOnecells = currentOnecells - theme.price;
+      purchasedThemes.push(theme.themeValue);
+      const updatedThemes = JSON.stringify(purchasedThemes);
+
+      db.run(
+        'UPDATE users SET onecells = ?, purchasedThemes = ?, selectedTheme = ? WHERE id = ?',
+        [newOnecells, updatedThemes, theme.themeValue, userId],
+        (updateErr) => {
+          if (updateErr) {
+            console.error('Error purchasing theme:', updateErr);
+            return res.status(200).json({ success: false, message: 'Failed to purchase theme' });
+          }
+
+          console.log(`User ${userId} purchased ${theme.name} for ${theme.price} Onecells`);
+          return res.status(200).json({
+            success: true,
+            message: `Successfully purchased ${theme.name}! It has been equipped.`,
+            newOnecells,
+            theme: theme.themeValue
+          });
+        }
+      );
+    });
+  });
+
+  // API endpoint to purchase free games in bulk
+  app.post('/api/purchase-free-games', isAuthenticated, (req, res) => {
+    const userId = req.session.token?.id;
+    const { quantity, price } = req.body;
+
+    if (!userId) {
+      return res.status(200).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Validate quantity and price
+    const validPurchases = {
+      5: 200,
+      10: 400,
+      15: 550,
+      20: 700
+    };
+
+    if (!validPurchases[quantity] || validPurchases[quantity] !== price) {
+      return res.status(200).json({ success: false, message: 'Invalid purchase option' });
+    }
+
+    // Get user's current onecells and freeGameTokens
+    db.get('SELECT onecells, freeGameTokens FROM users WHERE id = ?', [userId], (err, userData) => {
+      if (err) {
+        console.error('Error fetching user data:', err);
+        return res.status(200).json({ success: false, message: 'Database error' });
+      }
+
+      const currentOnecells = userData?.onecells || 0;
+      const currentTokens = userData?.freeGameTokens || 0;
+
+      // Check if user has enough onecells
+      if (currentOnecells < price) {
+        return res.status(200).json({ 
+          success: false, 
+          message: `Not enough Onecells! You need ${price} but only have ${currentOnecells}` 
+        });
+      }
+
+      // Deduct onecells and add free game tokens
+      const newOnecells = currentOnecells - price;
+      const newTokens = currentTokens + quantity;
+
+      db.run(
+        'UPDATE users SET onecells = ?, freeGameTokens = ? WHERE id = ?',
+        [newOnecells, newTokens, userId],
+        (updateErr) => {
+          if (updateErr) {
+            console.error('Error purchasing free games:', updateErr);
+            return res.status(200).json({ success: false, message: 'Failed to complete purchase' });
+          }
+
+          console.log(`User ${userId} purchased ${quantity} free game tokens for ${price} Onecells. New balance: ${newTokens} tokens`);
+          return res.status(200).json({
+            success: true,
+            message: `Successfully purchased ${quantity} Free Game Tokens!`,
+            newOnecells,
+            newTokens
+          });
+        }
+      );
+    });
+  });
+
+  // API endpoint to purchase distractions
+  app.post('/api/purchase-distraction', isAuthenticated, (req, res) => {
+    const userId = req.session.token?.id;
+    const { type, quantity, totalPrice } = req.body;
+
+    if (!userId) {
+      return res.status(200).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Validate distraction type
+    const validTypes = ['Flashbang', 'Jumpscare', 'SubwaySurfers', 'PeterGriffin', 'Shake', 'SixSeven', 'Trollface'];
+    if (!validTypes.includes(type)) {
+      return res.status(200).json({ success: false, message: 'Invalid distraction type' });
+    }
+
+    // Validate quantity and price (10 Onecells per distraction)
+    const pricePerUnit = 10;
+    const expectedPrice = quantity * pricePerUnit;
+    
+    if (quantity < 1 || quantity > 50 || totalPrice !== expectedPrice) {
+      return res.status(200).json({ success: false, message: 'Invalid purchase details' });
+    }
+
+    // Get user's current onecells and distractions inventory
+    db.get('SELECT onecells, distractionsInventory FROM users WHERE id = ?', [userId], (err, userData) => {
+      if (err) {
+        console.error('Error fetching user data:', err);
+        return res.status(200).json({ success: false, message: 'Database error' });
+      }
+
+      const currentOnecells = userData?.onecells || 0;
+      let inventory = {};
+      try {
+        inventory = JSON.parse(userData?.distractionsInventory || '{}');
+      } catch (e) {
+        inventory = {};
+      }
+
+      // Check if user has enough onecells
+      if (currentOnecells < totalPrice) {
+        return res.status(200).json({ 
+          success: false, 
+          message: `Not enough Onecells! You need ${totalPrice} but only have ${currentOnecells}` 
+        });
+      }
+
+      // Deduct onecells and add to inventory
+      const newOnecells = currentOnecells - totalPrice;
+      inventory[type] = (inventory[type] || 0) + quantity;
+      const updatedInventory = JSON.stringify(inventory);
+
+      db.run(
+        'UPDATE users SET onecells = ?, distractionsInventory = ? WHERE id = ?',
+        [newOnecells, updatedInventory, userId],
+        (updateErr) => {
+          if (updateErr) {
+            console.error('Error purchasing distraction:', updateErr);
+            return res.status(200).json({ success: false, message: 'Failed to complete purchase' });
+          }
+
+          console.log(`User ${userId} purchased ${quantity} ${type} distraction(s) for ${totalPrice} Onecells`);
+          return res.status(200).json({
+            success: true,
+            message: `Successfully purchased ${quantity} ${type} Distraction(s)!`,
+            newOnecells
+          });
+        }
+      );
+    });
   });
 
   // API endpoint to update profile picture
@@ -644,15 +902,22 @@ function setupRoutes(app) {
     }
 
     // Get user data to check unlock requirements
-    db.get('SELECT level FROM users WHERE id = ?', [userId], (err, userData) => {
+    db.get('SELECT level, purchasedThemes FROM users WHERE id = ?', [userId], (err, userData) => {
       if (err) {
         console.error('Error fetching user data:', err);
         return res.json({ success: false, message: 'Database error' });
       }
 
       const userLevel = userData?.level || 1;
+      let purchasedThemes = [];
       
-      // Define theme requirements
+      try {
+        purchasedThemes = JSON.parse(userData?.purchasedThemes || '[]');
+      } catch (e) {
+        purchasedThemes = [];
+      }
+      
+      // Define theme requirements for Battle Pass themes
       const themeRequirements = {
         'default': 1,
         'ocean': 18,
@@ -662,12 +927,24 @@ function setupRoutes(app) {
         'smith': 50
       };
 
-      if (!themeRequirements.hasOwnProperty(theme)) {
-        return res.json({ success: false, message: 'Invalid theme' });
-      }
+      // Define purchasable themes
+      const purchasableThemes = ['isaiah', 'john', 'robert', 'peak'];
 
-      if (userLevel < themeRequirements[theme]) {
-        return res.json({ success: false, message: 'You have not unlocked this theme yet' });
+      // Check if it's a Battle Pass theme
+      if (themeRequirements.hasOwnProperty(theme)) {
+        if (userLevel < themeRequirements[theme]) {
+          return res.json({ success: false, message: 'You have not unlocked this theme yet' });
+        }
+      } 
+      // Check if it's a purchasable theme
+      else if (purchasableThemes.includes(theme)) {
+        if (!purchasedThemes.includes(theme)) {
+          return res.json({ success: false, message: 'You have not purchased this theme yet. Visit the shop!' });
+        }
+      }
+      // Unknown theme
+      else {
+        return res.json({ success: false, message: 'Invalid theme' });
       }
 
       // Update theme in database

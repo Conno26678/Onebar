@@ -1310,6 +1310,56 @@ function setupSocketHandlers(io) {
         emojiImage
       });
     });
+    
+    // Handle distraction usage
+    socket.on('useDistraction', ({ gameId, playerName, distractionType, distractionIcon, distractionName }) => {
+      console.log(`Distraction used by ${playerName} in game ${gameId}: ${distractionType}`);
+      
+      // Update the user's inventory in the database
+      const db = require('../util/database');
+      const userId = socket.handshake.session?.token?.id;
+      
+      if (userId) {
+        db.get('SELECT distractionsInventory FROM users WHERE id = ?', [userId], (err, userData) => {
+          if (err) {
+            console.error('Error fetching distractions:', err);
+            return;
+          }
+          
+          let inventory = {};
+          try {
+            inventory = JSON.parse(userData?.distractionsInventory || '{}');
+          } catch (e) {
+            inventory = {};
+          }
+          
+          // Reduce count
+          if (inventory[distractionType] && inventory[distractionType] > 0) {
+            inventory[distractionType]--;
+            if (inventory[distractionType] <= 0) {
+              delete inventory[distractionType];
+            }
+            
+            // Update database
+            db.run('UPDATE users SET distractionsInventory = ? WHERE id = ?', [JSON.stringify(inventory), userId], (updateErr) => {
+              if (updateErr) {
+                console.error('Error updating distractions inventory:', updateErr);
+              } else {
+                console.log(`Updated ${playerName}'s inventory: ${distractionType} used`);
+              }
+            });
+          }
+        });
+      }
+      
+      // Broadcast to all players in the game INCLUDING the sender
+      io.to(gameId).emit('distractionReceived', {
+        playerName,
+        distractionType,
+        distractionIcon,
+        distractionName
+      });
+    });
   });
 }
 

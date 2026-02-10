@@ -511,6 +511,14 @@
   <!-- Emoji Reactions Display Area -->
   <div class="emoji-reactions-area" id="emojiReactionsArea"></div>
   
+  <!-- Distraction Button (upper-right) -->
+  <button class="distraction-button" id="distractionBtn" onclick="toggleDistractionMenu()">🎯</button>
+  
+  <!-- Distraction Selection Menu -->
+  <div class="distraction-menu" id="distractionMenu" style="display: none;">
+    <!-- Distraction items will be dynamically populated -->
+  </div>
+  
   <!-- Confetti Container -->
   <div class="confetti-container" id="confettiContainer"></div>
 
@@ -1032,6 +1040,26 @@
 
     const playerName = <%- JSON.stringify(user || 'Anonymous') %>;
     
+    // Initialize user's distractions inventory
+    let distractionsInventory = {};
+    try {
+      const distractionsData = '<%- typeof distractionsInventory !== "undefined" ? distractionsInventory : "{}" %>';
+      distractionsInventory = JSON.parse(distractionsData);
+    } catch (e) {
+      console.error('Error parsing distractions:', e);
+      distractionsInventory = {};
+    }
+    
+    const availableDistractions = [
+      { id: 'Flashbang', icon: '💥', name: 'Flashbang' },
+      { id: 'Jumpscare', icon: '😱', name: 'Jumpscare' },
+      { id: 'SubwaySurfers', icon: '🚇', name: 'Subway Surfers' },
+      { id: 'PeterGriffin', icon: '👨', name: 'Peter Griffin' },
+      { id: 'Shake', icon: '📳', name: 'Shake' },
+      { id: 'SixSeven', icon: '🎵', name: 'Six Seven' },
+      { id: 'Trollface', icon: '😈', name: 'Trollface' }
+    ];
+    
     // Initialize user's selected emojis
     const availableEmojis = [
       { id: 'wave', icon: '👋' },
@@ -1096,12 +1124,85 @@
       }
     }
     
-    // Close emoji menu when clicking outside
-    document.addEventListener('click', (e) => {
-      const menu = document.getElementById('emojiMenu');
-      const btn = document.getElementById('emojiReactionBtn');
-      if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+    // Initialize distraction menu items
+    function initDistractionMenu() {
+      const menu = document.getElementById('distractionMenu');
+      menu.innerHTML = ''; // Clear existing items
+      
+      const hasDistractions = Object.keys(distractionsInventory).length > 0;
+      
+      if (!hasDistractions) {
+        menu.innerHTML = '<div class="distraction-menu-empty">No distractions available!<br>Purchase some in the shop</div>';
+        return;
+      }
+      
+      // Add each distraction type with count
+      Object.entries(distractionsInventory).forEach(([type, count]) => {
+        if (count > 0) {
+          const distraction = availableDistractions.find(d => d.id === type);
+          if (distraction) {
+            const item = document.createElement('div');
+            item.className = 'distraction-menu-item';
+            item.innerHTML = `
+              <span class="distraction-icon">${distraction.icon}</span>
+              <span class="distraction-name">${distraction.name}</span>
+              <span class="distraction-count">×${count}</span>
+            `;
+            item.onclick = () => useDistraction(type, distraction.icon, distraction.name);
+            menu.appendChild(item);
+          }
+        }
+      });
+    }
+    
+    // Toggle distraction menu visibility
+    function toggleDistractionMenu() {
+      const menu = document.getElementById('distractionMenu');
+      if (menu.style.display === 'none') {
+        initDistractionMenu(); // Refresh menu each time it opens
+        menu.style.display = 'flex';
+      } else {
         menu.style.display = 'none';
+      }
+    }
+    
+    // Use a distraction
+    function useDistraction(type, icon, name) {
+      if (!distractionsInventory[type] || distractionsInventory[type] <= 0) {
+        alert('You have no ' + name + ' distractions left!');
+        return;
+      }
+      
+      // Send distraction to server and other players
+      socket.emit('useDistraction', {
+        gameId,
+        playerName,
+        distractionType: type,
+        distractionIcon: icon,
+        distractionName: name
+      });
+      
+      // Optimistically update local count
+      distractionsInventory[type]--;
+      if (distractionsInventory[type] <= 0) {
+        delete distractionsInventory[type];
+      }
+      
+      toggleDistractionMenu();
+    }
+    
+    // Close menus when clicking outside
+    document.addEventListener('click', (e) => {
+      const emojiMenu = document.getElementById('emojiMenu');
+      const emojiBtn = document.getElementById('emojiReactionBtn');
+      if (emojiMenu && emojiBtn && !emojiMenu.contains(e.target) && !emojiBtn.contains(e.target)) {
+        emojiMenu.style.display = 'none';
+      }
+      
+      const distractionMenu = document.getElementById('distractionMenu');
+      const distractionBtn = document.getElementById('distractionBtn');
+      if (distractionMenu && distractionBtn && !distractionMenu.contains(e.target) && !distractionBtn.contains(e.target)) {
+        distractionMenu.style.display = 'none';
       }
     });
     
@@ -1153,6 +1254,184 @@
       displayEmojiReaction(playerName, emojiIcon, emojiImage);
       playSoundIfEnabled(getSoundPath('cardPlace'), 0.3);
     });
+    
+    // Listen for distractions from other players
+    socket.on('distractionReceived', ({ playerName, distractionType, distractionIcon, distractionName }) => {
+      console.log(`Received distraction from ${playerName}: ${distractionType}`);
+      applyDistractionEffect(distractionType, distractionIcon, distractionName, playerName);
+    });
+    
+    // Apply distraction visual effects
+    function applyDistractionEffect(type, icon, name, fromPlayer) {
+      // Show notification
+      const notification = document.createElement('div');
+      notification.className = 'distraction-notification';
+      notification.innerHTML = `
+        <span class="distraction-notif-icon">${icon}</span>
+        <span class="distraction-notif-text">${fromPlayer} used ${name}!</span>
+      `;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.remove();
+      }, 3000);
+      
+      // Apply specific effects based on distraction type
+      switch(type) {
+        case 'Flashbang':
+          applyFlashbangEffect();
+          break;
+        case 'Shake':
+          applyShakeEffect();
+          break;
+        case 'Jumpscare':
+          applyJumpscareEffect();
+          break;
+        case 'SubwaySurfers':
+          applySubwaySurfersEffect();
+          break;
+        case 'PeterGriffin':
+          applyPeterGriffinEffect();
+          break;
+        case 'SixSeven':
+          applySixSevenEffect();
+          break;
+        case 'Trollface':
+          applyTrollfaceEffect();
+          break;
+      }
+    }
+    
+    function applyFlashbangEffect() {
+      // Play the sound directly
+      playSoundIfEnabled('/sfx/thinkfastchucklenuts.mp3', 0.7);
+      
+      const flash = document.createElement('div');
+      flash.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: white;
+        z-index: 9999;
+        animation: flashbang 7s ease-out forwards;
+      `;
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 7000);
+    }
+    
+    function applyShakeEffect() {
+      document.body.style.animation = 'shake 0.5s ease-in-out';
+      document.body.style.animationIterationCount = 'infinite';
+      setTimeout(() => {
+        document.body.style.animation = '';
+        document.body.style.animationIterationCount = '';
+      }, 10000);
+    }
+    
+    function applyJumpscareEffect() {
+      const jumpscare = document.createElement('div');
+      jumpscare.innerHTML = '😱';
+      jumpscare.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        font-size: 15rem;
+        z-index: 9999;
+        animation: jumpscare 1s ease-out forwards;
+      `;
+      document.body.appendChild(jumpscare);
+      playSoundIfEnabled(getSoundPath('cardPlace'), 1);
+      setTimeout(() => jumpscare.remove(), 1000);
+    }
+    
+    function applySubwaySurfersEffect() {
+      const video = document.createElement('div');
+      video.innerHTML = '🚇 SUBWAY SURFERS 🛹';
+      video.style.cssText = `
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        width: 300px;
+        padding: 20px;
+        background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+        color: white;
+        font-size: 1.2rem;
+        font-weight: bold;
+        text-align: center;
+        z-index: 9998;
+        animation: slideInBottom 0.5s ease-out;
+        border-radius: 15px 0 0 0;
+      `;
+      document.body.appendChild(video);
+      setTimeout(() => video.remove(), 5000);
+    }
+    
+    function applyPeterGriffinEffect() {
+      const peter = document.createElement('div');
+      peter.innerHTML = '🤣 HEHEHEHE';
+      peter.style.cssText = `
+        position: fixed;
+        bottom: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 3rem;
+        z-index: 9998;
+        animation: bounce 1s ease-in-out infinite;
+      `;
+      document.body.appendChild(peter);
+      setTimeout(() => peter.remove(), 4000);
+    }
+    
+    function applySixSevenEffect() {
+      // Apply shake animation
+      document.body.style.animation = 'shake 0.5s ease-in-out';
+      document.body.style.animationIterationCount = 'infinite';
+      
+      // Add SIX SEVEN text overlay
+      const sixSeven = document.createElement('div');
+      sixSeven.innerHTML = 'SIX SEVEN';
+      sixSeven.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 8rem;
+        font-weight: 900;
+        color: white;
+        text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000, 4px 4px 8px rgba(0,0,0,0.8);
+        z-index: 9998;
+        animation: pulse 1s ease-in-out infinite;
+        letter-spacing: 0.2em;
+      `;
+      document.body.appendChild(sixSeven);
+      
+      setTimeout(() => {
+        document.body.style.animation = '';
+        document.body.style.animationIterationCount = '';
+        sixSeven.remove();
+      }, 10000);
+    }
+    
+    function applyTrollfaceEffect() {
+      // Play trollface sound
+      playSoundIfEnabled('/sfx/trollface.mp3', 0.7);
+      
+      const troll = document.createElement('div');
+      troll.innerHTML = '<img src="/img/trollface.png" alt="Trollface" style="width: 600px; height: 600px;">';
+      troll.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(0deg);
+        z-index: 9999;
+        animation: trollRotate 10s linear forwards;
+      `;
+      document.body.appendChild(troll);
+      setTimeout(() => troll.remove(), 10000);
+    }
     
     // Initialize emoji menu on page load
     setTimeout(initEmojiMenu, 100);

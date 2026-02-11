@@ -114,7 +114,7 @@
                             <div class="feature">Once you use a distraction it will be consumed</div>
                         </div>
                         <div class="item-price">
-                            <span class="price-amount">10 Onecells</span>
+                            <span class="price-amount">5 Onecells</span>
                             <span class="price-period">/per</span>
                         </div>
                         <button class="buy-button" onclick="purchaseItem('distraction')">
@@ -372,7 +372,7 @@
         function buyDistraction() {
             const distractionType = document.getElementById('distractionType').value;
             const quantity = parseInt(document.getElementById('distractionQuantity').value) || 1;
-            const pricePerDistraction = 10;
+            const pricePerDistraction = 5;
             const totalPrice = quantity * pricePerDistraction;
             const currentOnecells = parseInt(document.getElementById('onecellsDisplay').textContent) || 0;
             
@@ -643,7 +643,7 @@
                     </select>
                 </div>
                 <div class="row">
-                    <label class="small">Quantity (10 Onecells each)</label>
+                    <label class="small">Quantity (5 Onecells each)</label>
                     <input id="distractionQuantity" type="number" min="1" max="50" value="1" style="width: 100%; padding: 10px; font-size: 18px; border: 2px solid var(--shop-border); border-radius: 8px; background: rgba(254, 243, 199, 0.1); color: var(--shop-parchment);" />
                 </div>
                 <div class="actions">

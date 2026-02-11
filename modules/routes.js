@@ -638,8 +638,8 @@ function setupRoutes(app) {
       return res.status(200).json({ success: false, message: 'Invalid distraction type' });
     }
 
-    // Validate quantity and price (10 Onecells per distraction)
-    const pricePerUnit = 10;
+    // Validate quantity and price (5 Onecells per distraction)
+    const pricePerUnit = 5;
     const expectedPrice = quantity * pricePerUnit;
     
     if (quantity < 1 || quantity > 50 || totalPrice !== expectedPrice) {

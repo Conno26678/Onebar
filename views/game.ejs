@@ -1331,61 +1331,83 @@
     }
     
     function applyJumpscareEffect() {
-      const jumpscare = document.createElement('div');
-      jumpscare.innerHTML = '😱';
-      jumpscare.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) scale(0);
-        font-size: 15rem;
-        z-index: 9999;
-        animation: jumpscare 1s ease-out forwards;
-      `;
-      document.body.appendChild(jumpscare);
-      playSoundIfEnabled(getSoundPath('cardPlace'), 1);
-      setTimeout(() => jumpscare.remove(), 1000);
+      playSoundIfEnabled('/sfx/foxyscream.mp3', 1);
+      
+      setTimeout(() => {
+        const jumpscare = document.createElement('img');
+        jumpscare.src = '/img/foxyJumpscare.png';
+        jumpscare.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%) scale(0);
+          width: 800px;
+          height: auto;
+          z-index: 9999;
+          animation: jumpscare 0.8s ease-out forwards;
+        `;
+        document.body.appendChild(jumpscare);
+        setTimeout(() => jumpscare.remove(), 2000);
+      }, 200);
     }
     
     function applySubwaySurfersEffect() {
-      const video = document.createElement('div');
-      video.innerHTML = '🚇 SUBWAY SURFERS 🛹';
-      video.style.cssText = `
+      const container = document.createElement('div');
+      container.style.cssText = `
         position: fixed;
         bottom: 0;
-        right: 0;
-        width: 300px;
-        padding: 20px;
-        background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
-        color: white;
-        font-size: 1.2rem;
-        font-weight: bold;
-        text-align: center;
+        left: 0;
+        width: 100%;
+        height: 300px;
         z-index: 9998;
         animation: slideInBottom 0.5s ease-out;
-        border-radius: 15px 0 0 0;
+        border-top: 1px solid rgba(0, 0, 0, 0.8);
+        overflow: hidden;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
       `;
-      document.body.appendChild(video);
-      setTimeout(() => video.remove(), 5000);
+      
+      const iframe = document.createElement('iframe');
+      iframe.src = 'https://www.youtube.com/embed/i0M4ARe9v0Y?autoplay=1&mute=0&controls=0&loop=1&playlist=i0M4ARe9v0Y&start=0';
+      iframe.style.cssText = `
+        width: 100%;
+        height: 100%;
+        border: none;
+        object-fit: cover;
+      `;
+      iframe.allow = 'autoplay';
+      
+      container.appendChild(iframe);
+      document.body.appendChild(container);
+      setTimeout(() => container.remove(), 30000);
     }
     
     function applyPeterGriffinEffect() {
+      // Play bird is the word sound first
+      playSoundIfEnabled('/sfx/birdistheword.mp3', 0.7);
+      
+      // Play peter laugh after 3 seconds
+      setTimeout(() => {
+        playSoundIfEnabled('/sfx/peterlaugh.mp3', 0.7);
+      }, 3000);
+      
       const peter = document.createElement('div');
-      peter.innerHTML = '🤣 HEHEHEHE';
+      peter.innerHTML = '<img src="/img/peter.png" alt="Peter Griffin" style="width: 550px; height: auto;">';
       peter.style.cssText = `
         position: fixed;
-        bottom: 50px;
+        bottom: -600px;
         left: 50%;
         transform: translateX(-50%);
-        font-size: 3rem;
         z-index: 9998;
-        animation: bounce 1s ease-in-out infinite;
+        animation: peterSlideUp 1s ease-out forwards, peterFlip 2s ease-in-out 1s infinite;
       `;
       document.body.appendChild(peter);
-      setTimeout(() => peter.remove(), 4000);
+      setTimeout(() => peter.remove(), 13000);
     }
     
     function applySixSevenEffect() {
+      // Play 67 sound
+      playSoundIfEnabled('/sfx/67.mp3', 0.7);
+      
       // Apply shake animation
       document.body.style.animation = 'shake 0.5s ease-in-out';
       document.body.style.animationIterationCount = 'infinite';
@@ -1403,7 +1425,7 @@
         color: white;
         text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000, 4px 4px 8px rgba(0,0,0,0.8);
         z-index: 9998;
-        animation: pulse 1s ease-in-out infinite;
+        animation: pulseAndBounce 1s ease-in-out infinite;
         letter-spacing: 0.2em;
       `;
       document.body.appendChild(sixSeven);
@@ -1412,7 +1434,7 @@
         document.body.style.animation = '';
         document.body.style.animationIterationCount = '';
         sixSeven.remove();
-      }, 10000);
+      }, 15000);
     }
     
     function applyTrollfaceEffect() {
@@ -1959,7 +1981,9 @@
           playSoundIfEnabled(getSoundPath('skip'), 0.4);
         } else if (card.value === 'Reverse') {
           playSoundIfEnabled(getSoundPath('reverse'), 0.4);
-        } else if (card.value === 'Draw Two' || card.value === 'Wild Draw Four' || card.id?.includes('DrawTwo') || card.id?.includes('WildDrawFour')) {
+        } else if (card.value === 'Wild Draw Four' || card.id?.includes('WildDrawFour')) {
+          playSoundIfEnabled(getSoundPath('plus4'), 0.4);
+        } else if (card.value === 'Draw Two' || card.id?.includes('DrawTwo')) {
           playSoundIfEnabled(getSoundPath('plus2'), 0.4);
         }
     });

@@ -160,7 +160,7 @@ function setupRoutes(app) {
           }
           
           // Get current user data
-          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, selectedEmotes, selectedEffect, wins, hasBattlePassPremium, onecells, purchasedThemes, distractionsInventory FROM users WHERE id = ?', [userId], async (err, userData) => {
+          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, selectedEmotes, selectedEffect, wins, hasBattlePassPremium, onecells, purchasedThemes, distractionsInventory, mysteryBoxInventory, customSounds FROM users WHERE id = ?', [userId], async (err, userData) => {
             // Fetch digipogs from external API
             const digipogs = userId ? await fetchDigipogsBalance(userId) : 0;
             
@@ -186,7 +186,9 @@ function setupRoutes(app) {
                 onecells: 0,
                 digipogs: 0,
                 purchasedThemes: '[]',
-                distractionsInventory: '{}'
+                distractionsInventory: '{}',
+                mysteryBoxInventory: '{}',
+                customSounds: '{}'
               });
             } else {
               const currentXP = userData?.xp || 0;
@@ -206,6 +208,13 @@ function setupRoutes(app) {
                 distractionsInventory = JSON.parse(userData?.distractionsInventory || '{}');
               } catch (e) {
                 distractionsInventory = {};
+              }
+              
+              let mysteryBoxInventory = {};
+              try {
+                mysteryBoxInventory = JSON.parse(userData?.mysteryBoxInventory || '{}');
+              } catch (e) {
+                mysteryBoxInventory = {};
               }
               
               // Auto-assign king picture when reaching #1, but don't force removal when losing it
@@ -239,7 +248,9 @@ function setupRoutes(app) {
                 onecells: userData?.onecells || 0,
                 digipogs: userData?.digipogs || 0,
                 purchasedThemes: JSON.stringify(purchasedThemes),
-                distractionsInventory: JSON.stringify(distractionsInventory)
+                distractionsInventory: JSON.stringify(distractionsInventory),
+                mysteryBoxInventory: JSON.stringify(mysteryBoxInventory),
+                customSounds: userData?.customSounds || '{}'
               });
             }
           });
@@ -266,7 +277,9 @@ function setupRoutes(app) {
         onecells: 0,
         digipogs: 0,
         purchasedThemes: '[]',
-        distractionsInventory: '{}'
+        distractionsInventory: '{}',
+        mysteryBoxInventory: '{}',
+        customSounds: '{}'
       });
     }
   });
@@ -306,14 +319,20 @@ function setupRoutes(app) {
   });
 
   // API endpoint to purchase battle pass premium
-  app.post('/api/purchase-premium', isAuthenticated, (req, res) => {
+  app.post('/api/purchase-premium', isAuthenticated, async (req, res) => {
     const userId = req.session.token?.id;
+    const { pin } = req.body;
+
     if (!userId) {
       return res.json({ success: false, message: 'User not authenticated' });
     }
 
+    if (!pin) {
+      return res.json({ success: false, message: 'PIN is required' });
+    }
+
     // Check if user already has premium
-    db.get('SELECT hasBattlePassPremium FROM users WHERE id = ?', [userId], (err, user) => {
+    db.get('SELECT hasBattlePassPremium FROM users WHERE id = ?', [userId], async (err, user) => {
       if (err) {
         console.error('Error checking premium status:', err);
         return res.json({ success: false, message: 'Database error' });
@@ -323,20 +342,87 @@ function setupRoutes(app) {
         return res.json({ success: false, message: 'You already own the Premium Pass!' });
       }
 
-      // In a real implementation, you would:
-      // 1. Check if user has enough currency/digipogs
-      // 2. Deduct the cost from their balance
-      // 3. Then grant premium access
-      
-      // For now, just grant premium access
-      db.run('UPDATE users SET hasBattlePassPremium = 1 WHERE id = ?', [userId], (updateErr) => {
-        if (updateErr) {
-          console.error('Error updating premium status:', updateErr);
-          return res.json({ success: false, message: 'Failed to update premium status' });
+      try {
+        // Transfer 1000 digipogs to server owner (ID 33) using external API
+        const transferPayload = {
+          from: Number(userId),
+          to: 33, // Server owner
+          amount: 1000,
+          pin: Number(pin),
+          reason: `Purchase Premium Battle Pass`
+        };
+
+        const transferResult = await fetch(`${FORMBAR_ADDRESS}/api/digipogs/transfer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(transferPayload)
+        });
+
+        const contentType = transferResult.headers.get('content-type');
+        let responseJson;
+
+        if (contentType && contentType.includes('application/json')) {
+          responseJson = await transferResult.json();
+        } else {
+          const responseText = await transferResult.text();
+          console.error('Transfer API returned non-JSON response:', responseText.substring(0, 200));
+          return res.json({ 
+            success: false, 
+            message: 'Purchase failed: Server error' 
+          });
         }
 
-        res.json({ success: true, message: 'Premium Pass purchased successfully!' });
-      });
+        // Check if the transfer was successful
+        if (transferResult.ok && responseJson) {
+          console.log('Premium pass purchase transfer successful:', JSON.stringify(responseJson).substring(0, 200));
+          
+          // Grant premium access
+          db.run('UPDATE users SET hasBattlePassPremium = 1 WHERE id = ?', [userId], (updateErr) => {
+            if (updateErr) {
+              console.error('Error updating premium status:', updateErr);
+              return res.json({ success: false, message: 'Failed to update premium status' });
+            }
+
+            console.log(`User ${userId} purchased Premium Battle Pass for 1000 Digipogs`);
+            res.json({ 
+              success: true, 
+              message: 'Premium Pass purchased successfully!' 
+            });
+          });
+        } else {
+          // Extract error message
+          let errorMessage = 'Insufficient Digipogs or invalid PIN';
+          
+          if (responseJson && responseJson.token) {
+            try {
+              const jwt = require('jsonwebtoken');
+              const decoded = jwt.decode(responseJson.token);
+              if (decoded && decoded.message) {
+                errorMessage = decoded.message;
+              }
+            } catch (decodeErr) {
+              console.error('Failed to decode JWT token:', decodeErr);
+            }
+          }
+
+          if (errorMessage === 'Insufficient Digipogs or invalid PIN' && responseJson) {
+            if (responseJson.message) errorMessage = responseJson.message;
+            else if (responseJson.error) errorMessage = responseJson.error;
+          }
+
+          console.error(`Premium purchase failed for user ${userId}:`, errorMessage);
+          return res.json({ 
+            success: false, 
+            message: errorMessage
+          });
+        }
+      } catch (error) {
+        console.error('Premium purchase error:', error);
+        return res.json({ 
+          success: false, 
+          message: 'Purchase failed: ' + (error.message || 'Unknown error') 
+        });
+      }
     });
   });
 
@@ -694,6 +780,271 @@ function setupRoutes(app) {
     });
   });
 
+  // API endpoint to purchase mystery boxes
+  app.post('/api/purchase-mystery-box', isAuthenticated, (req, res) => {
+    const userId = req.session.token?.id;
+    const { boxType, price } = req.body;
+
+    if (!userId) {
+      return res.status(200).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Validate box type and price
+    const validBoxes = {
+      'standard': 30
+    };
+
+    if (!validBoxes.hasOwnProperty(boxType) || validBoxes[boxType] !== price) {
+      return res.status(200).json({ success: false, message: 'Invalid mystery box type or price' });
+    }
+
+    // Get user's current onecells and mystery box inventory
+    db.get('SELECT onecells, mysteryBoxInventory FROM users WHERE id = ?', [userId], (err, userData) => {
+      if (err) {
+        console.error('Error fetching user data:', err);
+        return res.status(200).json({ success: false, message: 'Database error' });
+      }
+
+      const currentOnecells = userData?.onecells || 0;
+      let inventory = {};
+      try {
+        inventory = JSON.parse(userData?.mysteryBoxInventory || '{}');
+      } catch (e) {
+        inventory = {};
+      }
+
+      // Check if user has enough onecells
+      if (currentOnecells < price) {
+        return res.status(200).json({ 
+          success: false, 
+          message: `Not enough Onecells! You need ${price} but only have ${currentOnecells}` 
+        });
+      }
+
+      // Deduct onecells and add to inventory
+      const newOnecells = currentOnecells - price;
+      inventory[boxType] = (inventory[boxType] || 0) + 1;
+      const updatedInventory = JSON.stringify(inventory);
+
+      db.run(
+        'UPDATE users SET onecells = ?, mysteryBoxInventory = ? WHERE id = ?',
+        [newOnecells, updatedInventory, userId],
+        (updateErr) => {
+          if (updateErr) {
+            console.error('Error purchasing mystery box:', updateErr);
+            return res.status(200).json({ success: false, message: 'Failed to complete purchase' });
+          }
+
+          console.log(`User ${userId} purchased Mystery Box for ${price} Onecells`);
+          return res.status(200).json({
+            success: true,
+            message: `Successfully purchased Mystery Box!`,
+            newOnecells
+          });
+        }
+      );
+    });
+  });
+
+  // API endpoint to open mystery boxes
+  app.post('/api/open-mystery-box', isAuthenticated, (req, res) => {
+    const userId = req.session.token?.id;
+    const { boxType } = req.body;
+
+    if (!userId) {
+      return res.status(200).json({ success: false, message: 'User not authenticated' });
+    }
+
+    // Get user data including inventory, custom sounds, purchased themes, and digipogs
+    db.get('SELECT mysteryBoxInventory, customSounds, purchasedThemes, distractionsInventory FROM users WHERE id = ?', [userId], (err, userData) => {
+      if (err) {
+        console.error('Error fetching user data:', err);
+        return res.status(200).json({ success: false, message: 'Database error' });
+      }
+
+      let inventory = {};
+      try {
+        inventory = JSON.parse(userData?.mysteryBoxInventory || '{}');
+      } catch (e) {
+        inventory = {};
+      }
+
+      // Check if user has a box of this type
+      if (!inventory[boxType] || inventory[boxType] <= 0) {
+        return res.status(200).json({ 
+          success: false, 
+          message: 'You don\'t have any boxes to open!' 
+        });
+      }
+
+      // Loot tables with weighted probabilities
+      const lootTable = {
+        // COMMON: Custom sounds (70% total chance)
+        customSounds: {
+          weight: 70,
+          items: [
+            { id: 'loading_yeahoo', name: 'Yeahoo Loading Sound', soundType: 'loading', path: '/sfx/yeahoo.mp3', value: 10 },
+            { id: 'win_allidoiswin', name: 'All I Do Is Win', soundType: 'win', path: '/sfx/allidoiswin.mp3', value: 10 },
+            { id: 'win_finalcountdown', name: 'The Final Countdown', soundType: 'win', path: '/sfx/thefinalcountdown.mp3', value: 10 },
+            { id: 'win_wearechampions', name: 'We Are The Champions', soundType: 'win', path: '/sfx/wearethechampions.mp3', value: 10 },
+            { id: 'win_yourethebest', name: 'You\'re The Best', soundType: 'win', path: '/sfx/yourethebest.mp3', value: 10 },
+            { id: 'skip_fnafjumpscare', name: 'FNAF Jumpscare Skip', soundType: 'skip', path: '/sfx/fnafjumpscare.mp3', value: 10 },
+            { id: 'plus2_peterlaugh', name: 'Peter Laugh +2', soundType: 'plus2', path: '/sfx/peterlaugh.mp3', value: 10 },
+            { id: 'wild_imspongebob', name: 'I\'m Spongebob Wild', soundType: 'wild', path: '/sfx/imspongebob.mp3', value: 10 },
+            { id: 'plus4_blowmeaway', name: 'Blow Me Away +4', soundType: 'plus4', path: '/sfx/blowmeaway.mp3', value: 10 },
+            { id: 'reverse_avengedsevenfold', name: 'Avenged Sevenfold Reverse', soundType: 'reverse', path: '/sfx/avengedsevenfold.mp3', value: 10 }
+          ]
+        },
+        // RARE: Themes, Free Games, Distractions (30% total chance)
+        rareItems: {
+          weight: 30,
+          items: [
+            { id: 'theme_isaiah', name: 'Isaiah Theme', type: 'theme', value: 75 },
+            { id: 'theme_john', name: 'John Showman Theme', type: 'theme', value: 50 },
+            { id: 'theme_robert', name: 'Robert Theme', type: 'theme', value: 125 },
+            { id: 'freegame_1', name: '1 Free Game', type: 'freeGame', amount: 1, value: 0 },
+            { id: 'freegame_3', name: '3 Free Games', type: 'freeGame', amount: 3, value: 0 },
+            { id: 'distraction_trollface', name: 'Trollface Distraction (x2)', type: 'distraction', distractionType: 'Trollface', amount: 2, value: 0 },
+            { id: 'distraction_subwaysurfers', name: 'Subway Surfers Distraction (x2)', type: 'distraction', distractionType: 'SubwaySurfers', amount: 2, value: 0 },
+            { id: 'distraction_sixseven', name: 'Six Seven Distraction (x2)', type: 'distraction', distractionType: 'SixSeven', amount: 2, value: 0 }
+          ]
+        }
+      };
+
+      // Weighted random selection
+      const totalWeight = lootTable.customSounds.weight + lootTable.rareItems.weight;
+      const roll = Math.random() * totalWeight;
+      
+      let selectedCategory;
+      if (roll < lootTable.customSounds.weight) {
+        selectedCategory = lootTable.customSounds;
+      } else {
+        selectedCategory = lootTable.rareItems;
+      }
+
+      // Pick random item from selected category
+      const randomItem = selectedCategory.items[Math.floor(Math.random() * selectedCategory.items.length)];
+
+      // Parse existing data
+      let customSounds = {};
+      let purchasedThemes = [];
+      let distractionsInventory = {};
+      
+      try {
+        customSounds = JSON.parse(userData?.customSounds || '{}');
+      } catch (e) {
+        console.error('Error parsing customSounds:', e);
+        customSounds = {};
+      }
+      
+      try {
+        purchasedThemes = JSON.parse(userData?.purchasedThemes || '[]');
+      } catch (e) {
+        console.error('Error parsing purchasedThemes:', e);
+        purchasedThemes = [];
+      }
+      
+      try {
+        distractionsInventory = JSON.parse(userData?.distractionsInventory || '{}');
+      } catch (e) {
+        console.error('Error parsing distractionsInventory:', e);
+        distractionsInventory = {};
+      }
+
+      let isDuplicate = false;
+      let digipogsEarned = 0;
+      let updates = {};
+
+      // Handle different item types
+      if (randomItem.soundType) {
+        // Custom sound
+        console.log(`Checking sound duplicate: soundType='${randomItem.soundType}', path='${randomItem.path}'`);
+        console.log(`Current customSounds:`, customSounds);
+        if (customSounds[randomItem.soundType] === randomItem.path) {
+          isDuplicate = true;
+          digipogsEarned = randomItem.value;
+          console.log(`Duplicate sound detected! Awarding ${digipogsEarned} Onecells`);
+        } else {
+          customSounds[randomItem.soundType] = randomItem.path;
+          updates.customSounds = JSON.stringify(customSounds);
+          console.log(`New sound unlocked: ${randomItem.soundType} = ${randomItem.path}`);
+        }
+      } else if (randomItem.type === 'theme') {
+        // Theme
+        const themeId = randomItem.id.replace('theme_', '');
+        console.log(`Checking theme duplicate: themeId='${themeId}'`);
+        console.log(`Current purchasedThemes:`, purchasedThemes);
+        if (purchasedThemes.includes(themeId)) {
+          isDuplicate = true;
+          digipogsEarned = randomItem.value;
+          console.log(`Duplicate theme detected! Awarding ${digipogsEarned} Onecells`);
+        } else {
+          purchasedThemes.push(themeId);
+          updates.purchasedThemes = JSON.stringify(purchasedThemes);
+          console.log(`New theme unlocked: ${themeId}`);
+        }
+      } else if (randomItem.type === 'freeGame') {
+        // Free games - never duplicates, always add
+        updates.freeGameTokens = `freeGameTokens + ${randomItem.amount}`;
+        console.log(`Free game tokens granted: ${randomItem.amount}`);
+      } else if (randomItem.type === 'distraction') {
+        // Distractions - never duplicates, always add (give amount specified)
+        const amountToAdd = randomItem.amount || 1;
+        distractionsInventory[randomItem.distractionType] = (distractionsInventory[randomItem.distractionType] || 0) + amountToAdd;
+        updates.distractionsInventory = JSON.stringify(distractionsInventory);
+      }
+
+      // Decrease box count
+      inventory[boxType] = inventory[boxType] - 1;
+      if (inventory[boxType] <= 0) {
+        delete inventory[boxType];
+      }
+      updates.mysteryBoxInventory = JSON.stringify(inventory);
+
+      // Build update query
+      let updateFields = [];
+      let updateValues = [];
+      
+      Object.entries(updates).forEach(([key, value]) => {
+        if (key === 'freeGameTokens') {
+          updateFields.push(`freeGameTokens = ${value}`);
+        } else {
+          updateFields.push(`${key} = ?`);
+          updateValues.push(value);
+        }
+      });
+
+      // Add onecells if duplicate
+      if (isDuplicate) {
+        updateFields.push('onecells = onecells + ?');
+        updateValues.push(digipogsEarned);
+      }
+
+      updateValues.push(userId);
+
+      const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+
+      db.run(updateQuery, updateValues, (updateErr) => {
+        if (updateErr) {
+          console.error('Error opening mystery box:', updateErr);
+          return res.status(200).json({ success: false, message: 'Failed to open mystery box' });
+        }
+
+        console.log(`User ${userId} opened Mystery Box and received: ${randomItem.name}${isDuplicate ? ' (duplicate, converted to Onecells)' : ''}`);
+        
+        return res.status(200).json({
+          success: true,
+          reward: {
+            name: randomItem.name,
+            isDuplicate: isDuplicate,
+            onecellsEarned: digipogsEarned,
+            type: randomItem.soundType ? 'customSound' : randomItem.type
+          }
+        });
+      });
+    });
+  });
+
   // API endpoint to update profile picture
   app.post('/api/update-profile-picture', isAuthenticated, (req, res) => {
     const userId = req.session.token?.id;
@@ -1004,6 +1355,37 @@ function setupRoutes(app) {
 
         res.json({ success: true });
       });
+    });
+  });
+
+  // API endpoint to update custom sounds
+  app.post('/api/update-custom-sounds', isAuthenticated, (req, res) => {
+    const userId = req.session.token?.id;
+    const { customSounds } = req.body;
+
+    if (!userId) {
+      return res.json({ success: false, message: 'User not authenticated' });
+    }
+
+    if (typeof customSounds !== 'string') {
+      return res.json({ success: false, message: 'Invalid custom sounds data' });
+    }
+
+    // Validate that it's valid JSON
+    try {
+      JSON.parse(customSounds);
+    } catch (e) {
+      return res.json({ success: false, message: 'Invalid JSON format for custom sounds' });
+    }
+
+    // Update custom sounds in database
+    db.run('UPDATE users SET customSounds = ? WHERE id = ?', [customSounds, userId], (updateErr) => {
+      if (updateErr) {
+        console.error('Error updating custom sounds:', updateErr);
+        return res.json({ success: false, message: 'Failed to update custom sounds' });
+      }
+
+      res.json({ success: true });
     });
   });
 

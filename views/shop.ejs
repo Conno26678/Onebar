@@ -242,13 +242,39 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Page 3: Mystery Boxes -->
+                <div class="shop-page" data-page="3" style="display: none;">
+                    <!-- Mystery Box -->
+                    <div class="shop-item" data-item="mystery-box">
+                        <div class="item-badge">Mystery</div>
+                        <div class="item-icon">📦</div>
+                        <h2 class="item-title">Mystery Box</h2>
+                        <p class="item-description">
+                            Unbox to receive random rewards! Contains custom sounds, themes, free games, and more!
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">✓ Custom sound effects (common)</div>
+                            <div class="feature">✓ Themes, free games & distractions (rare)</div>
+                            <div class="feature">✓ Duplicates convert to Onecells</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">30 Onecells</span>
+                            <span class="price-period">/box</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseMysteryBox('standard', 30)">
+                            <span class="button-text">Purchase Box</span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+                </div>
             </div>
             <button class="shop-nav-arrow shop-nav-right" id="shopNavRight">
                 ▶
             </button>
         </div>
         <div class="shop-pagination-info">
-            <span id="shopPageInfo">Page 1 of 2</span>
+            <span id="shopPageInfo">Page 1 of 3</span>
         </div>
         
         <div class="shop-footer">
@@ -259,13 +285,13 @@
 
     <script>
         let currentShopPage = 1;
-        const totalShopPages = 2;
+        const totalShopPages = 3;
         
         function purchaseTheme(themeId, price) {
             const currentOnecells = parseInt(document.getElementById('onecellsDisplay').textContent) || 0;
             
             if (currentOnecells < price) {
-                alert(`❌ Not Enough Onecells!\n\nYou need ${price} Onecells but only have ${currentOnecells}.\nPurchase more Onecells above!`);
+                alert(`Not Enough Onecells!\n\nYou need ${price} Onecells but only have ${currentOnecells}.\nPurchase more Onecells above!`);
                 return;
             }
             
@@ -288,17 +314,17 @@
                     document.getElementById('onecellsDisplay').textContent = data.newOnecells;
                     
                     // Show success message
-                    alert(`✅ ${data.message}\n\nRemaining Onecells: ${data.newOnecells}\n\nThe page will reload to apply your new theme!`);
+                    alert(`${data.message}\n\nRemaining Onecells: ${data.newOnecells}\n\nThe page will reload to apply your new theme!`);
                     
                     // Reload page to apply theme
                     location.reload();
                 } else {
-                    alert(`❌ ${data.message}`);
+                    alert(`${data.message}`);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('❌ An error occurred while processing your purchase. Please try again.');
+                alert('An error occurred while processing your purchase. Please try again.');
             });
         }
         
@@ -340,7 +366,7 @@
             const currentOnecells = parseInt(document.getElementById('onecellsDisplay').textContent) || 0;
             
             if (currentOnecells < price) {
-                alert(`❌ Not Enough Onecells!\n\nYou need ${price} Onecells but only have ${currentOnecells}.\nPurchase more Onecells above!`);
+                alert(`Not Enough Onecells!\n\nYou need ${price} Onecells but only have ${currentOnecells}.\nPurchase more Onecells above!`);
                 return;
             }
             
@@ -357,15 +383,15 @@
             .then(data => {
                 if (data.success) {
                     document.getElementById('onecellsDisplay').textContent = data.newOnecells;
-                    alert(`✅ ${data.message}\n\nRemaining Onecells: ${data.newOnecells}`);
+                    alert(`${data.message}\n\nRemaining Onecells: ${data.newOnecells}`);
                     hideFreeGamesModal();
                 } else {
-                    alert(`❌ ${data.message}`);
+                    alert(`${data.message}`);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('❌ An error occurred. Please try again.');
+                alert(' An error occurred. Please try again.');
             });
         }
         
@@ -377,7 +403,7 @@
             const currentOnecells = parseInt(document.getElementById('onecellsDisplay').textContent) || 0;
             
             if (currentOnecells < totalPrice) {
-                alert(`❌ Not Enough Onecells!\n\nYou need ${totalPrice} Onecells but only have ${currentOnecells}.\nPurchase more Onecells above!`);
+                alert(`Not Enough Onecells!\n\nYou need ${totalPrice} Onecells but only have ${currentOnecells}.\nPurchase more Onecells above!`);
                 return;
             }
             
@@ -394,15 +420,51 @@
             .then(data => {
                 if (data.success) {
                     document.getElementById('onecellsDisplay').textContent = data.newOnecells;
-                    alert(`✅ ${data.message}\n\nRemaining Onecells: ${data.newOnecells}`);
+                    alert(`${data.message}\n\nRemaining Onecells: ${data.newOnecells}`);
                     hideDistractionsModal();
                 } else {
-                    alert(`❌ ${data.message}`);
+                    alert(`${data.message}`);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('❌ An error occurred. Please try again.');
+                alert('An error occurred. Please try again.');
+            });
+        }
+        
+        function purchaseMysteryBox(boxType, price) {
+            const currentOnecells = parseInt(document.getElementById('onecellsDisplay').textContent) || 0;
+            
+            if (currentOnecells < price) {
+                alert(`Not Enough Onecells!\n\nYou need ${price} Onecells but only have ${currentOnecells}.\nPurchase more Onecells above!`);
+                return;
+            }
+            
+            const boxNames = {
+                'standard': 'Mystery Box'
+            };
+            
+            if (!confirm(`Purchase ${boxNames[boxType]} for ${price} Onecells?\n\nYour current balance: ${currentOnecells} Onecells\n\nThe box will be added to your inventory.`)) {
+                return;
+            }
+            
+            fetch('/api/purchase-mystery-box', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ boxType, price })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('onecellsDisplay').textContent = data.newOnecells;
+                    alert(`${data.message}\n\nRemaining Onecells: ${data.newOnecells}\n\nCheck your profile to see your mystery boxes!`);
+                } else {
+                    alert(`${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
             });
         }
         
@@ -442,7 +504,7 @@
             const statusMessage = document.getElementById('onecellsStatusMessage');
             
             if (!pin) {
-                statusMessage.textContent = '❌ Please enter your PIN';
+                statusMessage.textContent = 'Please enter your PIN';
                 statusMessage.className = 'status-message error';
                 statusMessage.style.display = 'block';
                 return;
@@ -499,7 +561,7 @@
                         hideOnecellsPaymentModal();
                     }, 2000);
                 } else {
-                    statusMessage.textContent = `❌ ${data.message}`;
+                    statusMessage.textContent = `${data.message}`;
                     statusMessage.className = 'status-message error';
                     statusMessage.style.display = 'block';
                     transferBtn.disabled = false;
@@ -510,7 +572,7 @@
                 console.error('Error name:', error.name);
                 console.error('Error message:', error.message);
                 console.error('Error stack:', error.stack);
-                statusMessage.textContent = `❌ ${error.message || 'Network error'}`;
+                statusMessage.textContent = `${error.message || 'Network error'}`;
                 statusMessage.className = 'status-message error';
                 statusMessage.style.display = 'block';
                 transferBtn.disabled = false;

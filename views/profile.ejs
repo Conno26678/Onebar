@@ -153,10 +153,17 @@
                 <div id="soundPackPopup" class="customize-popup" style="display: none;">
                     <div class="customize-popup-content">
                         <span class="customize-popup-close" onclick="hideSoundPackPopup()">&times;</span>
-                        <h2>Select Your Sound Pack</h2>
-                        <p class="photo-subtitle">Unlock new sound packs through Battle Pass</p>
+                        <h2 id="soundPackPopupTitle">Select Your Sound Pack</h2>
+                        <p class="photo-subtitle" id="soundPackPopupSubtitle">Unlock new sound packs through Battle Pass</p>
                         <div class="customization-grid" id="soundPackGrid">
                             <!-- Sound packs will be dynamically loaded here -->
+                        </div>
+                        <!-- Custom sounds configuration (shown when Custom pack is selected) -->
+                        <div id="customSoundsConfig" style="display: none;">
+                            <div class="custom-sounds-grid" id="customSoundsGrid">
+                                <!-- Custom sound options will be dynamically loaded here -->
+                            </div>
+                            <button class="save-custom-sounds-btn" onclick="saveCustomSounds()">Save Custom Sound Pack</button>
                         </div>
                     </div>
                 </div>
@@ -202,6 +209,30 @@
                             <!-- Effects will be dynamically loaded here -->
                         </div>
                         <button class="save-emojis-btn" onclick="saveSelectedEffects()">Save Effect Selection</button>
+                    </div>
+                </div>
+
+                <!-- Mystery Box Opening Modal -->
+                <div id="mysteryBoxModal" class="mystery-box-modal" style="display: none;">
+                    <div class="mystery-box-modal-content">
+                        <div class="mystery-box-animation">
+                            <div class="mystery-box-icon">📦</div>
+                            <div class="mystery-box-sparkles">
+                                <span class="sparkle">✨</span>
+                                <span class="sparkle">✨</span>
+                                <span class="sparkle">✨</span>
+                                <span class="sparkle">✨</span>
+                                <span class="sparkle">✨</span>
+                                <span class="sparkle">✨</span>
+                            </div>
+                        </div>
+                        <div class="mystery-box-result" id="mysteryBoxResult" style="display: none;">
+                            <div class="reward-icon" id="rewardIcon">🎁</div>
+                            <h2 class="reward-title" id="rewardTitle">You received:</h2>
+                            <p class="reward-name" id="rewardName"></p>
+                            <p class="reward-details" id="rewardDetails"></p>
+                            <button class="reward-close-btn" onclick="closeMysteryBoxModal()">Awesome!</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -263,15 +294,21 @@
 
                 <!-- Distractions Inventory Card -->
                 <div class="stat-card inventory-card">
-                    <h2>🎯 Distractions Inventory</h2>
-                    <p class="stat-label">Your collection of game distractions</p>
+                    <h2>Inventory</h2>
+                    <p class="stat-label">Your collection of game distractions, lootboxes, and other items</p>
                     <div class="inventory-grid">
                         <% 
                             let inventory = {};
+                            let mysteryBoxes = {};
                             try {
                                 inventory = JSON.parse(distractionsInventory || '{}');
                             } catch (e) {
                                 inventory = {};
+                            }
+                            try {
+                                mysteryBoxes = JSON.parse(mysteryBoxInventory || '{}');
+                            } catch (e) {
+                                mysteryBoxes = {};
                             }
                             const distractionEmojis = {
                                 'Flashbang': '💥',
@@ -291,19 +328,39 @@
                                 'SixSeven': 'Six Seven',
                                 'Trollface': 'Trollface'
                             };
+                            const mysteryBoxEmojis = {
+                                'standard': '📦'
+                            };
+                            const mysteryBoxNames = {
+                                'standard': 'Mystery Box'
+                            };
                             const hasDistractions = Object.keys(inventory).length > 0;
+                            const hasMysteryBoxes = Object.keys(mysteryBoxes).length > 0;
+                            const hasAnyItems = hasDistractions || hasMysteryBoxes;
                         %>
-                        <% if (hasDistractions) { %>
+                        <% if (hasAnyItems) { %>
+                            <% Object.entries(mysteryBoxes).forEach(([type, count]) => { %>
+                                <% if (count > 0) { %>
+                                    <div class="inventory-item">
+                                        <span class="inventory-icon"><%= mysteryBoxEmojis[type] || '📦' %></span>
+                                        <span class="inventory-name"><%= mysteryBoxNames[type] || type %></span>
+                                        <span class="inventory-count">x<%= count %></span>
+                                        <button class="inventory-action-btn" onclick="openMysteryBox('<%= type %>')">Open</button>
+                                    </div>
+                                <% } %>
+                            <% }); %>
                             <% Object.entries(inventory).forEach(([type, count]) => { %>
-                                <div class="inventory-item">
-                                    <span class="inventory-icon"><%= distractionEmojis[type] || '🎮' %></span>
-                                    <span class="inventory-name"><%= distractionNames[type] || type %></span>
-                                    <span class="inventory-count">×<%= count %></span>
-                                </div>
+                                <% if (count > 0) { %>
+                                    <div class="inventory-item">
+                                        <span class="inventory-icon"><%= distractionEmojis[type] || '🎮' %></span>
+                                        <span class="inventory-name"><%= distractionNames[type] || type %></span>
+                                        <span class="inventory-count">x<%= count %></span>
+                                    </div>
+                                <% } %>
                             <% }); %>
                         <% } else { %>
                             <div class="inventory-empty">
-                                <p>No distractions yet!</p>
+                                <p>No items yet!</p>
                                 <a href="/shop" style="color: var(--primary-color); text-decoration: underline;">Visit the shop to purchase some</a>
                             </div>
                         <% } %>
@@ -315,10 +372,15 @@
 
     <script src="/js/theme.js"></script>
     <script>
-        // Load sound pack from server data to localStorage
+        // Load sound pack and custom sounds from server data to localStorage
         const selectedSoundPack = '<%= selectedSoundPack %>';
         if (selectedSoundPack) {
             localStorage.setItem('selectedSoundPack', selectedSoundPack);
+        }
+        
+        const customSounds = '<%= customSounds %>';
+        if (customSounds && customSounds !== '{}') {
+            localStorage.setItem('customSounds', customSounds);
         }
 
         // Define popup functions first so they're available to onclick handlers
@@ -360,11 +422,96 @@
 
         function showSoundPackPopup() {
             document.getElementById('soundPackPopup').style.display = 'flex';
+            document.getElementById('soundPackGrid').style.display = 'grid';
+            document.getElementById('customSoundsConfig').style.display = 'none';
+            document.getElementById('soundPackPopupTitle').textContent = 'Select Your Sound Pack';
+            document.getElementById('soundPackPopupSubtitle').textContent = 'Unlock new sound packs through Battle Pass';
             loadSoundPackOptions();
         }
 
         function hideSoundPackPopup() {
             document.getElementById('soundPackPopup').style.display = 'none';
+        }
+
+        // Mystery Box opening function
+        function openMysteryBox(boxType) {
+            if (!confirm('Open Mystery Box? You will receive a random reward!')) {
+                return;
+            }
+
+            // Show the modal with animation
+            showMysteryBoxModal();
+
+            fetch('/api/open-mystery-box', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ boxType })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    setTimeout(() => {
+                        showMysteryBoxReward(data.reward);
+                    }, 2500); // Show reward after animation
+                } else {
+                    closeMysteryBoxModal();
+                    alert(data.message || 'Failed to open mystery box');
+                }
+            })
+            .catch(err => {
+                console.error('Error opening mystery box:', err);
+                closeMysteryBoxModal();
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        function showMysteryBoxModal() {
+            const modal = document.getElementById('mysteryBoxModal');
+            const animation = document.querySelector('.mystery-box-animation');
+            const result = document.getElementById('mysteryBoxResult');
+            
+            modal.style.display = 'flex';
+            animation.style.display = 'block';
+            result.style.display = 'none';
+            
+            // Trigger shake animation
+            setTimeout(() => {
+                document.querySelector('.mystery-box-icon').classList.add('shaking');
+            }, 100);
+        }
+
+        function showMysteryBoxReward(reward) {
+            const animation = document.querySelector('.mystery-box-animation');
+            const result = document.getElementById('mysteryBoxResult');
+            const rewardIcon = document.getElementById('rewardIcon');
+            const rewardName = document.getElementById('rewardName');
+            const rewardDetails = document.getElementById('rewardDetails');
+            
+            // Hide animation, show result
+            animation.style.display = 'none';
+            result.style.display = 'block';
+            
+            // Set reward info
+            rewardName.textContent = reward.name;
+            
+            if (reward.isDuplicate) {
+                rewardIcon.textContent = '💰';
+                rewardDetails.innerHTML = `<span style="color: #ffc107;">⚠️ Duplicate item!</span><br>Converted to <strong>${reward.onecellsEarned} Onecells</strong>`;
+            } else {
+                rewardIcon.textContent = '🎉';
+                rewardDetails.innerHTML = '<span style="color: #4CAF50;">✨ New item unlocked!</span>';
+                if (reward.type === 'customSound') {
+                    rewardDetails.innerHTML += '<br><em>Equip the Custom sound pack to use it!</em>';
+                } else if (reward.type === 'theme') {
+                    rewardDetails.innerHTML += '<br><em>Check customization to equip!</em>';
+                }
+            }
+        }
+
+        function closeMysteryBoxModal() {
+            document.getElementById('mysteryBoxModal').style.display = 'none';
+            document.querySelector('.mystery-box-icon').classList.remove('shaking');
+            location.reload();
         }
 
         function showBadgePopup() {
@@ -693,7 +840,8 @@
         // Sound Pack customization functions
         const availableSoundPacks = [
             { name: 'Default', id: 'default', requirement: 'Starting Pack', requiredLevel: 1, unlocked: true, icon: '🔊' },
-            { name: 'Hayden Pack', id: 'hayden', requirement: 'Battle Pass Level 25', requiredLevel: 25, unlocked: <%= (level || 1) >= 25 ? 'true' : 'false' %>, image: 'Hayden.png' }
+            { name: 'Hayden Pack', id: 'hayden', requirement: 'Battle Pass Level 25', requiredLevel: 25, unlocked: <%= (level || 1) >= 25 ? 'true' : 'false' %>, image: 'Hayden.png' },
+            { name: 'Custom', id: 'custom', requirement: 'Always Available', requiredLevel: 1, unlocked: true, icon: '🎵' }
         ];
 
         function loadSoundPackOptions() {
@@ -719,7 +867,7 @@
                         <div class="customization-item-name">${pack.name}</div>
                         ${!pack.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
                         ${!pack.unlocked ? `<div class="customization-item-requirement">${pack.requirement}</div>` : ''}
-                        ${pack.unlocked ? '<button class="customization-select-btn" onclick="selectSoundPack(\'' + pack.id + '\')">Select</button>' : ''}
+                        ${pack.unlocked ? '<button class="customization-select-btn" onclick="selectSoundPack(\'' + pack.id + '\')\">' + (pack.id === 'custom' ? 'Customize' : 'Select') + '</button>' : ''}
                     </div>
                 `;
                 
@@ -728,6 +876,16 @@
         }
 
         function selectSoundPack(soundPack) {
+            if (soundPack === 'custom') {
+                // Show custom sounds configuration instead of saving
+                document.getElementById('soundPackGrid').style.display = 'none';
+                document.getElementById('customSoundsConfig').style.display = 'block';
+                document.getElementById('soundPackPopupTitle').textContent = 'Customize Your Sound Pack';
+                document.getElementById('soundPackPopupSubtitle').textContent = 'Choose individual sounds for each action';
+                loadCustomSoundsOptions();
+                return;
+            }
+            
             fetch('/api/update-soundpack', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -745,6 +903,174 @@
             })
             .catch(err => {
                 console.error('Error updating sound pack:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Custom Sounds customization functions
+        const soundTypes = [
+            { id: 'loading', name: 'Loading/Alert Sound', description: 'Played when alerts appear' },
+            { id: 'win', name: 'Victory Sound', description: 'Played when you win' },
+            { id: 'lose', name: 'Defeat Sound', description: 'Played when you lose' },
+            { id: 'plus2', name: 'Draw Two Sound', description: 'Played when +2 card is played' },
+            { id: 'plus4', name: 'Draw Four Sound', description: 'Played when +4 card is played' },
+            { id: 'reverse', name: 'Reverse Sound', description: 'Played when reverse card is played' },
+            { id: 'skip', name: 'Skip Sound', description: 'Played when skip card is played' },
+            { id: 'wild', name: 'Wild Sound', description: 'Played when wild card is played' },
+            { id: 'startgame', name: 'Game Start Sound', description: 'Played when game starts' }
+        ];
+
+        const availableSoundOptions = {
+            loading: [
+                { path: '/sfx/loading.mp3', name: 'Default (Vine Boom)' },
+                { path: '/sfx/thinkfastchucklenuts.mp3', name: 'Think Fast' },
+                { path: '/sfx/yeahoo.mp3', name: 'Yeahoo' }
+            ],
+            win: [
+                { path: '/sfx/yippie.mp3', name: 'Default (Yippee)' },
+                { path: '/sfx/haydenwinner.mp3', name: 'Hayden Winner' },
+                { path: '/sfx/allidoiswin.mp3', name: 'All I Do Is Win' },
+                { path: '/sfx/thefinalcountdown.mp3', name: 'The Final Countdown' },
+                { path: '/sfx/wearethechampions.mp3', name: 'We Are The Champions' },
+                { path: '/sfx/yourethebest.mp3', name: 'You\'re The Best' }
+            ],
+            lose: [
+                { path: '/sfx/spongebobfail.mp3', name: 'Default (Spongebob Fail)' },
+                { path: '/sfx/haydenlose.mp3', name: 'Hayden Lose' }
+            ],
+            plus2: [
+                { path: '/sfx/slap.mp3', name: 'Default (Slap)' },
+                { path: '/sfx/hayden+2.mp3', name: 'Hayden +2' },
+                { path: '/sfx/peterlaugh.mp3', name: 'Peter Laugh' }
+            ],
+            plus4: [
+                { path: '/sfx/slap.mp3', name: 'Default (Slap)' },
+                { path: '/sfx/hayden+4.mp3', name: 'Hayden +4' },
+                { path: '/sfx/blowmeaway.mp3', name: 'Blow Me Away' }
+            ],
+            reverse: [
+                { path: '/sfx/reverse.mp3', name: 'Default (Reverse)' },
+                { path: '/sfx/haydenreverse.mp3', name: 'Hayden Reverse' },
+                { path: '/sfx/avengedsevenfold.mp3', name: 'Avenged Sevenfold' }
+            ],
+            skip: [
+                { path: '/sfx/pluh.mp3', name: 'Default (Pluh)' },
+                { path: '/sfx/haydenskip.mp3', name: 'Hayden Skip' },
+                { path: '/sfx/fnafjumpscare.mp3', name: 'FNAF Jumpscare' }
+            ],
+            wild: [
+                { path: '/sfx/omaewa.mp3', name: 'Default (Omae Wa)' },
+                { path: '/sfx/haydenwild.mp3', name: 'Hayden Wild' },
+                { path: '/sfx/imspongebob.mp3', name: 'I\'m Spongebob' }
+            ],
+            startgame: [
+                { path: '/sfx/afewmoments.mp3', name: 'Default (Few Moments Later)' },
+                { path: '/sfx/haydenstartgame.mp3', name: 'Hayden Start Game' }
+            ]
+        };
+
+        let currentCustomSounds = {};
+
+        function loadCustomSoundsOptions() {
+            const grid = document.getElementById('customSoundsGrid');
+            grid.innerHTML = '';
+            
+            // Load current custom sounds from localStorage
+            const savedCustomSounds = localStorage.getItem('customSounds');
+            if (savedCustomSounds) {
+                try {
+                    currentCustomSounds = JSON.parse(savedCustomSounds);
+                } catch (e) {
+                    currentCustomSounds = {};
+                }
+            }
+
+            soundTypes.forEach(soundType => {
+                const soundDiv = document.createElement('div');
+                soundDiv.className = 'custom-sound-option';
+                
+                const currentSelection = currentCustomSounds[soundType.id] || 'default';
+                
+                let optionsHTML = '<option value="default">Use Sound Pack Default</option>';
+                availableSoundOptions[soundType.id].forEach(option => {
+                    const selected = currentSelection === option.path ? 'selected' : '';
+                    optionsHTML += `<option value="${option.path}" ${selected}>${option.name}</option>`;
+                });
+                
+                soundDiv.innerHTML = `
+                    <div class="custom-sound-header">
+                        <h4>${soundType.name}</h4>
+                        <p class="custom-sound-description">${soundType.description}</p>
+                    </div>
+                    <select class="custom-sound-select" data-sound-type="${soundType.id}">
+                        ${optionsHTML}
+                    </select>
+                    <button class="preview-sound-btn" onclick="previewSound('${soundType.id}')">▶️ Preview</button>
+                `;
+                
+                grid.appendChild(soundDiv);
+            });
+        }
+
+        function previewSound(soundType) {
+            const selectElement = document.querySelector(`[data-sound-type="${soundType}"]`);
+            const soundPath = selectElement.value;
+            
+            if (soundPath === 'default') {
+                alert('This will use the default sound from your selected sound pack.');
+                return;
+            }
+            
+            const audio = new Audio(soundPath);
+            audio.volume = 0.5;
+            audio.play().catch(err => console.log('Audio preview failed:', err));
+        }
+
+        function saveCustomSounds() {
+            const customSounds = {};
+            
+            document.querySelectorAll('.custom-sound-select').forEach(select => {
+                const soundType = select.getAttribute('data-sound-type');
+                const soundPath = select.value;
+                if (soundPath !== 'default') {
+                    customSounds[soundType] = soundPath;
+                }
+            });
+            
+            // Save to localStorage
+            localStorage.setItem('customSounds', JSON.stringify(customSounds));
+            
+            // Save custom sounds and set sound pack to 'custom'
+            fetch('/api/update-custom-sounds', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customSounds: JSON.stringify(customSounds) })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Also update the sound pack to 'custom'
+                    return fetch('/api/update-soundpack', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ soundPack: 'custom' })
+                    });
+                } else {
+                    throw new Error(data.message || 'Failed to save custom sounds');
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    localStorage.setItem('selectedSoundPack', 'custom');
+                    alert('Custom sound pack saved successfully!');
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to save custom sounds');
+                }
+            })
+            .catch(err => {
+                console.error('Error saving custom sounds:', err);
                 alert('An error occurred. Please try again.');
             });
         }

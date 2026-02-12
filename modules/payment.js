@@ -197,8 +197,8 @@ async function processWinnerPayout(winnerId, playerCount, gameId = 'unknown', lo
             return { ok: false, error: 'Server configuration error: Owner PIN not set' };
         }
 
-        // Calculate dynamic payout: base 100 + (playerCount * 10)
-        const amount = 100 + (playerCount * 10);
+        // Calculate dynamic payout: base 150 + (playerCount * 10)
+        const amount = 150 + (playerCount * 10);
         
         console.log(`Processing payout for game ${gameId}: winner ID ${winnerId}, ${playerCount} players, amount: ${amount} Digipogs`);
         console.log(`OWNER_PIN is set: ${ownerPin ? 'yes' : 'no'}, PIN value: ${ownerPin ? '[REDACTED]' : 'undefined'}`);
@@ -475,7 +475,7 @@ router.post('/claimBattlePassRewards', (req, res) => {
 
     // Get user's current level and claimed levels
     db.get(
-        "SELECT level, hasBattlePassPremium, claimedBattlePassLevels, freeGameTokens FROM users WHERE id = ?",
+        "SELECT level, hasBattlePassPremium, claimedBattlePassLevels, freeGameTokens, mysteryBoxInventory FROM users WHERE id = ?",
         [userId],
         (err, user) => {
             if (err) {
@@ -497,12 +497,23 @@ router.post('/claimBattlePassRewards', (req, res) => {
                 claimedLevels = [];
             }
 
-            // Define which levels grant free game tokens
+            // Parse mystery box inventory
+            let mysteryBoxInventory = {};
+            try {
+                mysteryBoxInventory = JSON.parse(user.mysteryBoxInventory || '{}');
+            } catch (e) {
+                mysteryBoxInventory = {};
+            }
+
+            // Define which levels grant rewards
             const freePassTokenLevels = [5, 15, 25, 35, 45];
             const premiumPassTokenLevels = [9, 13, 19, 29, 39, 49];
+            const freePassBoxLevels = [49]; // Free pass mystery box at level 49
+            const premiumPassBoxLevels = [15, 23, 36]; // Premium mystery boxes
 
-            // Calculate unclaimed tokens
+            // Calculate unclaimed rewards
             let tokensToGrant = 0;
+            let boxesToGrant = 0;
             const newlyClaimedLevels = [];
 
             // Check all levels up to current level
@@ -522,19 +533,34 @@ router.post('/claimBattlePassRewards', (req, res) => {
                     tokensToGrant++;
                     newlyClaimedLevels.push(level);
                 }
+
+                // Free pass mystery boxes
+                if (freePassBoxLevels.includes(level)) {
+                    boxesToGrant++;
+                    newlyClaimedLevels.push(level);
+                }
+
+                // Premium pass mystery boxes
+                if (hasPremium && premiumPassBoxLevels.includes(level)) {
+                    boxesToGrant++;
+                    newlyClaimedLevels.push(level);
+                }
             }
 
-            if (tokensToGrant === 0) {
-                return res.json({ ok: true, message: 'No unclaimed rewards', tokensGranted: 0, totalTokens: user.freeGameTokens || 0 });
+            if (tokensToGrant === 0 && boxesToGrant === 0) {
+                return res.json({ ok: true, message: 'No unclaimed rewards', tokensGranted: 0, boxesGranted: 0, totalTokens: user.freeGameTokens || 0 });
             }
+
+            // Update mystery box inventory
+            mysteryBoxInventory['standard'] = (mysteryBoxInventory['standard'] || 0) + boxesToGrant;
 
             // Update claimed levels
             const updatedClaimedLevels = [...new Set([...claimedLevels, ...newlyClaimedLevels])];
 
-            // Grant tokens and update claimed levels
+            // Grant tokens, boxes, and update claimed levels
             db.run(
-                "UPDATE users SET freeGameTokens = freeGameTokens + ?, claimedBattlePassLevels = ? WHERE id = ?",
-                [tokensToGrant, JSON.stringify(updatedClaimedLevels), userId],
+                "UPDATE users SET freeGameTokens = freeGameTokens + ?, mysteryBoxInventory = ?, claimedBattlePassLevels = ? WHERE id = ?",
+                [tokensToGrant, JSON.stringify(mysteryBoxInventory), JSON.stringify(updatedClaimedLevels), userId],
                 function (err) {
                     if (err) {
                         console.error('Database error:', err.message);
@@ -542,11 +568,21 @@ router.post('/claimBattlePassRewards', (req, res) => {
                     }
 
                     const newTotal = (user.freeGameTokens || 0) + tokensToGrant;
-                    console.log(`User ${userId} claimed ${tokensToGrant} retroactive tokens. New total: ${newTotal}`);
+                    let message = '';
+                    if (tokensToGrant > 0 && boxesToGrant > 0) {
+                        message = `Claimed ${tokensToGrant} free game token(s) and ${boxesToGrant} mystery box(es)!`;
+                    } else if (tokensToGrant > 0) {
+                        message = `Claimed ${tokensToGrant} free game token(s)!`;
+                    } else if (boxesToGrant > 0) {
+                        message = `Claimed ${boxesToGrant} mystery box(es)!`;
+                    }
+                    
+                    console.log(`User ${userId} claimed ${tokensToGrant} tokens and ${boxesToGrant} mystery boxes. New token total: ${newTotal}`);
                     res.json({ 
                         ok: true, 
-                        message: `Claimed ${tokensToGrant} free game token(s)!`,
-                        tokensGranted: tokensToGrant, 
+                        message: message,
+                        tokensGranted: tokensToGrant,
+                        boxesGranted: boxesToGrant,
                         totalTokens: newTotal,
                         claimedLevels: newlyClaimedLevels
                     });

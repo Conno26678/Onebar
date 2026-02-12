@@ -586,6 +586,17 @@
             startgame: '/sfx/haydenstartgame.mp3',
             wild: '/sfx/haydenwild.mp3',
             plus4: '/sfx/hayden+4.mp3'
+        },
+        custom: {
+            loading: '/sfx/loading.mp3',
+            win: '/sfx/yippie.mp3',
+            lose: '/sfx/spongebobfail.mp3',
+            plus2: '/sfx/slap.mp3',
+            reverse: '/sfx/reverse.mp3',
+            skip: '/sfx/pluh.mp3',
+            startgame: '/sfx/afewmoments.mp3',
+            wild: '/sfx/omaewa.mp3',
+            plus4: '/sfx/slap.mp3'
         }
     };
 
@@ -594,8 +605,22 @@
         return localStorage.getItem('selectedSoundPack') || 'default';
     }
 
-    // Function to get sound path based on selected pack
+    // Function to get sound path based on custom sounds and selected pack
     function getSoundPath(soundType) {
+        // First check for custom sounds
+        const customSounds = localStorage.getItem('customSounds');
+        if (customSounds) {
+            try {
+                const customSoundsObj = JSON.parse(customSounds);
+                if (customSoundsObj[soundType]) {
+                    return customSoundsObj[soundType];
+                }
+            } catch (e) {
+                console.log('Error parsing custom sounds:', e);
+            }
+        }
+        
+        // Fall back to sound pack
         const pack = getCurrentSoundPack();
         return soundMappings[pack]?.[soundType] || soundMappings.default[soundType];
     }
@@ -1260,6 +1285,17 @@
       console.log(`Received distraction from ${playerName}: ${distractionType}`);
       applyDistractionEffect(distractionType, distractionIcon, distractionName, playerName);
     });
+
+    // Listen for inventory updates from server (after using a distraction)
+    socket.on('distractionInventoryUpdated', ({ inventory }) => {
+      console.log('Distraction inventory updated from server:', inventory);
+      distractionsInventory = inventory;
+      // Refresh the menu if it's currently open
+      const menu = document.getElementById('distractionMenu');
+      if (menu && menu.style.display !== 'none') {
+        initDistractionMenu();
+      }
+    });
     
     // Apply distraction visual effects
     function applyDistractionEffect(type, icon, name, fromPlayer) {
@@ -1355,28 +1391,30 @@
       const container = document.createElement('div');
       container.style.cssText = `
         position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 300px;
+        bottom: 20px;
+        left: 20px;
+        width: 250px;
+        height: 400px;
         z-index: 9998;
         animation: slideInBottom 0.5s ease-out;
-        border-top: 1px solid rgba(0, 0, 0, 0.8);
+        border: 1px solid rgba(0, 0, 0, 0.8);
+        border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
       `;
       
-      const iframe = document.createElement('iframe');
-      iframe.src = 'https://www.youtube.com/embed/i0M4ARe9v0Y?autoplay=1&mute=0&controls=0&loop=1&playlist=i0M4ARe9v0Y&start=0';
-      iframe.style.cssText = `
+      const video = document.createElement('video');
+      video.src = '/Subway%20Surfers.mp4';
+      video.autoplay = true;
+      video.loop = true;
+      video.muted = false;
+      video.style.cssText = `
         width: 100%;
         height: 100%;
-        border: none;
         object-fit: cover;
       `;
-      iframe.allow = 'autoplay';
       
-      container.appendChild(iframe);
+      container.appendChild(video);
       document.body.appendChild(container);
       setTimeout(() => container.remove(), 30000);
     }

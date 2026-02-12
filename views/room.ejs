@@ -105,8 +105,22 @@
             return localStorage.getItem('selectedSoundPack') || 'default';
         }
 
-        // Function to get sound path based on selected pack
+        // Function to get sound path based on custom sounds and selected pack
         function getSoundPath(soundType) {
+            // First check for custom sounds
+            const customSounds = localStorage.getItem('customSounds');
+            if (customSounds) {
+                try {
+                    const customSoundsObj = JSON.parse(customSounds);
+                    if (customSoundsObj[soundType]) {
+                        return customSoundsObj[soundType];
+                    }
+                } catch (e) {
+                    console.log('Error parsing custom sounds:', e);
+                }
+            }
+            
+            // Fall back to sound pack
             const pack = getCurrentSoundPack();
             return soundMappings[pack]?.[soundType] || soundMappings.default[soundType];
         }

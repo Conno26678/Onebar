@@ -167,6 +167,20 @@ db.run(`ALTER TABLE users ADD COLUMN distractionsInventory TEXT DEFAULT '{}'`, (
     }
 });
 
+// Add mysteryBoxInventory column if it doesn't exist (stores JSON object of mystery box counts)
+db.run(`ALTER TABLE users ADD COLUMN mysteryBoxInventory TEXT DEFAULT '{}'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding mysteryBoxInventory column:', err.message);
+    }
+});
+
+// Add customSounds column if it doesn't exist (stores JSON object of custom sound preferences)
+db.run(`ALTER TABLE users ADD COLUMN customSounds TEXT DEFAULT '{}'`, (err) => {
+    if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error adding customSounds column:', err.message);
+    }
+});
+
 // Add claimedBattlePassLevels column to track which levels have been claimed (stores JSON array)
 db.run(`ALTER TABLE users ADD COLUMN claimedBattlePassLevels TEXT DEFAULT '[]'`, (err) => {
     if (err && !err.message.includes('duplicate column name')) {
@@ -176,15 +190,16 @@ db.run(`ALTER TABLE users ADD COLUMN claimedBattlePassLevels TEXT DEFAULT '[]'`,
 
 /**
  * Calculate XP required for a given level
- * Progressive system: Each level requires more XP than the last
- * Formula: baseXP * level^1.5, rounded to nearest 50
+ * Progressive system: More gradual scaling for motivation
+ * Formula: 50 + (level * 35) + (level^1.2 * 5), rounded to nearest 50
+ * Level 10: ~500 XP, Level 20: ~950 XP, Level 50: ~2450 XP
  * @param {number} level - The level to calculate XP for
  * @returns {number} XP required to reach that level
  */
 function calculateXPForLevel(level) {
-    const baseXP = 100;
-    const rawXP = baseXP * Math.pow(level, 1.5);
-    // Round to nearest 50 for cleaner numbers (100, 150, 200, 250, 300, etc.)
+    // More gradual scaling: starts at ~100 XP, reaches ~2500 XP at level 50
+    const rawXP = 50 + (level * 35) + (Math.pow(level, 1.2) * 5);
+    // Round to nearest 50 for cleaner numbers
     return Math.round(rawXP / 50) * 50;
 }
 

@@ -210,7 +210,12 @@ function setupSocketHandlers(io) {
         }
         player.socketId = socket.id;
         player.id = socket.id;
-        console.log(`Player ${name} reconnected to game ${gameId}`);
+        // Preserve or update userId on reconnect
+        if (userId && !player.userId) {
+          player.userId = userId;
+          console.log(`Set userId ${userId} for reconnecting player ${name}`);
+        }
+        console.log(`Player ${name} reconnected to game ${gameId} with userId: ${player.userId}`);
       }
 
       function continueJoinGame() {
@@ -351,6 +356,12 @@ function setupSocketHandlers(io) {
 
       const userId = socket.request.session.token?.id || null;
       
+      if (!userId) {
+        console.warn(`WARNING: Player "${playerName}" joining lobby without userId - they won't be able to receive payouts!`);
+      } else {
+        console.log(`Player "${playerName}" joining lobby with userId: ${userId}`);
+      }
+      
       fetchUserCustomization(userId, (err, customization) => {
         const player = {
           socketId: socket.id,
@@ -366,6 +377,7 @@ function setupSocketHandlers(io) {
         };
         game.players.push(player);
         socket.join(gameId);
+        console.log(`Added player "${player.name}" to lobby (userId: ${userId || 'NONE'})`);
         socket.emit('joined', { 
           playerId: player.id, 
           gameId, 
@@ -969,8 +981,8 @@ function setupSocketHandlers(io) {
                 if (err) console.error('Database error updating winner stats:', err);
               });
               
-              // Award XP to winner - matches client-side formula: 100 + (playerCount * 25)
-              const totalXP = 100 + (playerCount * 25);
+              // Award XP to winner - matches client-side formula: 150 + (playerCount * 25)
+              const totalXP = 150 + (playerCount * 25);
               
               db.addXP(p.userId, totalXP, (xpErr, xpResult) => {
                 if (xpErr) {
@@ -1052,7 +1064,9 @@ function setupSocketHandlers(io) {
         // Process winner payout with dynamic amount calculation
         const winnerId = player.userId;
         
-        if (winnerId && winnerId !== 4) {
+        console.log(`GAME OVER - Winner: ${player.name}, userId: ${winnerId || 'NONE'}, playerCount: ${playerCount}`);
+        
+        if (winnerId) {
           console.log(`Initiating payout: winner userId=${winnerId}, players=${playerCount}`);
           
           processWinnerPayout(winnerId, playerCount, gameId, game.lobbyName)
@@ -1120,7 +1134,8 @@ function setupSocketHandlers(io) {
               });
             });
         } else {
-          console.warn(`Winner ${player.name} has no userId, cannot process payout`);
+          console.warn(`WARNING: Winner "${player.name}" has no userId (winnerId=${winnerId}), cannot process payout`);
+          console.log(`Player object:`, { name: player.name, userId: player.userId, socketId: player.socketId });
           
           // Show winner screen without payout info
           io.to(gameId).emit('showWinnerScreen', {
@@ -1315,49 +1330,79 @@ function setupSocketHandlers(io) {
     socket.on('useDistraction', ({ gameId, playerName, distractionType, distractionIcon, distractionName }) => {
       console.log(`Distraction used by ${playerName} in game ${gameId}: ${distractionType}`);
       
-      // Update the user's inventory in the database
-      const db = require('../util/database');
-      const userId = socket.handshake.session?.token?.id;
-      
-      if (userId) {
-        db.get('SELECT distractionsInventory FROM users WHERE id = ?', [userId], (err, userData) => {
-          if (err) {
-            console.error('Error fetching distractions:', err);
-            return;
-          }
-          
-          let inventory = {};
-          try {
-            inventory = JSON.parse(userData?.distractionsInventory || '{}');
-          } catch (e) {
-            inventory = {};
-          }
-          
-          // Reduce count
-          if (inventory[distractionType] && inventory[distractionType] > 0) {
-            inventory[distractionType]--;
-            if (inventory[distractionType] <= 0) {
-              delete inventory[distractionType];
-            }
-            
-            // Update database
-            db.run('UPDATE users SET distractionsInventory = ? WHERE id = ?', [JSON.stringify(inventory), userId], (updateErr) => {
-              if (updateErr) {
-                console.error('Error updating distractions inventory:', updateErr);
-              } else {
-                console.log(`Updated ${playerName}'s inventory: ${distractionType} used`);
-              }
-            });
-          }
-        });
-      }
-      
-      // Broadcast to all players in the game INCLUDING the sender
+      // Broadcast to all players in the game INCLUDING the sender (do this first so effect shows immediately)
       io.to(gameId).emit('distractionReceived', {
         playerName,
         distractionType,
         distractionIcon,
         distractionName
+      });
+      
+      // Update the user's inventory in the database (async, don't block the effect)
+      const db = require('../util/database');
+      const userId = socket.handshake.session?.token?.id;
+      
+      if (!userId) {
+        console.warn(`No userId found for ${playerName} when using distraction - effect shown but inventory not updated`);
+        return;
+      }
+      
+      console.log(`Fetching inventory for userId: ${userId}`);
+      
+      db.get('SELECT distractionsInventory FROM users WHERE id = ?', [userId], (err, userData) => {
+        if (err) {
+          console.error('Error fetching distractions:', err);
+          return;
+        }
+        
+        if (!userData) {
+          console.error(`No user data found for userId: ${userId}`);
+          return;
+        }
+        
+        let inventory = {};
+        try {
+          inventory = JSON.parse(userData?.distractionsInventory || '{}');
+        } catch (e) {
+          console.error('Error parsing distractionsInventory:', e);
+          inventory = {};
+        }
+        
+        console.log(`Current inventory for ${playerName}:`, inventory);
+        
+        // Reduce count
+        if (inventory[distractionType] && inventory[distractionType] > 0) {
+          inventory[distractionType]--;
+          if (inventory[distractionType] <= 0) {
+            delete inventory[distractionType];
+          }
+          
+          console.log(`Updating inventory for ${playerName}. New inventory:`, inventory);
+          
+          // Update database
+          db.run('UPDATE users SET distractionsInventory = ? WHERE id = ?', [JSON.stringify(inventory), userId], (updateErr) => {
+            if (updateErr) {
+              console.error('Error updating distractions inventory:', updateErr);
+              return;
+            }
+            
+            console.log(`✓ Successfully updated ${playerName}'s inventory in database`);
+            
+            // Verify the update by reading it back
+            db.get('SELECT distractionsInventory FROM users WHERE id = ?', [userId], (verifyErr, verifyData) => {
+              if (!verifyErr && verifyData) {
+                console.log(`Verified inventory in DB:`, verifyData.distractionsInventory);
+              }
+            });
+            
+            // Send updated inventory back to the user who used it
+            socket.emit('distractionInventoryUpdated', {
+              inventory: inventory
+            });
+          });
+        } else {
+          console.warn(`${playerName} tried to use ${distractionType} but inventory count is ${inventory[distractionType] || 0}`);
+        }
       });
     });
   });

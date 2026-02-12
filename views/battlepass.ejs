@@ -40,7 +40,7 @@
     <!-- Premium Pass Purchase Button -->
     <div style="text-align: center; margin-bottom: 2rem;">
         <button class="premium-button" id="purchasePremium">
-             Unlock Premium Pass - 1000 digipogs
+             Unlock Premium Pass - 1000 Digipogs
         </button>
         <p>Pay 1000 digipogs to earn up to 2500 digipogs with the premium pass!</p>
         <button class="premium-button" id="claimRewardsBtn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); margin-top: 10px; padding: 8px 16px; font-size: 14px; max-width: 600px;">
@@ -48,6 +48,30 @@
         </button>
         <p id="claimStatus" style="margin-top: 5px; margin-bottom: 10px; color: #4CAF50; font-weight: bold; min-height: 24px;"></p>
         <a href="/profile">Click me to go back to your profile.</a>
+    </div>
+
+    <!-- Premium Purchase Modal -->
+    <div id="premiumPurchaseModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; justify-content: center; align-items: center;">
+        <div style="background: linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%); padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 2px solid #4CAF50;">
+            <h2 style="color: #4CAF50; margin-top: 0; text-align: center; font-size: 24px;">💎 Purchase Premium Pass</h2>
+            <div style="background: rgba(76, 175, 80, 0.1); padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid rgba(76, 175, 80, 0.3);">
+                <p style="margin: 10px 0; font-size: 18px; color: #fff;"><strong>Cost:</strong> 1000 Digipogs</p>
+                <p style="margin: 10px 0; font-size: 14px; color: #aaa;">Unlock exclusive rewards worth 2500+ Digipogs!</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label for="premiumPin" style="display: block; margin-bottom: 8px; color: #fff; font-weight: bold;">Enter your PIN:</label>
+                <input type="password" id="premiumPin" placeholder="Enter 4-digit PIN" style="width: 100%; padding: 12px; border-radius: 8px; border: 2px solid #555; background: #2a2a3e; color: white; font-size: 16px; box-sizing: border-box;" maxlength="4" />
+            </div>
+            <p id="premiumPurchaseError" style="color: #ff4444; text-align: center; min-height: 20px; margin: 10px 0;"></p>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button id="confirmPremiumPurchase" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold;">
+                    ✓ Confirm Purchase
+                </button>
+                <button id="cancelPremiumPurchase" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold;">
+                    ✗ Cancel
+                </button>
+            </div>
+        </div>
     </div>
     
     <!-- Battle Pass Container -->
@@ -88,6 +112,7 @@
                 40: { name: "Pink Theme", icon: "🩷" },
                 41: { name: " Bow N Arrow Effect", icon: "🏹" },
                 45: { name: "Free Game", image: "free.png" },
+                49: { name: "Mystery Box", icon: "📦" },
                 50: { name: " Max Gamer Title", icon: "🎮" }
             },
             premium: {
@@ -99,13 +124,14 @@
                 10: { name: "Premium Avatar", image: "Smiffers1984.png" },
                 12: { name: "200 Digipogs", image: "pog.png" },
                 13: { name: "Free Game", image: "free.png" },
-                15: { name: "Card Pack", icon: "📦" },
+                15: { name: "Mystery Box", icon: "📦" },
                 17: { name: "200 Digipogs", image: "pog.png" },
                 18: { name: "Ocean Breeze theme", icon: "🌊" },
                 19: { name: "Free Game", image: "free.png" },
                 20: { name: "Premium Emote", icon: "😍" },
                 21: { name: "Forest Theme", icon: "🌳" },
                 22: { name: "200 Digipogs", image: "pog.png" },
+                23: { name: "Mystery Box", icon: "📦" },
                 25: { name: "Hayden Announcer", image: "Hayden.png" },
                 26: { name: "One Button Effect", icon: "⚡" },
                 27: { name: "300 Digipogs", image: "pog.png" },
@@ -113,6 +139,7 @@
                 30: { name: "Party Smith Avatar", image: "partySmith.png" },
                 32: { name: "200 Digipogs", image: "pog.png" },
                 35: { name: "Ranch Boy title/emoji", icon: "🤠" },
+                36: { name: "Mystery Box", icon: "📦" },
                 37: { name: "200 Digipogs", image: "pog.png" },
                 39: { name: "Free Game", image: "free.png" },
                 40: { name: "One Button Effect", icon: "🔥" },
@@ -275,28 +302,74 @@
                 return;
             }
             
-            if (confirm('Purchase Premium Battle Pass for 1000 digipogs?')) {
-                fetch('/api/purchase-premium', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Premium Pass unlocked!');
-                        hasPremium = true;
-                        document.getElementById('premiumStatus').querySelector('.status-value').textContent = 'Premium Pass';
-                        document.getElementById('purchasePremium').textContent = '✅ Premium Pass Owned';
-                        document.getElementById('purchasePremium').disabled = true;
-                        generateBattlePass();
-                    } else {
-                        alert(data.message || 'Purchase failed. Please try again.');
-                    }
-                })
-                .catch(err => {
-                    console.error('Purchase error:', err);
-                    alert('An error occurred. Please try again.');
-                });
+            // Show purchase modal
+            const modal = document.getElementById('premiumPurchaseModal');
+            modal.style.display = 'flex';
+            document.getElementById('premiumPin').value = '';
+            document.getElementById('premiumPurchaseError').textContent = '';
+            document.getElementById('premiumPin').focus();
+        });
+
+        // Cancel purchase
+        document.getElementById('cancelPremiumPurchase').addEventListener('click', function() {
+            document.getElementById('premiumPurchaseModal').style.display = 'none';
+        });
+
+        // Confirm purchase
+        document.getElementById('confirmPremiumPurchase').addEventListener('click', function() {
+            const pin = document.getElementById('premiumPin').value.trim();
+            const errorEl = document.getElementById('premiumPurchaseError');
+            
+            if (!pin) {
+                errorEl.textContent = 'Please enter your PIN';
+                return;
+            }
+
+            if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+                errorEl.textContent = 'PIN must be exactly 4 digits';
+                return;
+            }
+
+            // Disable button during purchase
+            const btn = document.getElementById('confirmPremiumPurchase');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+            errorEl.textContent = '';
+
+            fetch('/api/purchase-premium', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pin: pin })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('premiumPurchaseModal').style.display = 'none';
+                    alert('Premium Pass unlocked! 🎉');
+                    hasPremium = true;
+                    document.getElementById('premiumStatus').querySelector('.status-value').textContent = 'Premium Pass';
+                    document.getElementById('purchasePremium').textContent = 'Premium Pass Owned';
+                    document.getElementById('purchasePremium').disabled = true;
+                    generateBattlePass();
+                } else {
+                    errorEl.textContent = data.message || 'Purchase failed. Please try again.';
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+            })
+            .catch(err => {
+                console.error('Purchase error:', err);
+                errorEl.textContent = 'An error occurred. Please try again.';
+                btn.disabled = false;
+                btn.textContent = originalText;
+            });
+        });
+
+        // Allow Enter key to submit
+        document.getElementById('premiumPin').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('confirmPremiumPurchase').click();
             }
         });
         
@@ -316,13 +389,25 @@
             .then(res => res.json())
             .then(data => {
                 if (data.ok) {
-                    statusEl.textContent = data.message + ` You now have ${data.totalTokens} free game token(s)!`;
+                    let message = '';
+                    if (data.tokensGranted > 0 && data.boxesGranted > 0) {
+                        message = `${data.message} You now have ${data.totalTokens} free game token(s)!`;
+                        alert(`Success! You received:\\n- ${data.tokensGranted} free game token(s)\\n- ${data.boxesGranted} mystery box(es)!\\n\\nTotal tokens: ${data.totalTokens}`);
+                    } else if (data.tokensGranted > 0) {
+                        message = `${data.message} You now have ${data.totalTokens} free game token(s)!`;
+                        alert(`Success! You received ${data.tokensGranted} free game token(s)!\\nTotal tokens: ${data.totalTokens}`);
+                    } else if (data.boxesGranted > 0) {
+                        message = `${data.message} Check your profile inventory!`;
+                        alert(`Success! You received ${data.boxesGranted} mystery box(es)!\\nCheck your profile to open them!`);
+                    } else {
+                        message = data.message;
+                    }
+                    
+                    statusEl.textContent = message;
                     statusEl.style.color = '#4CAF50';
                     btn.textContent = '✅ Rewards Claimed';
                     
-                    if (data.tokensGranted > 0) {
-                        alert(`Success! You received ${data.tokensGranted} free game token(s)!\\nTotal tokens: ${data.totalTokens}`);
-                    } else {
+                    if (data.tokensGranted === 0 && data.boxesGranted === 0) {
                         btn.textContent = '✅ All Rewards Claimed';
                         setTimeout(() => {
                             btn.disabled = false;
@@ -350,7 +435,7 @@
             // Set premium status display
             if (hasPremium) {
                 document.getElementById('premiumStatus').querySelector('.status-value').textContent = 'Premium Pass ⭐';
-                document.getElementById('purchasePremium').textContent = '✅ Premium Pass Owned';
+                document.getElementById('purchasePremium').textContent = 'Premium Pass Owned';
                 document.getElementById('purchasePremium').disabled = true;
             }
             

@@ -118,7 +118,7 @@ function setupSocketHandlers(io) {
             id: socket.id,
             name: playerName || 'Host',
             hand: [],
-            ready: false,  // Owner starts unready like everyone else
+            ready: true,  // Owner is always ready
             userId: userId,
             selectedTitle: customization.selectedTitle,
             selectedTitleColor: customization.selectedTitleColor,
@@ -187,7 +187,7 @@ function setupSocketHandlers(io) {
             id: socket.id,
             name,
             hand: [],
-            ready: false,
+            ready: false,  // New players start not ready
             userId: userId,
             selectedTitle: customization.selectedTitle,
             selectedTitleColor: customization.selectedTitleColor,
@@ -324,12 +324,14 @@ function setupSocketHandlers(io) {
         existingByName.socketId = socket.id;
         existingByName.id = socket.id;
         existingByName.userId = socket.request.session.token?.id || existingByName.userId || null;
-        existingByName.ready = wasReady;
 
         // Update owner socket id BEFORE sending events
         if (isOwner) {
           game.ownerId = socket.id;
-          console.log(`Owner ${playerName} reconnected, keeping ready=${wasReady}`);
+          existingByName.ready = true;  // Owner is always ready
+          console.log(`Owner ${playerName} reconnected, set ready=true`);
+        } else {
+          existingByName.ready = wasReady;  // Non-owners keep their previous ready state
         }
 
         socket.join(gameId);
@@ -434,10 +436,12 @@ function setupSocketHandlers(io) {
         if (game.players.length > 0) {
           game.ownerId = game.players[0].socketId;
           game.ownerName = game.players[0].name;
+          game.players[0].ready = true;  // New owner is always ready
           io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
           if (game.ownerId) {
             io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
           }
+          emitPlayerList(io, game);  // Update player list to show new owner as ready
         } else {
           delete games[gameId];
         }
@@ -450,6 +454,13 @@ function setupSocketHandlers(io) {
       if (!game) return;
       const real = game.players.findIndex(p => p.socketId === socket.id);
       if (real === -1) return;
+      
+      // Don't allow owner to change ready state - they're always ready
+      if (game.players[real].id === game.ownerId) {
+        console.log(`Owner ${game.players[real].name} cannot change ready state - always ready`);
+        return;
+      }
+      
       console.log(`Player ${game.players[real].name} setting ready to ${ready}`);
       game.players[real].ready = !!ready;
       console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
@@ -1283,10 +1294,12 @@ function setupSocketHandlers(io) {
               if (game.players.length > 0) {
                 game.ownerId = game.players[0].socketId;
                 game.ownerName = game.players[0].name;
+                game.players[0].ready = true;  // New owner is always ready
                 io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
                 if (game.ownerId) {
                   io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
                 }
+                emitPlayerList(io, game);  // Update player list to show new owner as ready
               } else {
                 // No players left, delete the game/room
                 console.log(`Room ${gameId} is now empty, deleting...`);
@@ -1340,7 +1353,16 @@ function setupSocketHandlers(io) {
       
       // Update the user's inventory in the database (async, don't block the effect)
       const db = require('../util/database');
-      const userId = socket.handshake.session?.token?.id;
+      
+      // Get userId from the game's player object
+      const game = games[gameId];
+      if (!game) {
+        console.warn(`No game found with ID ${gameId} when using distraction`);
+        return;
+      }
+      
+      const player = game.players.find(p => p.socketId === socket.id);
+      const userId = player?.userId;
       
       if (!userId) {
         console.warn(`No userId found for ${playerName} when using distraction - effect shown but inventory not updated`);

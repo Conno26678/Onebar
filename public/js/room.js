@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentOwnerName = ownerName;
 
     updateJoinCodeDisplay();
+    renderReadyButton();
     renderRoomControls();
   });
 
@@ -115,19 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
         readySpan.className = 'ready-status ' + (p.ready ? 'ready' : 'not-ready');
         pDiv.appendChild(readySpan);
 
-        // show ready toggle only for the current user
-        if (currentPlayerId && p.id === currentPlayerId) {
-          const readyBtn = document.createElement('button');
-          readyBtn.className = 'ready-btn';
-          readyBtn.textContent = p.ready ? 'Unready' : 'Ready';
-          readyBtn.onclick = (e) => {
-            e.stopPropagation();
-            const newReadyState = !p.ready;
-            socket.emit('setReady', { gameId, ready: newReadyState});
-          };
-          pDiv.appendChild(readyBtn);
-        }
-
         roomPlayerList.appendChild(pDiv);
       });
     }
@@ -136,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ownerText = currentOwnerName ? `Host ${currentOwnerName}` : (currentOwnerId ? 'Host' : '');
     roomInfo.innerHTML = `<div class="info-item">${ownerText}</div><div class="info-item">👥 ${players.length} Players</div>`;
 
+    renderReadyButton();
     renderRoomControls();
   });
 
@@ -147,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const playerCount = lastPlayers.length || 0;
     roomInfo.textContent = `Owner: ${ownerName} | Players: ${playerCount}`;
     updateJoinCodeDisplay();
+    renderReadyButton();
     renderRoomControls();
   });
 
@@ -248,6 +238,31 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       joinCodeContainer.style.display = 'none';
     }
+  }
+
+  function renderReadyButton() {
+    const readyButtonContainer = document.getElementById('readyButtonContainer');
+    if (!readyButtonContainer) return;
+    
+    readyButtonContainer.innerHTML = '';
+    
+    // Only show ready button if not the owner and in the game
+    if (!currentPlayerId || currentPlayerId === currentOwnerId) {
+      return;
+    }
+    
+    const currentPlayer = lastPlayers.find(p => p.id === currentPlayerId);
+    if (!currentPlayer) return;
+    
+    const readyBtn = document.createElement('button');
+    readyBtn.className = 'ready-btn-large';
+    readyBtn.textContent = currentPlayer.ready ? 'Unready' : 'Ready Up';
+    readyBtn.onclick = () => {
+      const newReadyState = !currentPlayer.ready;
+      socket.emit('setReady', { gameId, ready: newReadyState });
+    };
+    
+    readyButtonContainer.appendChild(readyBtn);
   }
 
   function renderRoomControls() {

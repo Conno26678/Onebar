@@ -18,8 +18,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastPlayers = [];
   let currentRoomIsPrivate = false;
   let currentJoinCode = null;
+  let currentGameRules = {
+    stacking: false,
+    jumpIn: false,
+    sevenZero: false
+  };
+  let readyTimeouts = new Map();
+  let countdownIntervals = new Map();
   let hasPromptedForCode = false;
   let hasPaid = false; // Track payment status
+  let rulesVisible = false; // Track custom rules panel visibility
 
   // Check for join code in URL (from join-by-code flow)
   const urlParams = new URLSearchParams(window.location.search);
@@ -37,11 +45,16 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.emit('joinLobby', { gameId, playerName: currentUser, joinCode: urlJoinCode || null });
   });
 
-   socket.on('joined', ({ playerId, isPrivate = false, joinCode = null, ownerId = null, ownerName = null }) => {
+   socket.on('joined', ({ playerId, isPrivate = false, joinCode = null, ownerId = null, ownerName = null, rules = null }) => {
     currentPlayerId = playerId || socket.id;
     // remember privacy state and join code
     currentRoomIsPrivate = !!isPrivate;
     if (joinCode) currentJoinCode = joinCode;
+    
+    // Set game rules if provided
+    if (rules) {
+      currentGameRules = { ...currentGameRules, ...rules };
+    }
     
     // Set owner info from server immediately
     currentOwnerId = ownerId;
@@ -49,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateJoinCodeDisplay();
     renderReadyButton();
-    renderRoomControls();
+    renderRulesPanel();
   });
 
   // If join failed because lobby is private, show join code input and retry
@@ -99,13 +112,16 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       players.forEach(p => {
         const pDiv = document.createElement('div');
-        pDiv.className = 'player-tag fade-in' + (p.id === currentOwnerId ? ' host' : '');
+        // Ensure currentOwnerId is set before checking (it should be set from joined/lobbyCreated events)
+        const isHost = currentOwnerId && p.id === currentOwnerId;
+        pDiv.className = 'player-tag fade-in' + (isHost ? ' host' : '');
+        pDiv.setAttribute('data-player-id', p.id);
         
         const nameSpan = document.createElement('span');
         nameSpan.textContent = p.name;
         pDiv.appendChild(nameSpan);
         
-        if (p.id === currentOwnerId) {
+        if (isHost) {
           const hostBadge = document.createElement('span');
           hostBadge.className = 'host-badge';
           hostBadge.textContent = ' Host';
@@ -115,6 +131,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const readySpan = document.createElement('span');
         readySpan.className = 'ready-status ' + (p.ready ? 'ready' : 'not-ready');
         pDiv.appendChild(readySpan);
+        
+        // Show countdown for non-ready, non-host players
+        if (!p.ready && !isHost) {
+          const countdownSpan = document.createElement('span');
+          countdownSpan.className = 'ready-countdown';
+          countdownSpan.id = `countdown-${p.id}`;
+          countdownSpan.textContent = '';
+          pDiv.appendChild(countdownSpan);
+        }
 
         roomPlayerList.appendChild(pDiv);
       });
@@ -125,38 +150,91 @@ document.addEventListener('DOMContentLoaded', () => {
     roomInfo.innerHTML = `<div class="info-item">${ownerText}</div><div class="info-item">👥 ${players.length} Players</div>`;
 
     renderReadyButton();
-    renderRoomControls();
+    renderRulesPanel();
   });
 
   socket.on('ownerChanged', ({ ownerId, ownerName }) => {
     console.log('ownerChanged received:', { ownerId, ownerName, currentPlayerId });
     currentOwnerId = ownerId;
     currentOwnerName = ownerName;
-    // update room info and controls
+    
+    console.log('Triggering renderRulesPanel from ownerChanged');
+    
+    // Re-render player list to show new host badge
+    if (lastPlayers.length > 0) {
+      const players = lastPlayers;
+      roomPlayerList.innerHTML = '';
+      players.forEach(p => {
+        const pDiv = document.createElement('div');
+        const isHost = currentOwnerId && p.id === currentOwnerId;
+        pDiv.className = 'player-tag fade-in' + (isHost ? ' host' : '');
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = p.name;
+        pDiv.appendChild(nameSpan);
+        
+        if (isHost) {
+          const hostBadge = document.createElement('span');
+          hostBadge.className = 'host-badge';
+          hostBadge.textContent = ' Host';
+          pDiv.appendChild(hostBadge);
+        }
+        
+        const readySpan = document.createElement('span');
+        readySpan.className = 'ready-status ' + (p.ready ? 'ready' : 'not-ready');
+        pDiv.appendChild(readySpan);
+        
+        // Show countdown for non-ready, non-host players
+        if (!p.ready && !isHost) {
+          const countdownSpan = document.createElement('span');
+          countdownSpan.className = 'ready-countdown';
+          countdownSpan.id = `countdown-${p.id}`;
+          countdownSpan.textContent = '';
+          pDiv.appendChild(countdownSpan);
+        }
+
+        roomPlayerList.appendChild(pDiv);
+      });
+    }
+    
+    // update room info
     const playerCount = lastPlayers.length || 0;
     roomInfo.textContent = `Owner: ${ownerName} | Players: ${playerCount}`;
     updateJoinCodeDisplay();
     renderReadyButton();
-    renderRoomControls();
+    renderRulesPanel();
   });
 
   socket.on('privateChanged', ({ isPrivate }) => {
-    console.log('privateChanged received:', { isPrivate });
     currentRoomIsPrivate = !!isPrivate;
     updateJoinCodeDisplay();
-    renderRoomControls();
   });
 
   socket.on('privateSet', ({ joinCode }) => {
-    console.log('privateSet received:', { joinCode, currentPlayerId, currentOwnerId });
     currentJoinCode = joinCode || null;
     updateJoinCodeDisplay();
-    renderRoomControls();
   });
 
   socket.on('gameStarted', () => {
     // navigate to game page
     window.location.href = '/game?gameId=' + encodeURIComponent(gameId);
+  });
+
+  socket.on('readyCountdown', ({ playerId, timeRemaining }) => {
+    const countdownEl = document.getElementById(`countdown-${playerId}`);
+    if (countdownEl) {
+      if (timeRemaining > 0) {
+        countdownEl.textContent = ` ⏱️${timeRemaining}s`;
+        countdownEl.style.color = timeRemaining <= 10 ? '#e53e3e' : '#f0c030';
+      } else {
+        countdownEl.textContent = '';
+      }
+    }
+  });
+
+  socket.on('kickedForNotReady', ({ reason }) => {
+    alert(reason || 'You were kicked for not readying up in time.');
+    window.location.href = '/lobby';
   });
 
   socket.on('startFailed', ({ reason }) => {
@@ -246,107 +324,191 @@ document.addEventListener('DOMContentLoaded', () => {
     
     readyButtonContainer.innerHTML = '';
     
-    // Only show ready button if not the owner and in the game
-    if (!currentPlayerId || currentPlayerId === currentOwnerId) {
-      return;
-    }
-    
-    const currentPlayer = lastPlayers.find(p => p.id === currentPlayerId);
-    if (!currentPlayer) return;
-    
-    const readyBtn = document.createElement('button');
-    readyBtn.className = 'ready-btn-large';
-    readyBtn.textContent = currentPlayer.ready ? 'Unready' : 'Ready Up';
-    readyBtn.onclick = () => {
-      const newReadyState = !currentPlayer.ready;
-      socket.emit('setReady', { gameId, ready: newReadyState });
-    };
-    
-    readyButtonContainer.appendChild(readyBtn);
-  }
-
-  function renderRoomControls() {
-    // Only update controls if there's an actual change needed
-    // Check if we already have the right controls rendered
-    const existingStartBtn = roomControls.querySelector('.start-btn');
-    const existingPrivToggle = roomControls.querySelector('.privacy-toggle');
-    
     if (!currentPlayerId) {
-      roomControls.innerHTML = '';
       return;
     }
     
-    // if I'm the owner, show Start Game button (enabled only when all ready) and private toggle
+    // If owner, show start game button
     if (currentPlayerId === currentOwnerId) {
-      // Only rebuild controls if they don't exist yet
-      if (!existingStartBtn || !existingPrivToggle) {
-        roomControls.innerHTML = '';
-        
-        // Private lobby toggle
-        const privDiv = document.createElement('div');
-        privDiv.className = 'privacy-toggle';
-        const privLabel = document.createElement('label');
-        privLabel.className = 'checkbox-wrapper';
-        const privCheckbox = document.createElement('input');
-        privCheckbox.type = 'checkbox';
-        privCheckbox.id = 'privacyCheckbox';
-        privCheckbox.checked = !!currentRoomIsPrivate;
-        privCheckbox.onchange = () => {
-          const makePrivate = !!privCheckbox.checked;
-          socket.emit('setPrivate', { gameId, isPrivate: makePrivate });
-        };
-        const labelText = document.createElement('span');
-        labelText.textContent = 'Private Lobby';
-        privLabel.appendChild(privCheckbox);
-        privLabel.appendChild(labelText);
-        privDiv.appendChild(privLabel);
-        roomControls.appendChild(privDiv);
-
-        const startBtn = document.createElement('button');
-        startBtn.className = 'start-btn';
-        startBtn.textContent = 'Start Game';
-        startBtn.onclick = () => {
-          socket.emit('startGame', { gameId, handSize: 7 });
-        };
-        roomControls.appendChild(startBtn);
-
-        const note = document.createElement('div');
-        note.className = 'waiting-note';
-        roomControls.appendChild(note);
-      }
-      
-      // Update the state of existing controls without clearing
       const players = Array.isArray(lastPlayers) ? lastPlayers : [];
+      // Allow start if all players are ready OR if host is the only player
       const allReady = players.length > 0 && players.every(p => !!p.ready);
+      const isSinglePlayer = players.length === 1;
+      const canStart = allReady || isSinglePlayer;
       
-      const startBtn = roomControls.querySelector('.start-btn');
-      if (startBtn) {
-        startBtn.disabled = !allReady;
+      const startBtn = document.createElement('button');
+      startBtn.className = 'start-btn-large';
+      startBtn.textContent = 'Start Game';
+      startBtn.disabled = !canStart;
+      startBtn.onclick = () => {
+        socket.emit('startGame', { gameId, handSize: 7 });
+      };
+      
+      readyButtonContainer.appendChild(startBtn);
+      
+      if (!canStart) {
+        const note = document.createElement('div');
+        note.className = 'waiting-note-below';
+        note.textContent = 'Waiting for all players to be ready...';
+        readyButtonContainer.appendChild(note);
       }
       
-      const privCheckbox = roomControls.querySelector('#privacyCheckbox');
-      if (privCheckbox) {
-        privCheckbox.checked = !!currentRoomIsPrivate;
-      }
-      
-      const note = roomControls.querySelector('.waiting-note');
-      if (note) {
-        note.textContent = allReady ? '' : 'Waiting for all players to be ready...';
-        note.style.display = allReady ? 'none' : 'block';
-      }
+      // Add Custom Rules button for host
+      const rulesBtn = document.createElement('button');
+      rulesBtn.className = 'rules-toggle-btn';
+      rulesBtn.innerHTML = '⚙️ Custom Rules';
+      rulesBtn.onclick = () => {
+        rulesVisible = !rulesVisible;
+        renderRulesPanel();
+      };
+      readyButtonContainer.appendChild(rulesBtn);
     } else {
-      // Not the owner, clear controls
-      roomControls.innerHTML = '';
+      // Not the owner, show ready button
+      const currentPlayer = lastPlayers.find(p => p.id === currentPlayerId);
+      if (!currentPlayer) return;
+      
+      const readyBtn = document.createElement('button');
+      readyBtn.className = 'ready-btn-large';
+      readyBtn.textContent = currentPlayer.ready ? 'Unready' : 'Ready Up';
+      readyBtn.onclick = () => {
+        const newReadyState = !currentPlayer.ready;
+        socket.emit('setReady', { gameId, ready: newReadyState });
+      };
+      
+      readyButtonContainer.appendChild(readyBtn);
     }
   }
 
-  // show start button if you're owner
-  socket.on('lobbyCreated', ({ gameId: createdId }) => {
-    if (createdId === gameId) {
+  function renderRulesPanel() {
+    if (!roomControls) {
+      console.log('renderRulesPanel: roomControls not found');
+      return;
+    }
+    
+    console.log('renderRulesPanel called:', { currentPlayerId, currentOwnerId, isOwner: currentPlayerId === currentOwnerId, rulesVisible });
+    
+    // Only show rules panel for the host and when toggled visible
+    if (!currentPlayerId || !currentOwnerId || currentPlayerId !== currentOwnerId || !rulesVisible) {
+      roomControls.innerHTML = '';
+      roomControls.style.display = 'none';
+      console.log('Not showing rules panel - not owner or not visible');
+      return;
+    }
+    
+    console.log('Showing rules panel for owner');
+    roomControls.style.display = 'flex';
+    roomControls.style.flexDirection = 'column';
+    roomControls.style.alignItems = 'center';
+    roomControls.innerHTML = '';
+    
+    const rulesContainer = document.createElement('div');
+    rulesContainer.className = 'rules-panel';
+    
+    const rulesTitle = document.createElement('h4');
+    rulesTitle.textContent = '⚙️ Game Rules';
+    rulesTitle.style.marginBottom = '10px';
+    rulesContainer.appendChild(rulesTitle);
+    
+    // Stacking rule
+    const stackingDiv = document.createElement('div');
+    stackingDiv.className = 'rule-option';
+    const stackingLabel = document.createElement('label');
+    stackingLabel.className = 'checkbox-wrapper';
+    const stackingCheckbox = document.createElement('input');
+    stackingCheckbox.type = 'checkbox';
+    stackingCheckbox.id = 'stackingRule';
+    stackingCheckbox.checked = currentGameRules.stacking;
+    stackingCheckbox.onchange = () => {
+      currentGameRules.stacking = stackingCheckbox.checked;
+      socket.emit('setGameRules', { gameId, rules: { stacking: stackingCheckbox.checked, jumpIn: currentGameRules.jumpIn, sevenZero: currentGameRules.sevenZero } });
+    };
+    const stackingText = document.createElement('span');
+    stackingText.innerHTML = '<strong>Stacking:</strong> Players can stack +2 and +4 cards';
+    stackingLabel.appendChild(stackingCheckbox);
+    stackingLabel.appendChild(stackingText);
+    stackingDiv.appendChild(stackingLabel);
+    rulesContainer.appendChild(stackingDiv);
+    
+    // Jump-in rule
+    const jumpInDiv = document.createElement('div');
+    jumpInDiv.className = 'rule-option';
+    const jumpInLabel = document.createElement('label');
+    jumpInLabel.className = 'checkbox-wrapper';
+    const jumpInCheckbox = document.createElement('input');
+    jumpInCheckbox.type = 'checkbox';
+    jumpInCheckbox.id = 'jumpInRule';
+    jumpInCheckbox.checked = currentGameRules.jumpIn;
+    jumpInCheckbox.onchange = () => {
+      currentGameRules.jumpIn = jumpInCheckbox.checked;
+      socket.emit('setGameRules', { gameId, rules: { stacking: currentGameRules.stacking, jumpIn: jumpInCheckbox.checked, sevenZero: currentGameRules.sevenZero } });
+    };
+    const jumpInText = document.createElement('span');
+    jumpInText.innerHTML = '<strong>Jump-In:</strong> Play identical card out of turn';
+    jumpInLabel.appendChild(jumpInCheckbox);
+    jumpInLabel.appendChild(jumpInText);
+    jumpInDiv.appendChild(jumpInLabel);
+    rulesContainer.appendChild(jumpInDiv);
+    
+    // 7-0 rule
+    const sevenZeroDiv = document.createElement('div');
+    sevenZeroDiv.className = 'rule-option';
+    const sevenZeroLabel = document.createElement('label');
+    sevenZeroLabel.className = 'checkbox-wrapper';
+    const sevenZeroCheckbox = document.createElement('input');
+    sevenZeroCheckbox.type = 'checkbox';
+    sevenZeroCheckbox.id = 'sevenZeroRule';
+    sevenZeroCheckbox.checked = currentGameRules.sevenZero;
+    sevenZeroCheckbox.onchange = () => {
+      currentGameRules.sevenZero = sevenZeroCheckbox.checked;
+      socket.emit('setGameRules', { gameId, rules: { stacking: currentGameRules.stacking, jumpIn: currentGameRules.jumpIn, sevenZero: sevenZeroCheckbox.checked } });
+    };
+    const sevenZeroText = document.createElement('span');
+    sevenZeroText.innerHTML = '<strong>7-0 Rule:</strong> 7 swaps hands, 0 rotates hands';
+    sevenZeroLabel.appendChild(sevenZeroCheckbox);
+    sevenZeroLabel.appendChild(sevenZeroText);
+    sevenZeroDiv.appendChild(sevenZeroLabel);
+    rulesContainer.appendChild(sevenZeroDiv);
+    
+    roomControls.appendChild(rulesContainer);
+  }
+
+  // Listen for game rules updates from server
+  socket.on('gameRulesUpdated', ({ rules }) => {
+    if (rules) {
+      currentGameRules = { ...currentGameRules, ...rules };
+      console.log('Game rules updated:', currentGameRules);
+      // Re-render the rules panel if it's visible
+      renderRulesPanel();
     }
   });
 
-  // Listen for XP gained from server (this has the correct level calculation)
+  // show start button if you're owner
+  socket.on('lobbyCreated', ({ gameId: createdId, ownerId, ownerName, isPrivate, joinCode, rules }) => {
+    if (createdId === gameId) {
+      // Set owner info immediately when lobby is created
+      if (ownerId) {
+        currentOwnerId = ownerId;
+        currentOwnerName = ownerName;
+        console.log('Lobby created - setting owner:', { ownerId, ownerName });
+      }
+      
+      // Set room privacy state and join code
+      currentRoomIsPrivate = !!isPrivate;
+      if (joinCode) currentJoinCode = joinCode;
+      
+      // Set game rules if provided
+      if (rules) {
+        currentGameRules = { ...currentGameRules, ...rules };
+      }
+      
+      // Initialize UI elements
+      updateJoinCodeDisplay();
+      renderReadyButton();
+      renderRulesPanel();
+    }
+  });
+
+  // Listen for XP gained from server
   socket.on('xpGained', ({ xpAdded, currentXP, level, levelsGained, xpForNextLevel }) => {
     console.log('⭐ XP Gained from server:', { xpAdded, currentXP, level, levelsGained, xpForNextLevel });
     
@@ -357,12 +519,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const xpNotifEarned = document.getElementById('xpNotifEarned');
     
     if (xpNotification && xpNotifPlayerName && xpNotifLevel && xpNotifEarned) {
-      console.log('📝 Setting XP notification content...');
+      console.log('Setting XP notification content...');
       xpNotifPlayerName.textContent = currentUser;
       xpNotifLevel.textContent = level; // Use level from server
       xpNotifEarned.textContent = `+${xpAdded} XP`;
       
-      console.log('🎨 Displaying XP notification...');
+      console.log('Displaying XP notification...');
       xpNotification.style.display = 'block';
       xpNotification.style.opacity = '1';
       xpNotification.style.visibility = 'visible';
@@ -370,7 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Animate in
       setTimeout(() => {
         xpNotification.style.animation = 'slideInRight 0.5s ease-out';
-        console.log('✅ XP Notification displayed and animated');
+        console.log('XP Notification displayed and animated');
       }, 100);
       
       // Show level up message if they gained levels
@@ -378,7 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`🎉 Level up! Gained ${levelsGained} level(s). Now level ${level}`);
       }
     } else {
-      console.error('❌ XP Notification element not found!');
+      console.error('XP Notification element not found!');
     }
   });
 

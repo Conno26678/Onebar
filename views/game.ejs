@@ -574,7 +574,10 @@
             plus2: '/sfx/slap.mp3',
             reverse: '/sfx/reverse.mp3',
             skip: '/sfx/pluh.mp3',
-            startgame: '/sfx/afewmoments.mp3'
+            startgame: '/sfx/afewmoments.mp3',
+            wild: '/sfx/omaewa.mp3',
+            plus4: '/sfx/slap.mp3',
+            cardPlace: '/sfx/pluh.mp3'
         },
         hayden: {
             loading: '/sfx/loading.mp3',
@@ -585,7 +588,8 @@
             skip: '/sfx/haydenskip.mp3',
             startgame: '/sfx/haydenstartgame.mp3',
             wild: '/sfx/haydenwild.mp3',
-            plus4: '/sfx/hayden+4.mp3'
+            plus4: '/sfx/hayden+4.mp3',
+            cardPlace: '/sfx/pluh.mp3'
         },
         custom: {
             loading: '/sfx/loading.mp3',
@@ -596,7 +600,8 @@
             skip: '/sfx/pluh.mp3',
             startgame: '/sfx/afewmoments.mp3',
             wild: '/sfx/omaewa.mp3',
-            plus4: '/sfx/slap.mp3'
+            plus4: '/sfx/slap.mp3',
+            cardPlace: '/sfx/pluh.mp3'
         }
     };
 
@@ -607,12 +612,15 @@
 
     // Function to get sound path based on custom sounds and selected pack
     function getSoundPath(soundType) {
-        // First check for custom sounds
+        const pack = getCurrentSoundPack();
+        
+        // First check for custom sounds (only if pack is 'custom' or customSounds exist)
         const customSounds = localStorage.getItem('customSounds');
-        if (customSounds) {
+        if (customSounds && customSounds !== '{}') {
             try {
                 const customSoundsObj = JSON.parse(customSounds);
                 if (customSoundsObj[soundType]) {
+                    console.log(`Playing custom sound for ${soundType}:`, customSoundsObj[soundType]);
                     return customSoundsObj[soundType];
                 }
             } catch (e) {
@@ -621,8 +629,9 @@
         }
         
         // Fall back to sound pack
-        const pack = getCurrentSoundPack();
-        return soundMappings[pack]?.[soundType] || soundMappings.default[soundType];
+        const soundPath = soundMappings[pack]?.[soundType] || soundMappings.default[soundType];
+        console.log(`Playing ${pack} sound for ${soundType}:`, soundPath);
+        return soundPath;
     }
 
     // Sound control helper function
@@ -1404,7 +1413,7 @@
       `;
       
       const video = document.createElement('video');
-      video.src = '/Subway%20Surfers.mp4';
+      video.src = '/subwaysurfers.mp4';
       video.autoplay = true;
       video.loop = true;
       video.muted = false;
@@ -1619,6 +1628,13 @@
   console.log('🏆 Winner screen data:', { winnerName, winnerId, digipogs, playerCount, payoutError });
   
   const isCurrentUserWinner = (winnerName === playerName);
+  
+  // Play winner or loser sound
+  if (isCurrentUserWinner) {
+    playSoundIfEnabled(getSoundPath('win'), 0.5);
+  } else {
+    playSoundIfEnabled(getSoundPath('lose'), 0.5);
+  }
   
   // Trigger confetti effect if user won and has confetti effect equipped
   if (isCurrentUserWinner) {
@@ -1974,6 +1990,8 @@
       gameActive = true;
         currentTurnPlayerId = currentPlayerId;
         updateCurrentPlayer(currentPlayerId);
+        // Play start game sound
+        playSoundIfEnabled(getSoundPath('startgame'), 0.5);
     });
 
     socket.on('turnChanged', ({ currentPlayerId }) => {
@@ -2021,6 +2039,8 @@
           playSoundIfEnabled(getSoundPath('reverse'), 0.4);
         } else if (card.value === 'Wild Draw Four' || card.id?.includes('WildDrawFour')) {
           playSoundIfEnabled(getSoundPath('plus4'), 0.4);
+        } else if (card.value === 'Wild' || (card.color === 'wild' && card.value !== 'Wild Draw Four')) {
+          playSoundIfEnabled(getSoundPath('wild'), 0.4);
         } else if (card.value === 'Draw Two' || card.id?.includes('DrawTwo')) {
           playSoundIfEnabled(getSoundPath('plus2'), 0.4);
         }
@@ -2552,6 +2572,16 @@ drawImg.addEventListener('click', async () => {
 socket.on('drawPileCount', ({ count }) => {
   const el = document.getElementById('drawCount');
   el.innerText = `Deck: ${count}`;
+});
+
+// Update draw stack display for stacking rule
+socket.on('drawStackUpdated', ({ drawStack }) => {
+  const statusEl = document.getElementById('status');
+  if (drawStack > 0) {
+    statusEl.innerHTML = `<span style="color: #f85149; font-weight: bold;">⚠️ Draw Stack: +${drawStack} cards!</span>`;
+  } else {
+    statusEl.innerText = '';
+  }
 });
 
 //  show a notification when any player draws

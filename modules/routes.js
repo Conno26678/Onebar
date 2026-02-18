@@ -5,21 +5,6 @@ const paymentRouter = require('./payment');
 const db = require('../util/database');
 const FORMBAR_ADDRESS = process.env.FORMBAR_ADDRESS || 'https://formbeta.yorktechapps.com';
 
-// Helper function to fetch digipogs balance from external API
-async function fetchDigipogsBalance(userId) {
-  try {
-    const response = await fetch(`${FORMBAR_ADDRESS}/api/digipogs/balance/${userId}`);
-    if (response.ok) {
-      const data = await response.json();
-      return data.balance || 0;
-    }
-    return 0;
-  } catch (error) {
-    console.error('Error fetching digipogs balance:', error);
-    return 0;
-  }
-}
-
 function setupRoutes(app) {
   // Mount payment routes (must be before other routes to handle POST requests)
   app.use('/', paymentRouter);
@@ -89,7 +74,6 @@ function setupRoutes(app) {
           });
         });
         
-        const digipogs = await fetchDigipogsBalance(userId);
         const onecells = userData?.onecells || 0;
         let purchasedThemes = [];
         
@@ -102,7 +86,7 @@ function setupRoutes(app) {
         res.render('shop.ejs', { 
           user: req.session.user, 
           onecells,
-          digipogs,
+          digipogs: 0,
           purchasedThemes
         });
       } catch (err) {
@@ -160,10 +144,7 @@ function setupRoutes(app) {
           }
           
           // Get current user data
-          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, selectedEmotes, selectedEffect, wins, hasBattlePassPremium, onecells, purchasedThemes, distractionsInventory, mysteryBoxInventory, customSounds FROM users WHERE id = ?', [userId], async (err, userData) => {
-            // Fetch digipogs from external API
-            const digipogs = userId ? await fetchDigipogsBalance(userId) : 0;
-            
+          db.get('SELECT xp, level, profilePicture, selectedTitle, selectedTitleColor, selectedTheme, selectedSoundPack, selectedBadge, selectedEmote, selectedEmotes, selectedEffect, wins, hasBattlePassPremium, onecells, purchasedThemes, distractionsInventory, mysteryBoxInventory, customSounds FROM users WHERE id = ?', [userId], (err, userData) => {
             if (err) {
               console.error('Error fetching user data:', err);
               res.render('profile.ejs', { 
@@ -1335,7 +1316,8 @@ function setupRoutes(app) {
       // Define sound pack requirements
       const soundPackRequirements = {
         'default': 1,
-        'hayden': 25
+        'hayden': 25,
+        'custom': 1
       };
 
       if (!soundPackRequirements.hasOwnProperty(soundPack)) {

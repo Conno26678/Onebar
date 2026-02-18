@@ -163,6 +163,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentOwnerId = null;
   let lastPlayers = [];
   let currentLobbyName = null;
+  let currentRoomIsPrivate = false;
+  let currentJoinCode = null;
+  let isLobbyCreator = false;
   let hasPaid = false;
   let pendingAction = null; // Store pending action after payment
 
@@ -220,6 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
     players.forEach(p => {
       const pDiv = document.createElement('div');
       pDiv.className = 'player-tag' + (p.id === currentOwnerId ? ' host' : '');
+      pDiv.setAttribute('data-player-id', p.id);
 
       // Add badge if player has one
       if (p.selectedBadge && p.selectedBadge !== 'none') {
@@ -249,18 +253,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const readySpan = document.createElement('span');
       readySpan.className = 'ready-status ' + (p.ready ? 'ready' : 'not-ready');
       pDiv.appendChild(readySpan);
-
-      // If this is the current user, show a toggle button
-      if (p.id === currentPlayerId) {
-        const readyBtn = document.createElement('button');
-        readyBtn.className = 'ready-btn';
-        readyBtn.textContent = p.ready ? 'Unready' : 'Ready';
-        readyBtn.onclick = (e) => {
-          e.stopPropagation();
-          socket.emit('setReady', { gameId: currentGameId, ready: !p.ready });
-        };
-        pDiv.appendChild(readyBtn);
+      
+      // Show countdown for non-ready, non-host players
+      const isHost = p.id === currentOwnerId;
+      if (!p.ready && !isHost) {
+        const countdownSpan = document.createElement('span');
+        countdownSpan.className = 'ready-countdown';
+        countdownSpan.id = `countdown-${p.id}`;
+        countdownSpan.textContent = '';
+        pDiv.appendChild(countdownSpan);
       }
+
+      // Do NOT add ready button here anymore - it's moved below player list
 
       roomPlayerList.appendChild(pDiv);
     });
@@ -301,33 +305,122 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     currentOwnerId = meta.ownerId || currentOwnerId;
-    roomControls.innerHTML = '';
-
-    if (currentPlayerId && currentOwnerId && currentPlayerId === currentOwnerId) {
-      const players = Array.isArray(lastPlayers) ? lastPlayers : [];
-      const allReady = players.length > 0 && players.every(p => !!p.ready);
-      const startBtn = document.createElement('button');
-      startBtn.className = 'start-btn';
-      startBtn.textContent = 'Start Game';
-      startBtn.disabled = !allReady;
-      startBtn.onclick = () => {
-        const handSize = 7;
-        socket.emit('startGame', { gameId: currentGameId, handSize });
-      };
-      roomControls.appendChild(startBtn);
-
-      if (!allReady) {
-        const note = document.createElement('div');
-        note.className = 'waiting-note';
-        note.textContent = 'Waiting for all players to be ready...';
-        roomControls.appendChild(note);
-      }
-    }
+    
+    // Render ready button for non-owners, start button for owner
+    renderReadyButtonLobby();
+    
+    // Render privacy toggle and other controls for owner
+    renderRoomControls();
 
     // Smooth scroll the room into view
     try {
       currentRoomEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) { /* ignore if not supported */ }
+  }
+
+  function renderReadyButtonLobby() {
+    const readyButtonContainer = document.getElementById('readyButtonContainerLobby');
+    if (!readyButtonContainer) return;
+    
+    readyButtonContainer.innerHTML = '';
+    
+    if (!currentPlayerId || !currentGameId) {
+      return;
+    }
+    
+    // If owner, show start game button
+    if (currentPlayerId === currentOwnerId) {
+      const players = Array.isArray(lastPlayers) ? lastPlayers : [];
+      // Allow start if all players are ready OR if host is the only player
+      const allReady = players.length > 0 && players.every(p => !!p.ready);
+      const isSinglePlayer = players.length === 1;
+      const canStart = allReady || isSinglePlayer;
+      
+      const startBtn = document.createElement('button');
+      startBtn.className = 'start-btn-large';
+      startBtn.textContent = 'Start Game';
+      startBtn.disabled = !canStart;
+      startBtn.onclick = () => {
+        socket.emit('startGame', { gameId: currentGameId, handSize: 7 });
+      };
+      
+      readyButtonContainer.appendChild(startBtn);
+      
+      if (!canStart) {
+        const note = document.createElement('div');
+        note.className = 'waiting-note-below';
+        note.textContent = 'Waiting for all players to be ready...';
+        readyButtonContainer.appendChild(note);
+      }
+    } else {
+      // Not the owner, show ready button
+      const currentPlayer = lastPlayers.find(p => p.id === currentPlayerId);
+      if (!currentPlayer) return;
+      
+      const readyBtn = document.createElement('button');
+      readyBtn.className = 'ready-btn-large';
+      readyBtn.textContent = currentPlayer.ready ? 'Unready' : 'Ready Up';
+      readyBtn.onclick = () => {
+        const newReadyState = !currentPlayer.ready;
+        socket.emit('setReady', { gameId: currentGameId, ready: newReadyState });
+      };
+      
+      readyButtonContainer.appendChild(readyBtn);
+    }
+  }
+
+  function renderRoomControls() {
+    if (!roomControls) return;
+    
+    // Only show privacy toggle if user is the CREATOR
+    if (!currentPlayerId || !currentOwnerId || currentPlayerId !== currentOwnerId || !currentGameId || !isLobbyCreator) {
+      roomControls.innerHTML = '';
+      return;
+    }
+    
+    // Check if privacy toggle already exists
+    const existingToggle = roomControls.querySelector('.privacy-toggle-lobby');
+    if (existingToggle) {
+      // Just update the checkbox state
+      const checkbox = existingToggle.querySelector('input[type="checkbox"]');
+      if (checkbox) {
+        checkbox.checked = !!currentRoomIsPrivate;
+      }
+      return;
+    }
+    
+    // Create privacy toggle
+    roomControls.innerHTML = '';
+    const privDiv = document.createElement('div');
+    privDiv.className = 'privacy-toggle-lobby';
+    const privLabel = document.createElement('label');
+    privLabel.className = 'checkbox-wrapper';
+    const privCheckbox = document.createElement('input');
+    privCheckbox.type = 'checkbox';
+    privCheckbox.id = 'privacyCheckboxLobby';
+    privCheckbox.checked = !!currentRoomIsPrivate;
+    privCheckbox.onchange = () => {
+      const makePrivate = !!privCheckbox.checked;
+      currentRoomIsPrivate = makePrivate;
+      socket.emit('setPrivate', { gameId: currentGameId, isPrivate: makePrivate });
+    };
+    const labelText = document.createElement('span');
+    labelText.textContent = 'Private Lobby';
+    privLabel.appendChild(privCheckbox);
+    privLabel.appendChild(labelText);
+    privDiv.appendChild(privLabel);
+    roomControls.appendChild(privDiv);
+    
+    // Show join code if private
+    if (currentRoomIsPrivate && currentJoinCode) {
+      const codeDiv = document.createElement('div');
+      codeDiv.className = 'join-code-display';
+      codeDiv.textContent = `Join Code: ${currentJoinCode}`;
+      codeDiv.style.marginTop = '10px';
+      codeDiv.style.textAlign = 'center';
+      codeDiv.style.fontWeight = 'bold';
+      roomControls.appendChild(codeDiv);
+    }
   }
 
   // escape helper
@@ -349,6 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
   socket.on('joined', ({ playerId, gameId, lobbyName }) => {
     currentPlayerId = playerId || currentPlayerId;
     currentGameId = gameId || currentGameId;
+    isLobbyCreator = false; // Not creator when joining existing lobby
     // request current lobby list to update UI
     socket.emit('getLobbies');
     // show current room area
@@ -366,8 +460,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
   socket.on('ownerChanged', ({ ownerId, ownerName }) => {
     currentOwnerId = ownerId;
+    // Re-render players to show new host badge
+    if (lastPlayers.length > 0) {
+      renderPlayers(lastPlayers);
+    }
+    // Re-render buttons
+    renderReadyButtonLobby();
+    renderRoomControls();
     // update lobby list display for other viewers
     socket.emit('getLobbies');
+  });
+
+  socket.on('privateChanged', ({ isPrivate }) => {
+    console.log('privateChanged received:', { isPrivate });
+    currentRoomIsPrivate = !!isPrivate;
+    renderRoomControls();
+  });
+
+  socket.on('privateSet', ({ joinCode }) => {
+    console.log('privateSet received:', { joinCode, currentGameId });
+    currentJoinCode = joinCode || null;
+    renderRoomControls();
+  });
+
+  socket.on('readyCountdown', ({ playerId, timeRemaining }) => {
+    const countdownEl = document.getElementById(`countdown-${playerId}`);
+    if (countdownEl) {
+      if (timeRemaining > 0) {
+        countdownEl.textContent = ` ⏱️${timeRemaining}s`;
+        countdownEl.style.color = timeRemaining <= 10 ? '#e53e3e' : '#f0c030';
+      } else {
+        countdownEl.textContent = '';
+      }
+    }
+  });
+
+  socket.on('kickedForNotReady', ({ reason }) => {
+    alert(reason || 'You were kicked for not readying up in time.');
+    currentGameId = null;
+    currentPlayerId = socket.id;
+    isLobbyCreator = false; // Reset creator flag when kicked
+    currentRoomIsPrivate = false;
+    currentJoinCode = null;
+    currentOwnerId = null;
+    if (lobbiesContainer) lobbiesContainer.style.display = 'block';
+    if (currentRoomEl) currentRoomEl.style.display = 'none';
   });
 
   // server may emit different error names; handle both older and newer names
@@ -383,20 +520,19 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = '/game?gameId=' + encodeURIComponent(currentGameId);
   });
   // redirect/enter room when server confirms lobby created
-  socket.on('lobbyCreated', ({ gameId, lobbyName, isPrivate = false, joinCode = null }) => {
+  socket.on('lobbyCreated', ({ gameId, lobbyName, isPrivate = false, joinCode = null, ownerId = null, ownerName = null }) => {
     // Keep the current socket alive: update URL and show the in-page room
     currentGameId = gameId;
+    currentRoomIsPrivate = !!isPrivate;
+    currentJoinCode = joinCode || null;
+    isLobbyCreator = true; // Mark as creator
+    if (ownerId) {
+      currentOwnerId = ownerId;
+    }
     try {
       history.replaceState(null, '', '/room/' + encodeURIComponent(gameId));
     } catch (e) { /* ignore */ }
-    showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId.slice(0, 6)}` });
-    // If the server returned a join code (private lobby), show it to the creator in controls
-    if (isPrivate && joinCode) {
-      roomControls.innerHTML = '';
-      const codeDiv = document.createElement('div');
-      codeDiv.textContent = 'Private lobby — join code: ' + joinCode;
-      roomControls.appendChild(codeDiv);
-    }
+    showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId.slice(0, 6)}`, ownerId });
     // Ask server for fresh lobby list for other viewers
     socket.emit('getLobbies');
   });
@@ -426,6 +562,9 @@ document.addEventListener('DOMContentLoaded', () => {
     currentGameId = null;
     currentPlayerId = socket.id || null;
     currentOwnerId = null;
+    isLobbyCreator = false; // Reset creator flag when leaving
+    currentRoomIsPrivate = false; // Reset privacy state
+    currentJoinCode = null; // Reset join code
     currentRoomEl.style.display = 'none';
     
     // Hide emoji reaction button when leaving room

@@ -40,7 +40,13 @@ function initGame(gameId) {
     private: false,
     joinCode: null,
     onePending: null,
-    winner: null
+    winner: null,
+    rules: {
+      stacking: false,
+      jumpIn: false,
+      sevenZero: false
+    },
+    drawStack: 0  // Accumulated draw cards for stacking rule
   };
   games[gameId] = game;
   return game;

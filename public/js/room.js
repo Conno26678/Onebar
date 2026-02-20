@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
    socket.on('joined', ({ playerId, isPrivate = false, joinCode = null, ownerId = null, ownerName = null, rules = null }) => {
     currentPlayerId = playerId || socket.id;
+    console.log('joined event - setting currentPlayerId:', currentPlayerId);
     // remember privacy state and join code
     currentRoomIsPrivate = !!isPrivate;
     if (joinCode) currentJoinCode = joinCode;
@@ -59,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set owner info from server immediately
     currentOwnerId = ownerId;
     currentOwnerName = ownerName;
+    console.log('joined event - setting currentOwnerId:', currentOwnerId, 'currentOwnerName:', currentOwnerName);
 
     updateJoinCodeDisplay();
     renderReadyButton();
@@ -325,8 +327,11 @@ document.addEventListener('DOMContentLoaded', () => {
     readyButtonContainer.innerHTML = '';
     
     if (!currentPlayerId) {
+      console.log('renderReadyButton: currentPlayerId not set');
       return;
     }
+    
+    console.log('renderReadyButton:', { currentPlayerId, currentOwnerId, isOwner: currentPlayerId === currentOwnerId });
     
     // If owner, show start game button
     if (currentPlayerId === currentOwnerId) {
@@ -385,13 +390,41 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
-    console.log('renderRulesPanel called:', { currentPlayerId, currentOwnerId, isOwner: currentPlayerId === currentOwnerId, rulesVisible });
+    console.log('renderRulesPanel called:', { currentPlayerId, currentOwnerId, isOwner: currentPlayerId === currentOwnerId, rulesVisible, currentGameRules });
+    
+    const isOwner = currentPlayerId && currentOwnerId && currentPlayerId === currentOwnerId;
+    
+    // For non-owners, show read-only rules display
+    if (!isOwner) {
+      roomControls.innerHTML = '';
+      const rulesReadOnly = document.createElement('div');
+      rulesReadOnly.className = 'rules-display-readonly';
+      rulesReadOnly.innerHTML = `
+        <h4>⚙️ Game Rules</h4>
+        <div class="rule-item">
+          <span class="rule-icon">${currentGameRules.stacking ? '✅' : '❌'}</span>
+          <span><strong>Stacking:</strong> ${currentGameRules.stacking ? 'ON' : 'OFF'}</span>
+        </div>
+        <div class="rule-item">
+          <span class="rule-icon">${currentGameRules.jumpIn ? '✅' : '❌'}</span>
+          <span><strong>Jump-In:</strong> ${currentGameRules.jumpIn ? 'ON' : 'OFF'}</span>
+        </div>
+        <div class="rule-item">
+          <span class="rule-icon">${currentGameRules.sevenZero ? '✅' : '❌'}</span>
+          <span><strong>7-0 Rule:</strong> ${currentGameRules.sevenZero ? 'ON' : 'OFF'}</span>
+        </div>
+      `;
+      roomControls.appendChild(rulesReadOnly);
+      roomControls.style.display = 'block';
+      console.log('Rendered read-only rules for non-owner');
+      return;
+    }
     
     // Only show rules panel for the host and when toggled visible
-    if (!currentPlayerId || !currentOwnerId || currentPlayerId !== currentOwnerId || !rulesVisible) {
+    if (!rulesVisible) {
       roomControls.innerHTML = '';
       roomControls.style.display = 'none';
-      console.log('Not showing rules panel - not owner or not visible');
+      console.log('Not showing rules panel - not visible');
       return;
     }
     
@@ -484,12 +517,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // show start button if you're owner
   socket.on('lobbyCreated', ({ gameId: createdId, ownerId, ownerName, isPrivate, joinCode, rules }) => {
+    console.log('lobbyCreated event received:', { createdId, ownerId, ownerName, gameId, currentPlayerId });
     if (createdId === gameId) {
       // Set owner info immediately when lobby is created
       if (ownerId) {
         currentOwnerId = ownerId;
         currentOwnerName = ownerName;
-        console.log('Lobby created - setting owner:', { ownerId, ownerName });
+        console.log('Lobby created - setting owner:', { ownerId, ownerName, currentPlayerId });
       }
       
       // Set room privacy state and join code

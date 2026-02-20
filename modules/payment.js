@@ -276,6 +276,88 @@ async function processWinnerPayout(winnerId, playerCount, gameId = 'unknown', lo
     }
 }
 
+// Helper function to transfer battlepass digipog rewards from admin to user
+// This is called automatically when a user levels up and reaches a digipog reward level
+async function transferBattlePassDigipogs(userId, amount, level) {
+    try {
+        const ownerPin = process.env.OWNER_PIN;
+        if (!ownerPin) {
+            console.error('OWNER_PIN not set in environment variables');
+            return { ok: false, error: 'Server configuration error: Owner PIN not set' };
+        }
+
+        console.log(`Processing battlepass digipog reward for user ${userId}: level ${level}, amount: ${amount} Digipogs`);
+
+        const payload = {
+            from: 33, // Admin pays out
+            to: Number(userId),
+            amount: Number(amount),
+            pin: Number(ownerPin),
+            reason: `Battle Pass reward for reaching level ${level}`,
+        };
+
+        const transferResult = await fetch(`${FORMBAR_ADDRESS}/api/digipogs/transfer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        // Check if the response is JSON before parsing
+        const contentType = transferResult.headers.get('content-type');
+        let responseJson;
+        
+        if (contentType && contentType.includes('application/json')) {
+            responseJson = await transferResult.json();
+        } else {
+            const responseText = await transferResult.text();
+            console.error(`Battle Pass digipog transfer API returned non-JSON response (status ${transferResult.status}):`, responseText.substring(0, 200));
+            return { 
+                ok: false, 
+                error: `API returned ${transferResult.status}: ${transferResult.statusText || 'Unknown error'}`,
+                details: responseText.substring(0, 500)
+            };
+        }
+
+        if (transferResult.ok && responseJson) {
+            console.log(`Battle Pass digipog transfer successful: ${amount} Digipogs to user ${userId} for level ${level}`);
+            return { ok: true, amount, level, response: responseJson };
+        } else {
+            // Extract specific error message
+            let specificError = 'Battle Pass digipog transfer failed';
+            
+            if (responseJson && responseJson.token) {
+                try {
+                    const jwt = require('jsonwebtoken');
+                    const decoded = jwt.decode(responseJson.token);
+                    if (decoded && decoded.message) {
+                        specificError = decoded.message;
+                    }
+                } catch (err) {
+                    console.error('Failed to decode JWT token:', err);
+                }
+            }
+
+            if (specificError === 'Battle Pass digipog transfer failed' && responseJson) {
+                if (responseJson.message) {
+                    specificError = responseJson.message;
+                } else if (responseJson.error) {
+                    specificError = responseJson.error;
+                } else if (responseJson.details && responseJson.details.message) {
+                    specificError = responseJson.details.message;
+                } else if (responseJson.data && responseJson.data.message) {
+                    specificError = responseJson.data.message;
+                }
+            }
+
+            console.error(`Battle Pass digipog transfer failed for user ${userId} at level ${level}:`, specificError);
+            return { ok: false, error: specificError, details: responseJson };
+        }
+    } catch (err) {
+        console.error('Battle Pass digipog transfer processing error:', err);
+        return { ok: false, error: 'Battle Pass digipog transfer request failed', details: err?.message || String(err) };
+    }
+}
+
 router.post('/payout', async (req, res) => {
     try {
         const { winnerId, playerCount, gameId, lobbyName } = req.body || {};
@@ -594,3 +676,4 @@ router.post('/claimBattlePassRewards', (req, res) => {
 
 module.exports = router;
 module.exports.processWinnerPayout = processWinnerPayout;
+module.exports.transferBattlePassDigipogs = transferBattlePassDigipogs;

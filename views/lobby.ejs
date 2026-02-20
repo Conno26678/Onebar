@@ -20,6 +20,9 @@
     <!-- Emoji Reaction Button (upper-left, shown when in room) -->
     <button class="emoji-reaction-button" id="emojiReactionBtn" onclick="toggleEmojiMenu()" style="display: none;">😊</button>
     
+    <!-- Custom Rules Button (under emoji button, shown for host in room) -->
+    <button class="rules-button-sidebar" id="rulesButtonSidebar" onclick="toggleRulesPanelSidebar()" style="display: none;">⚙️</button>
+    
     <!-- Emoji Selection Menu -->
     <div class="emoji-menu" id="emojiMenu" style="display: none;">
         <div class="emoji-menu-item" data-emoji="0"></div>
@@ -50,10 +53,6 @@
             <div class="lobby-form">
                 <input type="text" id="createLobbyName" placeholder="Enter lobby name..." />
                 <input type="number" id="createMaxPlayers" min="2" max="32" value="8" title="Max Players" />
-                <div class="checkbox-wrapper">
-                    <input type="checkbox" id="createPrivateLobby" />
-                    <label for="createPrivateLobby">Private</label>
-                </div>
                 <button id="createLobbyBtn">Create Lobby</button>
             </div>
         </div>
@@ -73,6 +72,7 @@
             <div id="currentRoomInfo"></div>
             <div id="roomPlayerList"></div>
             <div id="readyButtonContainerLobby"></div>
+            <div id="rulesDisplayLobby" style="margin-top: 15px;"></div>
             <div id="roomControls"></div>
             <button id="leaveLobbyBtn">Leave Lobby</button>
         </div>
@@ -93,6 +93,6 @@
     </script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
-    <script src="/js/lobby.js?v=2"></script>
+    <script src="/js/lobby.js?v=20260220final"></script>
 </body>
 </html>

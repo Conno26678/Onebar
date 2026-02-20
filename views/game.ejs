@@ -491,6 +491,26 @@
                 transform: scale(0.8);
             }
         }
+
+        @keyframes slideInDown {
+            from {
+                transform: translate(-50%, -100px);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1588,6 +1608,107 @@
         }
       });
     }
+
+    // Player Selection Function (for 7 card swap)
+    function showPlayerSelection(players, callback) {
+      // Create overlay
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      overlay.style.display = 'flex';
+      overlay.style.justifyContent = 'center';
+      overlay.style.alignItems = 'center';
+      overlay.style.zIndex = '10000';
+      
+      // Create container
+      const container = document.createElement('div');
+      container.style.backgroundColor = '#2a2a2a';
+      container.style.padding = '30px';
+      container.style.borderRadius = '15px';
+      container.style.boxShadow = '0 10px 40px rgba(0,0,0,0.5)';
+      container.style.maxWidth = '400px';
+      container.style.width = '90%';
+      
+      // Title
+      const title = document.createElement('h2');
+      title.textContent = 'Choose a player to swap hands with';
+      title.style.color = '#fff';
+      title.style.marginBottom = '20px';
+      title.style.textAlign = 'center';
+      title.style.fontSize = '20px';
+      container.appendChild(title);
+      
+      // Player list
+      const playerList = document.createElement('div');
+      playerList.style.display = 'flex';
+      playerList.style.flexDirection = 'column';
+      playerList.style.gap = '10px';
+      
+      players.forEach(player => {
+        const playerBtn = document.createElement('button');
+        playerBtn.textContent = `${player.name} (${player.cardCount} card${player.cardCount !== 1 ? 's' : ''})`;
+        playerBtn.style.padding = '15px 20px';
+        playerBtn.style.backgroundColor = '#4a4a4a';
+        playerBtn.style.color = '#fff';
+        playerBtn.style.border = 'none';
+        playerBtn.style.borderRadius = '8px';
+        playerBtn.style.fontSize = '16px';
+        playerBtn.style.cursor = 'pointer';
+        playerBtn.style.transition = 'all 0.2s';
+        
+        playerBtn.addEventListener('mouseenter', () => {
+          playerBtn.style.backgroundColor = '#5a5a5a';
+          playerBtn.style.transform = 'translateY(-2px)';
+        });
+        
+        playerBtn.addEventListener('mouseleave', () => {
+          playerBtn.style.backgroundColor = '#4a4a4a';
+          playerBtn.style.transform = 'translateY(0)';
+        });
+        
+        playerBtn.addEventListener('click', () => {
+          overlay.remove();
+          callback(player.id);
+        });
+        
+        playerList.appendChild(playerBtn);
+      });
+      
+      container.appendChild(playerList);
+      overlay.appendChild(container);
+      document.body.appendChild(overlay);
+    }
+
+    // Game Notification Function
+    function showGameNotification(message, type = 'info') {
+      const notification = document.createElement('div');
+      notification.textContent = message;
+      notification.style.position = 'fixed';
+      notification.style.top = '20px';
+      notification.style.left = '50%';
+      notification.style.transform = 'translateX(-50%)';
+      notification.style.backgroundColor = type === 'warning' ? '#ff9800' : '#2196F3';
+      notification.style.color = '#fff';
+      notification.style.padding = '15px 30px';
+      notification.style.borderRadius = '8px';
+      notification.style.fontSize = '18px';
+      notification.style.fontWeight = 'bold';
+      notification.style.zIndex = '9999';
+      notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+      notification.style.animation = 'slideInDown 0.5s ease-out';
+      
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.style.animation = 'fadeOut 0.5s ease-out';
+        setTimeout(() => notification.remove(), 500);
+      }, 3000);
+    }
+
     // Listen for XP gained from server (has correct level calculation)
     socket.on('xpGained', ({ xpAdded, currentXP, level, levelsGained, xpForNextLevel }) => {
       console.log('⭐ XP Gained from server:', { xpAdded, currentXP, level, levelsGained, xpForNextLevel });
@@ -1997,6 +2118,29 @@
     socket.on('turnChanged', ({ currentPlayerId }) => {
         currentTurnPlayerId = currentPlayerId;
         updateCurrentPlayer(currentPlayerId);
+    });
+
+    // 7-0 Rule: Show player selection when 7 is played
+    socket.on('choosePlayerForSwap', ({ players }) => {
+      console.log('Choose player for swap:', players);
+      showPlayerSelection(players, (selectedPlayerId) => {
+        console.log('Player selected for swap:', selectedPlayerId);
+        socket.emit('chooseSwapTarget', { gameId, targetPlayerId: selectedPlayerId });
+      });
+    });
+
+    // Notify when hands are swapped (7 rule)
+    socket.on('handsSwapped', ({ player1, player2 }) => {
+      console.log(`Hands swapped between ${player1.name} and ${player2.name}`);
+      showGameNotification(`${player1.name} swapped hands with ${player2.name}!`, 'info');
+      playSoundIfEnabled(getSoundPath('card'), 0.3);
+    });
+
+    // Notify when hands are rotated (0 rule)
+    socket.on('handsRotated', ({ playerName, direction }) => {
+      console.log(`${playerName} played a 0 - hands rotated ${direction}`);
+      showGameNotification(`${playerName} played a 0! All hands rotated ${direction}!`, 'warning');
+      playSoundIfEnabled(getSoundPath('card'), 0.3);
     });
 
     socket.on('cardPlacedOnTable', (card) => {

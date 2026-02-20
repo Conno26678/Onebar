@@ -395,7 +395,8 @@ function setupSocketHandlers(io) {
           isPrivate: !!game.private, 
           joinCode: game.joinCode || null,
           ownerId: game.ownerId,
-          ownerName: game.ownerName
+          ownerName: game.ownerName,
+          rules: game.rules || { stacking: false, jumpIn: false, sevenZero: false }
         });
         emitPlayerList(io, game);
         io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
@@ -962,6 +963,69 @@ function setupSocketHandlers(io) {
       console.log(`Start color chosen for game ${gameId}: ${color}`);
     });
 
+    // Handle player choosing who to swap hands with (7 card rule)
+    socket.on('chooseSwapTarget', ({ gameId = 'default', targetPlayerId } = {}) => {
+      const game = games[gameId];
+      if (!game || !game.started) {
+        socket.emit('invalidMove', { reason: 'Game not started' });
+        return;
+      }
+
+      if (!game.awaitingSevenSwap || game.awaitingSevenSwap.playerId !== socket.id) {
+        socket.emit('invalidMove', { reason: 'Not awaiting swap choice' });
+        return;
+      }
+
+      const player = game.players.find(p => p.socketId === socket.id);
+      const targetPlayer = game.players.find(p => p.id === targetPlayerId);
+
+      if (!player || !targetPlayer) {
+        socket.emit('invalidMove', { reason: 'Player not found' });
+        return;
+      }
+
+      if (player.id === targetPlayer.id) {
+        socket.emit('invalidMove', { reason: 'Cannot swap with yourself' });
+        return;
+      }
+
+      console.log(`Swapping hands between ${player.name} and ${targetPlayer.name}`);
+
+      // Swap the hands
+      const tempHand = player.hand;
+      player.hand = targetPlayer.hand;
+      targetPlayer.hand = tempHand;
+
+      // Send updated hands to both players
+      io.to(player.socketId).emit('deal', player.hand);
+      io.to(targetPlayer.socketId).emit('deal', targetPlayer.hand);
+
+      // Notify all players about the swap
+      io.to(gameId).emit('handsSwapped', {
+        player1: { id: player.id, name: player.name },
+        player2: { id: targetPlayer.id, name: targetPlayer.name }
+      });
+
+      // Update player list for everyone
+      emitPlayerList(io, game);
+
+      // Clear the awaiting swap state
+      delete game.awaitingSevenSwap;
+
+      // Now advance the turn
+      const playerIndex = game.players.findIndex(p => p.id === player.id);
+      const playerCount = game.players.length;
+      const step = game.direction;
+      const nextIndex = ((playerIndex + step) % playerCount + playerCount) % playerCount;
+      game.turnIndex = nextIndex;
+
+      const nextPlayerId = game.players[game.turnIndex].id;
+      io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+
+      console.log(`Hands swapped. Turn advances to ${game.players[game.turnIndex].name}`);
+    });
+
     socket.on('playCard', ({ gameId = 'default', cardId, chosenColor } = {}) => {
       const game = games[gameId];
       if (!game || !game.started) {
@@ -1093,6 +1157,74 @@ function setupSocketHandlers(io) {
           nextIndex = playerIndex;
         } else {
           nextIndex = ((playerIndex + game.direction) % playerCount + playerCount) % playerCount;
+        }
+      
+      // 7-0 RULE: Handle 7 (swap hands) and 0 (rotate hands)
+      } else if (game.rules && game.rules.sevenZero && (card.value === 7 || card.value === '7' || card.value === 0 || card.value === '0')) {
+        if (card.value === 7 || card.value === '7') {
+          // SEVEN: Player chooses someone to swap hands with
+          console.log(`Player ${player.name} played a 7 - initiating hand swap choice`);
+          
+          // Get list of other players with their card counts
+          const otherPlayers = game.players
+            .filter(p => p.id !== player.id)
+            .map(p => ({
+              id: p.id,
+              name: p.name,
+              cardCount: p.hand.length
+            }));
+          
+          // Store the game state to process the swap later
+          game.awaitingSevenSwap = {
+            playerId: player.id,
+            playerName: player.name
+          };
+          
+          // Ask the player who played the 7 to choose someone
+          io.to(player.socketId).emit('choosePlayerForSwap', {
+            players: otherPlayers
+          });
+          
+          // Don't advance turn yet - will advance after swap is chosen
+          return; // Exit early, turn will be advanced in swapHands handler
+          
+        } else if (card.value === 0 || card.value === '0') {
+          // ZERO: Rotate hands in the direction of play
+          console.log(`Player ${player.name} played a 0 - rotating all hands`);
+          
+          if (playerCount > 1) {
+            // Store all hands temporarily
+            const hands = game.players.map(p => p.hand);
+            
+            // Rotate hands in the direction of play
+            if (game.direction === 1) {
+              // Clockwise: each player gets the previous player's hand
+              for (let i = 0; i < playerCount; i++) {
+                const prevIndex = (i - 1 + playerCount) % playerCount;
+                game.players[i].hand = hands[prevIndex];
+              }
+            } else {
+              // Counter-clockwise: each player gets the next player's hand
+              for (let i = 0; i < playerCount; i++) {
+                const nextIdx = (i + 1) % playerCount;
+                game.players[i].hand = hands[nextIdx];
+              }
+            }
+            
+            // Send updated hands to all players
+            game.players.forEach(p => {
+              io.to(p.socketId).emit('deal', p.hand);
+            });
+            
+            // Notify all players about the rotation
+            io.to(gameId).emit('handsRotated', {
+              playerId: player.id,
+              playerName: player.name,
+              direction: game.direction === 1 ? 'clockwise' : 'counter-clockwise'
+            });
+            
+            console.log(`Hands rotated ${game.direction === 1 ? 'clockwise' : 'counter-clockwise'}`);
+          }
         }
       } else {
         // Regular card played - reset draw stack if stacking was active

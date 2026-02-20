@@ -142,7 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const createBtn = document.getElementById('createLobbyBtn');
   const createName = document.getElementById('createLobbyName');
   const createMax = document.getElementById('createMaxPlayers');
-  const createPrivate = document.getElementById('createPrivateLobby');
 
   const joinLobbyCode = document.getElementById('joinLobbyCode');
   const joinByCodeBtn = document.getElementById('joinByCodeBtn');
@@ -168,6 +167,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let isLobbyCreator = false;
   let hasPaid = false;
   let pendingAction = null; // Store pending action after payment
+  let currentGameRules = {
+    stacking: false,
+    jumpIn: false,
+    sevenZero: false
+  };
+  let rulesPanelVisible = false; // Track custom rules panel visibility
+  
+  // Toggle rules panel from sidebar button
+  window.toggleRulesPanelSidebar = () => {
+    rulesPanelVisible = !rulesPanelVisible;
+    renderRulesPanelLobby();
+  };
 
   // When socket connects, record our socket id as our current player id
   socket.on('connect', () => {
@@ -311,6 +322,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Render privacy toggle and other controls for owner
     renderRoomControls();
+    
+    // Render rules panel for owner
+    renderRulesPanelLobby();
 
     // Smooth scroll the room into view
     try {
@@ -369,58 +383,135 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function renderRulesPanelLobby() {
+    const rulesDisplay = document.getElementById('rulesDisplayLobby');
+    const rulesButtonSidebar = document.getElementById('rulesButtonSidebar');
+    
+    if (!rulesDisplay) {
+      console.log('renderRulesPanelLobby: rulesDisplayLobby not found');
+      return;
+    }
+    
+    const isOwner = currentPlayerId && currentOwnerId && currentPlayerId === currentOwnerId;
+    console.log('renderRulesPanelLobby called:', { isOwner, currentPlayerId, currentOwnerId, currentGameRules });
+    
+    // Show/hide the sidebar rules button (only for owner)
+    if (rulesButtonSidebar) {
+      rulesButtonSidebar.style.display = isOwner && currentGameId ? 'flex' : 'none';
+    }
+    
+    // For non-owners, show read-only rules display
+    if (!isOwner) {
+      rulesDisplay.innerHTML = '';
+      const rulesReadOnly = document.createElement('div');
+      rulesReadOnly.className = 'rules-display-readonly';
+      rulesReadOnly.innerHTML = `
+        <h4>⚙️ Game Rules</h4>
+        <div class="rule-item">
+          <span class="rule-icon">${currentGameRules.stacking ? '✅' : '❌'}</span>
+          <span><strong>Stacking:</strong> ${currentGameRules.stacking ? 'ON' : 'OFF'}</span>
+        </div>
+        <div class="rule-item">
+          <span class="rule-icon">${currentGameRules.jumpIn ? '✅' : '❌'}</span>
+          <span><strong>Jump-In:</strong> ${currentGameRules.jumpIn ? 'ON' : 'OFF'}</span>
+        </div>
+        <div class="rule-item">
+          <span class="rule-icon">${currentGameRules.sevenZero ? '✅' : '❌'}</span>
+          <span><strong>7-0 Rule:</strong> ${currentGameRules.sevenZero ? 'ON' : 'OFF'}</span>
+        </div>
+      `;
+      rulesDisplay.appendChild(rulesReadOnly);
+      rulesDisplay.style.display = 'block';
+      console.log('Rendered read-only rules for non-owner');
+      return;
+    }
+    
+    // For owner, show editable panel only when toggled visible
+    if (!rulesPanelVisible) {
+      rulesDisplay.innerHTML = '';
+      rulesDisplay.style.display = 'none';
+      return;
+    }
+    
+    rulesDisplay.style.display = 'block';
+    rulesDisplay.innerHTML = '';
+    
+    const rulesPanel = document.createElement('div');
+    rulesPanel.className = 'rules-panel';
+    
+    const rulesTitle = document.createElement('h4');
+    rulesTitle.textContent = '⚙️ Game Rules';
+    rulesTitle.style.marginBottom = '10px';
+    rulesPanel.appendChild(rulesTitle);
+    
+    // Stacking rule
+    const stackingDiv = document.createElement('div');
+    stackingDiv.className = 'rule-option';
+    const stackingLabel = document.createElement('label');
+    stackingLabel.className = 'checkbox-wrapper';
+    const stackingCheckbox = document.createElement('input');
+    stackingCheckbox.type = 'checkbox';
+    stackingCheckbox.id = 'stackingRuleLobby';
+    stackingCheckbox.checked = currentGameRules.stacking;
+    stackingCheckbox.onchange = () => {
+      currentGameRules.stacking = stackingCheckbox.checked;
+      socket.emit('setGameRules', { gameId: currentGameId, rules: { stacking: stackingCheckbox.checked, jumpIn: currentGameRules.jumpIn, sevenZero: currentGameRules.sevenZero } });
+    };
+    const stackingText = document.createElement('span');
+    stackingText.innerHTML = '<strong>Stacking:</strong> Players can stack +2 and +4 cards';
+    stackingLabel.appendChild(stackingCheckbox);
+    stackingLabel.appendChild(stackingText);
+    stackingDiv.appendChild(stackingLabel);
+    rulesPanel.appendChild(stackingDiv);
+    
+    // Jump-in rule
+    const jumpInDiv = document.createElement('div');
+    jumpInDiv.className = 'rule-option';
+    const jumpInLabel = document.createElement('label');
+    jumpInLabel.className = 'checkbox-wrapper';
+    const jumpInCheckbox = document.createElement('input');
+    jumpInCheckbox.type = 'checkbox';
+    jumpInCheckbox.id = 'jumpInRuleLobby';
+    jumpInCheckbox.checked = currentGameRules.jumpIn;
+    jumpInCheckbox.onchange = () => {
+      currentGameRules.jumpIn = jumpInCheckbox.checked;
+      socket.emit('setGameRules', { gameId: currentGameId, rules: { stacking: currentGameRules.stacking, jumpIn: jumpInCheckbox.checked, sevenZero: currentGameRules.sevenZero } });
+    };
+    const jumpInText = document.createElement('span');
+    jumpInText.innerHTML = '<strong>Jump-In:</strong> Play identical card out of turn';
+    jumpInLabel.appendChild(jumpInCheckbox);
+    jumpInLabel.appendChild(jumpInText);
+    jumpInDiv.appendChild(jumpInLabel);
+    rulesPanel.appendChild(jumpInDiv);
+    
+    // 7-0 rule
+    const sevenZeroDiv = document.createElement('div');
+    sevenZeroDiv.className = 'rule-option';
+    const sevenZeroLabel = document.createElement('label');
+    sevenZeroLabel.className = 'checkbox-wrapper';
+    const sevenZeroCheckbox = document.createElement('input');
+    sevenZeroCheckbox.type = 'checkbox';
+    sevenZeroCheckbox.id = 'sevenZeroRuleLobby';
+    sevenZeroCheckbox.checked = currentGameRules.sevenZero;
+    sevenZeroCheckbox.onchange = () => {
+      currentGameRules.sevenZero = sevenZeroCheckbox.checked;
+      socket.emit('setGameRules', { gameId: currentGameId, rules: { stacking: currentGameRules.stacking, jumpIn: currentGameRules.jumpIn, sevenZero: sevenZeroCheckbox.checked } });
+    };
+    const sevenZeroText = document.createElement('span');
+    sevenZeroText.innerHTML = '<strong>7-0 Rule:</strong> 7 swaps hands, 0 rotates hands';
+    sevenZeroLabel.appendChild(sevenZeroCheckbox);
+    sevenZeroLabel.appendChild(sevenZeroText);
+    sevenZeroDiv.appendChild(sevenZeroLabel);
+    rulesPanel.appendChild(sevenZeroDiv);
+    
+    rulesDisplay.appendChild(rulesPanel);
+  }
+
   function renderRoomControls() {
     if (!roomControls) return;
     
-    // Only show privacy toggle if user is the CREATOR
-    if (!currentPlayerId || !currentOwnerId || currentPlayerId !== currentOwnerId || !currentGameId || !isLobbyCreator) {
-      roomControls.innerHTML = '';
-      return;
-    }
-    
-    // Check if privacy toggle already exists
-    const existingToggle = roomControls.querySelector('.privacy-toggle-lobby');
-    if (existingToggle) {
-      // Just update the checkbox state
-      const checkbox = existingToggle.querySelector('input[type="checkbox"]');
-      if (checkbox) {
-        checkbox.checked = !!currentRoomIsPrivate;
-      }
-      return;
-    }
-    
-    // Create privacy toggle
+    // Don't show any controls in lobby
     roomControls.innerHTML = '';
-    const privDiv = document.createElement('div');
-    privDiv.className = 'privacy-toggle-lobby';
-    const privLabel = document.createElement('label');
-    privLabel.className = 'checkbox-wrapper';
-    const privCheckbox = document.createElement('input');
-    privCheckbox.type = 'checkbox';
-    privCheckbox.id = 'privacyCheckboxLobby';
-    privCheckbox.checked = !!currentRoomIsPrivate;
-    privCheckbox.onchange = () => {
-      const makePrivate = !!privCheckbox.checked;
-      currentRoomIsPrivate = makePrivate;
-      socket.emit('setPrivate', { gameId: currentGameId, isPrivate: makePrivate });
-    };
-    const labelText = document.createElement('span');
-    labelText.textContent = 'Private Lobby';
-    privLabel.appendChild(privCheckbox);
-    privLabel.appendChild(labelText);
-    privDiv.appendChild(privLabel);
-    roomControls.appendChild(privDiv);
-    
-    // Show join code if private
-    if (currentRoomIsPrivate && currentJoinCode) {
-      const codeDiv = document.createElement('div');
-      codeDiv.className = 'join-code-display';
-      codeDiv.textContent = `Join Code: ${currentJoinCode}`;
-      codeDiv.style.marginTop = '10px';
-      codeDiv.style.textAlign = 'center';
-      codeDiv.style.fontWeight = 'bold';
-      roomControls.appendChild(codeDiv);
-    }
   }
 
   // escape helper
@@ -439,10 +530,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // joined a lobby
-  socket.on('joined', ({ playerId, gameId, lobbyName }) => {
+  socket.on('joined', ({ playerId, gameId, lobbyName, rules }) => {
     currentPlayerId = playerId || currentPlayerId;
     currentGameId = gameId || currentGameId;
     isLobbyCreator = false; // Not creator when joining existing lobby
+    
+    // Set game rules if provided
+    if (rules) {
+      currentGameRules = { ...currentGameRules, ...rules };
+    }
+    
     // request current lobby list to update UI
     socket.emit('getLobbies');
     // show current room area
@@ -456,6 +553,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentGameId && currentOwnerId) {
       showCurrentRoom({ gameId: currentGameId, ownerId: currentOwnerId });
     }
+    // Update rules display for all players
+    renderRulesPanelLobby();
   });
 
   socket.on('ownerChanged', ({ ownerId, ownerName }) => {
@@ -467,6 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Re-render buttons
     renderReadyButtonLobby();
     renderRoomControls();
+    renderRulesPanelLobby();
     // update lobby list display for other viewers
     socket.emit('getLobbies');
   });
@@ -520,7 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = '/game?gameId=' + encodeURIComponent(currentGameId);
   });
   // redirect/enter room when server confirms lobby created
-  socket.on('lobbyCreated', ({ gameId, lobbyName, isPrivate = false, joinCode = null, ownerId = null, ownerName = null }) => {
+  socket.on('lobbyCreated', ({ gameId, lobbyName, isPrivate = false, joinCode = null, ownerId = null, ownerName = null, rules = null }) => {
     // Keep the current socket alive: update URL and show the in-page room
     currentGameId = gameId;
     currentRoomIsPrivate = !!isPrivate;
@@ -529,12 +629,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ownerId) {
       currentOwnerId = ownerId;
     }
+    
+    // Set game rules if provided
+    if (rules) {
+      currentGameRules = { ...currentGameRules, ...rules };
+    }
+    
     try {
       history.replaceState(null, '', '/room/' + encodeURIComponent(gameId));
     } catch (e) { /* ignore */ }
     showCurrentRoom({ gameId, lobbyName: lobbyName || `Room ${gameId.slice(0, 6)}`, ownerId });
     // Ask server for fresh lobby list for other viewers
     socket.emit('getLobbies');
+  });
+
+  // Listen for game rules updates from server
+  socket.on('gameRulesUpdated', ({ rules }) => {
+    if (rules) {
+      currentGameRules = { ...currentGameRules, ...rules };
+      console.log('Game rules updated:', currentGameRules);
+      // Re-render the rules panel if it's visible
+      renderRulesPanelLobby();
+    }
   });
 
   // create lobby
@@ -551,8 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function createLobbyNow() {
     const name = createName.value || `${window.CURRENT_USER || 'Host'}'s Lobby`;
     const maxPlayers = parseInt(createMax.value, 10) || 8;
-    const isPrivate = !!(createPrivate && createPrivate.checked);
-    socket.emit('createLobby', { lobbyName: name, maxPlayers, playerName: window.CURRENT_USER || 'Host', isPrivate });
+    socket.emit('createLobby', { lobbyName: name, maxPlayers, playerName: window.CURRENT_USER || 'Host', isPrivate: false });
   }
 
   // leave lobby

@@ -936,8 +936,6 @@ body {
     border-color: var(--shop-primary);
 }
 
-
-
 .shop-item > * {
     position: relative;
     z-index: 1;

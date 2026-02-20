@@ -521,9 +521,7 @@
 }
 
 .privacy-toggle-lobby {
-    display: flex;
-    justify-content: center;
-    margin: 15px 0;
+    display: none;
 }
 
 #leaveLobbyBtn {
@@ -783,6 +781,32 @@
     box-shadow: 0 6px 20px rgba(248, 81, 73, 0.5);
 }
 
+/* Custom Rules Button Sidebar */
+.rules-button-sidebar {
+    position: fixed;
+    top: 180px;
+    left: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4299e1, #3182ce);
+    border: 3px solid var(--border-color);
+    color: white;
+    font-size: 1.3rem;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rules-button-sidebar:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(66, 153, 225, 0.5);
+}
+
 .emoji-menu {
     position: fixed;
     top: 180px;
@@ -891,4 +915,84 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 80px;
+}
+
+/* Game Rules Panel */
+.rules-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(248, 81, 73, 0.3);
+}
+
+.rules-panel h4 {
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    margin: 0 0 10px 0;
+    text-align: center;
+}
+
+.rule-option {
+    padding: 8px 0;
+}
+
+.rule-option .checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.rule-option .checkbox-wrapper:hover {
+    transform: translateX(5px);
+}
+
+.rule-option input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.rule-option span {
+    color: var(--text-color);
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.rule-option strong {
+    color: var(--primary-color);
+}
+
+/* Read-only Rules Display for Non-Owners */
+.rules-display-readonly {
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    border: 1px solid rgba(66, 153, 225, 0.3);
+}
+
+.rules-display-readonly h4 {
+    color: #4299e1;
+    font-size: 1rem;
+    margin: 0 0 12px 0;
+    text-align: center;
+}
+
+.rule-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.rule-icon {
+    font-size: 1.1rem;
+    min-width: 24px;
 }

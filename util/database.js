@@ -237,6 +237,20 @@ function addXP(userId, xpToAdd, callback) {
         const freePassTokenLevels = [5, 15, 25, 35, 45];
         const premiumPassTokenLevels = [9, 13, 19, 29, 39, 49];
         
+        // Define which premium levels grant digipogs
+        const premiumDigipogRewards = {
+            3: 200,
+            7: 200,
+            12: 200,
+            17: 200,
+            22: 200,
+            27: 300,
+            32: 200,
+            37: 200,
+            42: 300,
+            47: 500
+        };
+        
         // Get already claimed levels
         let claimedLevels = [];
         try {
@@ -247,6 +261,8 @@ function addXP(userId, xpToAdd, callback) {
         
         // Calculate how many tokens to grant
         let tokensToGrant = 0;
+        const digipogsToTransfer = []; // Track digipog transfers to make
+        
         levelsReached.forEach(level => {
             // Skip if already claimed
             if (claimedLevels.includes(level)) {
@@ -261,6 +277,11 @@ function addXP(userId, xpToAdd, callback) {
             // Premium pass tokens (only if user has premium)
             if (user.hasBattlePassPremium && premiumPassTokenLevels.includes(level)) {
                 tokensToGrant++;
+                claimedLevels.push(level);
+            }
+            // Premium pass digipogs (only if user has premium)
+            if (user.hasBattlePassPremium && premiumDigipogRewards[level]) {
+                digipogsToTransfer.push({ level, amount: premiumDigipogRewards[level] });
                 claimedLevels.push(level);
             }
         });
@@ -279,6 +300,31 @@ function addXP(userId, xpToAdd, callback) {
             if (updateErr) {
                 return callback(updateErr, null);
             }
+            
+            // Process digipog transfers for premium battlepass rewards
+            if (digipogsToTransfer.length > 0) {
+                // Require payment module inside function to avoid circular dependency
+                const payment = require('../modules/payment');
+                
+                // Calculate total digipogs to be granted
+                const totalDigipogsGranted = digipogsToTransfer.reduce((sum, { amount }) => sum + amount, 0);
+                console.log(`Battle Pass: User ${userId} reached level(s) ${levelsReached.join(', ')}. Transferring ${totalDigipogsGranted} total digipogs.`);
+                
+                // Process each digipog transfer asynchronously
+                digipogsToTransfer.forEach(async ({ level, amount }) => {
+                    try {
+                        const result = await payment.transferBattlePassDigipogs(userId, amount, level);
+                        if (result.ok) {
+                            console.log(`✅ Transferred ${amount} digipogs to user ${userId} for reaching level ${level}`);
+                        } else {
+                            console.error(`❌ Failed to transfer ${amount} digipogs to user ${userId} for level ${level}:`, result.error);
+                        }
+                    } catch (err) {
+                        console.error(`❌ Error transferring digipogs to user ${userId} for level ${level}:`, err);
+                    }
+                });
+            }
+            
             callback(null, {
                 xp: currentXP,
                 level: currentLevel,

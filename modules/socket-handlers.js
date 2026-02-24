@@ -1084,6 +1084,22 @@ function setupSocketHandlers(io) {
       // Reset calledOne after playing a card
       player.calledOne = false;
       
+      // STACKING RULE: If there's a draw stack active, only draw cards can be played
+      if (game.rules && game.rules.stacking && game.drawStack > 0) {
+        const special = String(card.value).toLowerCase();
+        const isDrawTwo = special === 'draw two' || special === 'draw_two' || special.includes('draw two') || special.includes('draw_two');
+        const isDrawFour = special === 'wild draw four' || special === 'wild_draw_four' || special.includes('draw four') || special.includes('draw_four') || special.includes('wild draw');
+        
+        if (!isDrawTwo && !isDrawFour) {
+          // Not a draw card - can't play it, must draw the stack
+          player.hand.push(card); // Put card back
+          socket.emit('invalidMove', { reason: `You must draw ${game.drawStack} cards or play a +2/+4 card to stack!` });
+          io.to(player.socketId).emit('deal', player.hand);
+          return;
+        }
+        // If it IS a draw card, allow it to continue (will be added to stack below)
+      }
+      
       const topCard = game.discardPile.length > 0 ? game.discardPile[game.discardPile.length - 1] : null;
       const topActiveColor = topCard ? (topCard.activeColor || topCard.color) : null;
 

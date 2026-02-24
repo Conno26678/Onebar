@@ -1557,6 +1557,7 @@
     let currentTurnPlayerId = null;
     let myPlayerId = null;
     let currentTableCard = null; // Track the card on top of discard pile
+    let currentDrawStack = 0; // Track active draw stack for stacking rule
 
     
     // Helper function to fix card IDs for CSS sprite matching
@@ -2702,6 +2703,14 @@ drawImg.addEventListener('click', async () => {
     return;
   }
   
+  // If there's a draw stack active, confirm the player wants to draw
+  if (currentDrawStack > 0) {
+    const confirmDraw = confirm(`You will draw ${currentDrawStack} cards from the stack. Are you sure?\n\n(You can also play a +2 or +4 card to add to the stack instead!)`);
+    if (!confirmDraw) {
+      return;
+    }
+  }
+  
   // Trigger sparkles if equipped
   if (userSelectedEffects.includes('sparkles')) {
     triggerDrawPileSparkles();
@@ -2715,24 +2724,64 @@ drawImg.addEventListener('click', async () => {
 // Update draw pile count when server tells us
 socket.on('drawPileCount', ({ count }) => {
   const el = document.getElementById('drawCount');
-  el.innerText = `Deck: ${count}`;
+  // Only update if there's no active draw stack
+  if (currentDrawStack === 0) {
+    el.innerText = `Deck: ${count}`;
+  }
 });
 
 // Update draw stack display for stacking rule
 socket.on('drawStackUpdated', ({ drawStack }) => {
+  currentDrawStack = drawStack; // Update global tracker
+  
   const statusEl = document.getElementById('status');
+  const drawPileImg = document.getElementById('drawPileImg');
+  const drawCount = document.getElementById('drawCount');
+  
   if (drawStack > 0) {
-    statusEl.innerHTML = `<span style="color: #f85149; font-weight: bold;">⚠️ Draw Stack: +${drawStack} cards!</span>`;
+    statusEl.innerHTML = `<span style="color: #f85149; font-weight: bold;">⚠️ Draw Stack: +${drawStack} cards! Play a +2/+4 or draw!</span>`;
+    
+    // Add visual indicator to draw pile
+    if (drawPileImg) {
+      drawPileImg.style.border = '3px solid #f85149';
+      drawPileImg.style.boxShadow = '0 0 20px rgba(248, 81, 73, 0.6)';
+      drawPileImg.title = `Click to draw ${drawStack} cards from the stack`;
+    }
+    
+    // Update draw count to show stack
+    if (drawCount) {
+      drawCount.innerHTML = `<span style="color: #f85149; font-weight: bold;">+${drawStack}</span>`;
+    }
   } else {
     statusEl.innerText = '';
+    
+    // Remove visual indicator from draw pile
+    if (drawPileImg) {
+      drawPileImg.style.border = '';
+      drawPileImg.style.boxShadow = '';
+      drawPileImg.title = 'Click to draw a card';
+    }
   }
 });
 
-//  show a notification when any player draws
+// Show notification when any player draws
 socket.on('playerDrew', ({ playerId, count }) => {
   const name = document.getElementById('p_' + playerId)?.textContent || playerId;
   const s = document.getElementById('status');
   s.innerText = `${name} drew ${count} card${count !== 1 ? 's' : ''}`;
+});
+
+// Show notification when any player draws cards (including from stack)
+socket.on('playerDrewCards', ({ playerId, count }) => {
+  const name = document.getElementById('p_' + playerId)?.textContent || playerId;
+  const s = document.getElementById('status');
+  if (count > 1) {
+    s.innerHTML = `<span style="color: #ff6b6b; font-weight: bold;">${name} drew ${count} cards from the stack!</span>`;
+  } else {
+    s.innerText = `${name} drew ${count} card`;
+  }
+  // Play draw sound if enabled
+  playSoundIfEnabled(getSoundPath('draw'), 0.3);
 });
 </script>
 </html>

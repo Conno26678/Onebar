@@ -511,6 +511,78 @@
                 opacity: 0;
             }
         }
+
+        /* Jump In Button Styles */
+        .jump-in-button {
+            background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%);
+            color: #1a1a1a;
+            border: 3px solid #fff;
+            border-radius: 12px;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(255, 215, 0, 0.5);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .jump-in-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(255, 215, 0, 0.7);
+            background: linear-gradient(135deg, #ffed4e 0%, #ffd700 100%);
+        }
+
+        .jump-in-button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .jump-in-button:disabled {
+            background: linear-gradient(135deg, #666 0%, #444 100%);
+            cursor: not-allowed;
+            opacity: 0.5;
+            box-shadow: none;
+        }
+
+        .jump-in-icon {
+            font-size: 24px;
+            animation: pulse 1s infinite;
+        }
+
+        .jump-in-text {
+            font-size: 20px;
+            letter-spacing: 1px;
+        }
+
+        .jump-in-timer {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        @keyframes jumpInGlow {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 1); }
+        }
+
+        .jump-in-button.active {
+            animation: jumpInGlow 1s infinite;
+        }
     </style>
 </head>
 <body>
@@ -549,6 +621,15 @@
     <div id="tableArea"></div>
     <div id="table"></div>
     <div id="hand"></div>
+    
+    <!-- Jump In Button -->
+    <div id="jumpInContainer" style="display: none; margin-top: 15px; text-align: center;">
+      <button id="jumpInButton" class="jump-in-button" disabled>
+        <span class="jump-in-icon">⚡</span>
+        <span class="jump-in-text">JUMP IN!</span>
+        <span id="jumpInTimer" class="jump-in-timer"></span>
+      </button>
+    </div>
   </div>
 
   <!-- XP Notification Box -->
@@ -1558,6 +1639,9 @@
     let myPlayerId = null;
     let currentTableCard = null; // Track the card on top of discard pile
     let currentDrawStack = 0; // Track active draw stack for stacking rule
+    let jumpInWindowActive = false; // Track if jump-in window is active
+    let jumpInTimerInterval = null; // Track jump-in timer interval
+    let jumpInMatchingCard = null; // Track the matching card for jump-in
 
     
     // Helper function to fix card IDs for CSS sprite matching
@@ -2144,6 +2228,111 @@
       playSoundIfEnabled(getSoundPath('card'), 0.3);
     });
 
+    // Jump-in window opened
+    socket.on('jumpInWindowOpened', ({ card, expiresAt }) => {
+      console.log('Jump-in window opened:', card);
+      jumpInWindowActive = true;
+      
+      // Check if player has a matching card
+      const matchingCard = currentHand.find(c => 
+        c.color === card.color && c.value === card.value
+      );
+      
+      if (matchingCard && currentTurnPlayerId !== myPlayerId) {
+        jumpInMatchingCard = matchingCard;
+        const jumpInButton = document.getElementById('jumpInButton');
+        const jumpInContainer = document.getElementById('jumpInContainer');
+        const jumpInTimer = document.getElementById('jumpInTimer');
+        
+        jumpInButton.disabled = false;
+        jumpInButton.classList.add('active');
+        jumpInContainer.style.display = 'block';
+        
+        // Update timer display
+        const updateTimer = () => {
+          const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+          jumpInTimer.textContent = remaining + 's';
+          
+          if (remaining <= 0) {
+            clearInterval(jumpInTimerInterval);
+          }
+        };
+        
+        updateTimer();
+        jumpInTimerInterval = setInterval(updateTimer, 100);
+        
+        // Highlight the matching card
+        const handContainer = document.getElementById('hand');
+        const cardElements = handContainer.querySelectorAll('.card');
+        cardElements.forEach(cardEl => {
+          if (cardEl.dataset.cardId === fixCardId(matchingCard.id)) {
+            cardEl.style.border = '3px solid gold';
+            cardEl.style.boxShadow = '0 0 20px rgba(255, 215, 0, 0.8)';
+          }
+        });
+      }
+    });
+
+    // Jump-in window closed
+    socket.on('jumpInWindowClosed', () => {
+      console.log('Jump-in window closed');
+      closeJumpInWindow();
+    });
+
+    // Someone jumped in
+    socket.on('jumpedIn', ({ playerId, playerName }) => {
+      console.log(`${playerName} jumped in!`);
+      showGameNotification(`⚡ ${playerName} jumped in!`, 'warning');
+      playSoundIfEnabled(getSoundPath('card'), 0.5);
+      closeJumpInWindow();
+    });
+
+    // Function to close jump-in window
+    function closeJumpInWindow() {
+      jumpInWindowActive = false;
+      jumpInMatchingCard = null;
+      
+      const jumpInButton = document.getElementById('jumpInButton');
+      const jumpInContainer = document.getElementById('jumpInContainer');
+      
+      if (jumpInButton) {
+        jumpInButton.disabled = true;
+        jumpInButton.classList.remove('active');
+      }
+      
+      if (jumpInContainer) {
+        jumpInContainer.style.display = 'none';
+      }
+      
+      if (jumpInTimerInterval) {
+        clearInterval(jumpInTimerInterval);
+        jumpInTimerInterval = null;
+      }
+      
+      // Remove card highlights
+      const handContainer = document.getElementById('hand');
+      if (handContainer) {
+        const cardElements = handContainer.querySelectorAll('.card');
+        cardElements.forEach(cardEl => {
+          cardEl.style.border = '';
+          cardEl.style.boxShadow = '';
+        });
+      }
+    }
+
+    // Jump-in button click handler
+    document.getElementById('jumpInButton').addEventListener('click', () => {
+      if (!jumpInWindowActive || !jumpInMatchingCard) {
+        return;
+      }
+      
+      console.log('Jumping in with card:', jumpInMatchingCard);
+      socket.emit('jumpIn', { gameId, cardId: jumpInMatchingCard.id });
+      
+      // Immediately close the window (server will confirm)
+      closeJumpInWindow();
+    });
+
     socket.on('cardPlacedOnTable', (card) => {
       currentTableCard = card; // Store current table card
       addCardToTable(card, null, 'Top of Discard Pile');
@@ -2155,6 +2344,11 @@
         removeCardFromHand(card.id);
         // Update local hand tracking
         currentHand = currentHand.filter(c => c.id !== card.id);
+        
+        // Close jump-in window when any card is played (ends the window early)
+        if (jumpInWindowActive) {
+          closeJumpInWindow();
+        }
         
         // Check if fire effect should trigger on +2 cards
         if (userSelectedEffects.includes('flames') && playerId === myPlayerId) {
@@ -2368,6 +2562,17 @@
         });
         container.appendChild(cardEl);
       });
+      
+      // Reapply jump-in highlights if window is active
+      if (jumpInWindowActive && jumpInMatchingCard) {
+        const cardElements = container.querySelectorAll('.card');
+        cardElements.forEach(cardEl => {
+          if (cardEl.dataset.cardId === fixCardId(jumpInMatchingCard.id)) {
+            cardEl.style.border = '3px solid gold';
+            cardEl.style.boxShadow = '0 0 20px rgba(255, 215, 0, 0.8)';
+          }
+        });
+      }
     }
 
     // Validate if a card can be played on the current table card
@@ -2705,7 +2910,7 @@ drawImg.addEventListener('click', async () => {
   
   // If there's a draw stack active, confirm the player wants to draw
   if (currentDrawStack > 0) {
-    const confirmDraw = confirm(`You will draw ${currentDrawStack} cards from the stack. Are you sure?\n\n(You can also play a +2 or +4 card to add to the stack instead!)`);
+    const confirmDraw = confirm(` STACKING ACTIVE\n\nYou will draw ${currentDrawStack} cards from the stack.\n\nYou can also play a +2 or +4 card to add to the stack!\n(Note: You can only stack equal or higher values)\n\nDraw ${currentDrawStack} cards?`);
     if (!confirmDraw) {
       return;
     }
@@ -2739,7 +2944,7 @@ socket.on('drawStackUpdated', ({ drawStack }) => {
   const drawCount = document.getElementById('drawCount');
   
   if (drawStack > 0) {
-    statusEl.innerHTML = `<span style="color: #f85149; font-weight: bold;">⚠️ Draw Stack: +${drawStack} cards! Play a +2/+4 or draw!</span>`;
+    statusEl.innerHTML = `<span style="color: #f85149; font-weight: bold;"> Play a +2/+4 to add to the stack or draw ${drawStack} cards!</span>`;
     
     // Add visual indicator to draw pile
     if (drawPileImg) {
@@ -2748,14 +2953,30 @@ socket.on('drawStackUpdated', ({ drawStack }) => {
       drawPileImg.title = `Click to draw ${drawStack} cards from the stack`;
     }
     
-    // Update draw count to show stack
+    //  draw count Stacking 
     if (drawCount) {
-      drawCount.innerHTML = `<span style="color: #f85149; font-weight: bold;">+${drawStack}</span>`;
+      drawCount.innerHTML = `
+        <div style="
+          background: linear-gradient(135deg, #f85149 0%, #d43f3a 100%);
+          color: white;
+          padding: 8px 16px;
+          border-radius: 8px;
+          font-weight: bold;
+          font-size: 16px;
+          box-shadow: 0 4px 15px rgba(248, 81, 73, 0.4);
+          display: inline-block;
+          min-width: 120px;
+          text-align: center;
+        ">
+          <div style="font-size: 12px; opacity: 0.9; margin-bottom: 2px;">STACKING</div>
+          <div style="font-size: 24px;">+${drawStack}</div>
+        </div>
+      `;
     }
   } else {
     statusEl.innerText = '';
     
-    // Remove visual indicator from draw pile
+    //  visual indicator draw pile
     if (drawPileImg) {
       drawPileImg.style.border = '';
       drawPileImg.style.boxShadow = '';

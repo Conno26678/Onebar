@@ -762,6 +762,7 @@ function setupSocketHandlers(io) {
         console.log(`Player ${player.name} drawing from stack: ${game.drawStack} cards`);
         drawCount = game.drawStack;
         game.drawStack = 0;  // Reset the stack
+        game.lastDrawAmount = 0; // Reset last draw amount
         io.to(gameId).emit('drawStackUpdated', { drawStack: 0 });
         
         // When drawing from stack, draw all cards and skip turn
@@ -880,6 +881,34 @@ function setupSocketHandlers(io) {
 
           game.discardPile.push(card);
           io.to(gameId).emit('cardPlayed', { playerId: player.id, playerName: player.name, card });
+
+          // Clear any existing jump-in window
+          if (game.jumpInWindow && game.jumpInWindow.timeoutId) {
+            clearTimeout(game.jumpInWindow.timeoutId);
+            game.jumpInWindow = null;
+          }
+
+          // Start jump-in window if rule is enabled
+          if (game.rules && game.rules.jumpIn) {
+            const jumpInDelayMs = 5000; // 5 seconds
+            const timeoutId = setTimeout(() => {
+              if (game.jumpInWindow) {
+                game.jumpInWindow = null;
+                io.to(gameId).emit('jumpInWindowClosed');
+              }
+            }, jumpInDelayMs);
+
+            game.jumpInWindow = {
+              card: card,
+              expiresAt: Date.now() + jumpInDelayMs,
+              timeoutId
+            };
+
+            io.to(gameId).emit('jumpInWindowOpened', { 
+              card: card, 
+              expiresAt: game.jumpInWindow.expiresAt 
+            });
+          }
 
           const playerCount = game.players.length;
           const step = game.direction;
@@ -1026,6 +1055,145 @@ function setupSocketHandlers(io) {
       console.log(`Hands swapped. Turn advances to ${game.players[game.turnIndex].name}`);
     });
 
+    // Handle jump-in attempts
+    socket.on('jumpIn', ({ gameId = 'default', cardId } = {}) => {
+      const game = games[gameId];
+      if (!game || !game.started) {
+        socket.emit('invalidMove', { reason: 'Game not started' });
+        return;
+      }
+
+      // Check if jump-in rule is enabled
+      if (!game.rules || !game.rules.jumpIn) {
+        socket.emit('invalidMove', { reason: 'Jump-in rule is not enabled' });
+        return;
+      }
+
+      // Check if there's an active jump-in window
+      if (!game.jumpInWindow) {
+        socket.emit('invalidMove', { reason: 'No active jump-in window' });
+        return;
+      }
+
+      const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
+      if (playerIndex === -1) {
+        socket.emit('invalidMove', { reason: 'Not in game' });
+        return;
+      }
+
+      // Can't jump in if it's already your turn
+      if (playerIndex === game.turnIndex) {
+        socket.emit('invalidMove', { reason: "It's already your turn" });
+        return;
+      }
+
+      const player = game.players[playerIndex];
+      const cardIndex = player.hand.findIndex(c => c.id === cardId);
+      if (cardIndex === -1) {
+        socket.emit('invalidMove', { reason: 'Card not in hand' });
+        return;
+      }
+
+      const card = player.hand[cardIndex];
+      const topCard = game.discardPile[game.discardPile.length - 1];
+
+      // Validate that it's the EXACT same card (color and value)
+      if (!topCard || card.color !== topCard.color || card.value !== topCard.value) {
+        socket.emit('invalidMove', { reason: 'Can only jump in with the exact same card (color and value)' });
+        return;
+      }
+
+      console.log(`Player ${player.name} jumping in with ${card.name}`);
+
+      // Clear the jump-in window
+      if (game.jumpInWindow.timeoutId) {
+        clearTimeout(game.jumpInWindow.timeoutId);
+      }
+      game.jumpInWindow = null;
+
+      // Remove card from player's hand
+      player.hand.splice(cardIndex, 1);
+
+      // Reset calledOne after playing a card
+      player.calledOne = false;
+
+      // Set active color for wild cards
+      if (card.color === 'wild') {
+        card.activeColor = topCard.activeColor || 'red';
+      } else {
+        card.activeColor = card.color;
+      }
+
+      // Add card to discard pile
+      game.discardPile.push(card);
+      io.to(gameId).emit('cardPlayed', { playerId: player.id, playerName: player.name, card });
+      io.to(gameId).emit('jumpedIn', { playerId: player.id, playerName: player.name });
+
+      // Set turn to the player who jumped in
+      game.turnIndex = playerIndex;
+
+      // Immediately advance to the next player
+      const playerCount = game.players.length;
+      const step = game.direction;
+      const nextIndex = ((playerIndex + step) % playerCount + playerCount) % playerCount;
+      game.turnIndex = nextIndex;
+
+      const nextPlayerId = game.players[game.turnIndex].id;
+      io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+      emitPlayerList(io, game);
+
+      // Handle ONE timer if player has 1 card left
+      if (player.hand.length === 1) {
+        if (game.onePending && game.onePending.playerId === player.id) {
+          clearOnePending(game);
+        }
+        
+        const penaltyDelayMs = 5000;
+        const timeoutId = setTimeout(() => {
+          if (!game.onePending || game.onePending.playerId !== player.id) return;
+          const drawn = drawFromDeck(game, 2);
+          player.hand.push(...drawn);
+          io.to(player.socketId).emit('deal', player.hand);
+          io.to(gameId).emit('playerPenalized', { 
+            playerId: player.id, 
+            playerName: player.name, 
+            count: drawn.length,
+            reason: 'timeout'
+          });
+          io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+          emitPlayerList(io, game);
+          clearOnePending(game);
+        }, penaltyDelayMs);
+
+        game.onePending = {
+          playerId: player.id,
+          timeoutId,
+          expiresAt: Date.now() + penaltyDelayMs
+        };
+
+        io.to(player.socketId).emit('youHaveOne', { expiresAt: game.onePending.expiresAt });
+      }
+
+      // Check for win condition
+      if (player.hand.length === 0) {
+        if (game.onePending && game.onePending.playerId === player.id) clearOnePending(game);
+        game.started = false;
+        game.winner = { id: player.id, name: player.name, timestamp: Date.now() };
+
+        io.to(gameId).emit('playerWon', { 
+          playerId: player.id, 
+          playerName: player.name,
+          selectedTitle: player.selectedTitle || 'Newbie',
+          selectedTitleColor: player.selectedTitleColor || 'white'
+        });
+        
+        console.log(`Player ${player.name} won by jumping in!`);
+      }
+
+      console.log(`Jump-in successful. Turn advances to ${game.players[game.turnIndex].name}`);
+    });
+
     socket.on('playCard', ({ gameId = 'default', cardId, chosenColor } = {}) => {
       const game = games[gameId];
       if (!game || !game.started) {
@@ -1097,7 +1265,17 @@ function setupSocketHandlers(io) {
           io.to(player.socketId).emit('deal', player.hand);
           return;
         }
-        // If it IS a draw card, allow it to continue (will be added to stack below)
+        
+        // Check if trying to stack a lower value (+2) on a higher value (+4)
+        const currentDrawAmount = isDrawFour ? 4 : 2;
+        if (game.lastDrawAmount && currentDrawAmount < game.lastDrawAmount) {
+          // Can't stack a +2 on a +4
+          player.hand.push(card); // Put card back
+          socket.emit('invalidMove', { reason: `You can't stack a +${currentDrawAmount} on a +${game.lastDrawAmount}! Only equal or higher.` });
+          io.to(player.socketId).emit('deal', player.hand);
+          return;
+        }
+        // If it IS a draw card with valid amount, allow it to continue (will be added to stack below)
       }
       
       const topCard = game.discardPile.length > 0 ? game.discardPile[game.discardPile.length - 1] : null;
@@ -1130,6 +1308,34 @@ function setupSocketHandlers(io) {
       game.discardPile.push(card);
       io.to(gameId).emit('cardPlayed', { playerId: player.id, playerName: player.name, card });
 
+      // Clear any existing jump-in window
+      if (game.jumpInWindow && game.jumpInWindow.timeoutId) {
+        clearTimeout(game.jumpInWindow.timeoutId);
+        game.jumpInWindow = null;
+      }
+
+      // Start jump-in window if rule is enabled
+      if (game.rules && game.rules.jumpIn) {
+        const jumpInDelayMs = 5000; // 5 seconds
+        const timeoutId = setTimeout(() => {
+          if (game.jumpInWindow) {
+            game.jumpInWindow = null;
+            io.to(gameId).emit('jumpInWindowClosed');
+          }
+        }, jumpInDelayMs);
+
+        game.jumpInWindow = {
+          card: card,
+          expiresAt: Date.now() + jumpInDelayMs,
+          timeoutId
+        };
+
+        io.to(gameId).emit('jumpInWindowOpened', { 
+          card: card, 
+          expiresAt: game.jumpInWindow.expiresAt 
+        });
+      }
+
       const playerCount = game.players.length;
       const step = game.direction;
       let nextIndex = ((playerIndex + step) % playerCount + playerCount) % playerCount;
@@ -1153,6 +1359,7 @@ function setupSocketHandlers(io) {
         if (game.rules && game.rules.stacking) {
           // Stacking enabled - add to stack
           game.drawStack += drawAmount;
+          game.lastDrawAmount = drawAmount; // Track the last draw amount for validation
           console.log(`Stacking enabled: Added ${drawAmount} to draw stack. Total: ${game.drawStack}`);
           io.to(gameId).emit('drawStackUpdated', { drawStack: game.drawStack });
           // Don't skip turn - next player can stack or draw
@@ -1247,6 +1454,7 @@ function setupSocketHandlers(io) {
         if (game.drawStack > 0) {
           console.log(`Regular card played, resetting draw stack from ${game.drawStack} to 0`);
           game.drawStack = 0;
+          game.lastDrawAmount = 0; // Reset last draw amount
           io.to(gameId).emit('drawStackUpdated', { drawStack: 0 });
         }
       }

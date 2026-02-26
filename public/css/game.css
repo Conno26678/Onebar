@@ -29,6 +29,7 @@ html, body {
     margin: 0 0 5px 0;
     letter-spacing: 2px;
     flex-shrink: 0;
+    transition: all 0.4s ease;
 }
 
 /* Player List Panel */
@@ -71,18 +72,19 @@ html, body {
     line-height: 1;
 }
 
-/* Status Panel */
+/* Status Panel - Larger for better readability */
 #status {
     background: linear-gradient(135deg, var(--primary-color), #ff6b6b);
     color: white;
-    padding: 6px 15px;
-    border-radius: 8px;
+    padding: 10px 20px;
+    border-radius: 10px;
     text-align: center;
-    font-weight: 600;
-    font-size: 0.85rem;
+    font-weight: 700;
+    font-size: 1.1rem;
     margin-bottom: 5px;
-    box-shadow: 0 2px 10px rgba(255, 0, 0, 0.3);
+    box-shadow: 0 3px 15px rgba(255, 0, 0, 0.4);
     flex-shrink: 0;
+    transition: all 0.3s ease;
 }
 
 /* Table Area - Compact */
@@ -231,8 +233,30 @@ html, body {
     z-index: 100;
 }
 
+/* Player aura effect on hover for cards in hand */
+#hand [data-card-id].has-player-aura:hover {
+    box-shadow: 0 0 12px 2px var(--player-aura-color), 
+                0 0 20px 3px var(--player-aura-color, transparent),
+                0 15px 30px rgba(0, 0, 0, 0.5);
+}
+
 #hand [data-card-id]:active {
     transform: translateY(-10px) scale(1.1);
+}
+
+/* Not your turn - gray out cards */
+#hand.not-turn [data-card-id],
+#hand.not-turn img {
+    opacity: 0.4;
+    filter: grayscale(40%);
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
+#hand.not-turn [data-card-id]:hover,
+#hand.not-turn img:hover {
+    transform: none !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* Legacy support for img cards */
@@ -513,6 +537,11 @@ html, body {
         margin-bottom: 4px;
     }
 
+    #status {
+        padding: 8px 16px;
+        font-size: 0.95rem;
+    }
+
     #hand img {
         width: 65px;
         height: 97px;
@@ -560,8 +589,8 @@ html, body {
     }
 
     #status {
-        padding: 5px 12px;
-        font-size: 0.8rem;
+        padding: 7px 14px;
+        font-size: 0.9rem;
     }
 
     #hand {
@@ -664,8 +693,8 @@ html, body {
     }
 
     #status {
-        padding: 4px 10px;
-        font-size: 0.75rem;
+        padding: 6px 12px;
+        font-size: 0.85rem;
     }
 
     .win-modal {

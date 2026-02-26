@@ -46,7 +46,10 @@ function initGame(gameId) {
       jumpIn: false,
       sevenZero: false
     },
-    drawStack: 0  // Accumulated draw cards for stacking rule
+    drawStack: 0,  // Accumulated draw cards for stacking rule
+    turnTimer: null,  // Timer for current turn
+    turnTimeRemaining: 15,  // Time remaining in seconds (15-30)
+    turnCountdown: null  // Interval for countdown updates
   };
   games[gameId] = game;
   return game;
@@ -61,6 +64,21 @@ function clearOnePending(game) {
     clearTimeout(game.onePending.timeoutId);
   }
   game.onePending = null;
+}
+
+/**
+ * Clear the turn timer for the game
+ * @param {object} game
+ */
+function clearTurnTimer(game) {
+  if (game.turnTimer) {
+    clearTimeout(game.turnTimer);
+    game.turnTimer = null;
+  }
+  if (game.turnCountdown) {
+    clearInterval(game.turnCountdown);
+    game.turnCountdown = null;
+  }
 }
 
 /**
@@ -124,6 +142,7 @@ module.exports = {
   generateJoinCode,
   initGame,
   clearOnePending,
+  clearTurnTimer,
   drawFromDeck,
   getLobbyList,
   shuffle

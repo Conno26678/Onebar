@@ -4,6 +4,7 @@ const {
   generateJoinCode, 
   initGame, 
   clearOnePending, 
+  clearTurnTimer,
   drawFromDeck, 
   getLobbyList,
   shuffle
@@ -124,6 +125,148 @@ function startReadyTimeout(io, game, player) {
   }, READY_TIMEOUT * 1000);
 }
 
+function startTurnTimer(io, game, initialDuration = 15) {
+  // Clear any existing timer
+  clearTurnTimer(game);
+  
+  if (!game.started) {
+    console.log('Game not started, skipping turn timer');
+    return;
+  }
+  
+  const currentPlayer = game.players[game.turnIndex];
+  if (!currentPlayer) {
+    console.log('No current player, skipping turn timer');
+    return;
+  }
+  
+  game.turnTimeRemaining = initialDuration;
+  
+  // Emit initial countdown value immediately
+  io.to(game.id).emit('turnTimerUpdate', {
+    timeRemaining: initialDuration
+  });
+  
+  // Send countdown updates every second
+  game.turnCountdown = setInterval(() => {
+    game.turnTimeRemaining--;
+    
+    if (game.turnTimeRemaining > 0) {
+      io.to(game.id).emit('turnTimerUpdate', {
+        timeRemaining: game.turnTimeRemaining
+      });
+    } else {
+      clearInterval(game.turnCountdown);
+      game.turnCountdown = null;
+    }
+  }, 1000);
+  
+  // Auto-skip turn after timeout
+  game.turnTimer = setTimeout(() => {
+    console.log(`Turn timeout for ${currentPlayer.name} - auto-skipping turn`);
+    
+    // Clear the countdown
+    if (game.turnCountdown) {
+      clearInterval(game.turnCountdown);
+      game.turnCountdown = null;
+    }
+    
+    // Increment timeout count for this player
+    if (!currentPlayer.turnTimeoutCount) {
+      currentPlayer.turnTimeoutCount = 0;
+    }
+    currentPlayer.turnTimeoutCount++;
+    
+    console.log(`${currentPlayer.name} timeout count: ${currentPlayer.turnTimeoutCount}/5`);
+    
+    // Check if player has been auto-skipped 5 times
+    if (currentPlayer.turnTimeoutCount >= 5) {
+      console.log(`${currentPlayer.name} has been auto-skipped 5 times - kicking from game`);
+      
+      // Notify the player they're being kicked
+      io.to(currentPlayer.socketId).emit('kickedForInactivity', {
+        reason: 'You were kicked for being inactive (turn skipped 5 times).'
+      });
+      
+      // Notify other players
+      io.to(game.id).emit('playerKicked', {
+        playerId: currentPlayer.id,
+        playerName: currentPlayer.name,
+        reason: 'inactivity'
+      });
+      
+      // Remove player from game
+      const playerIndex = game.players.findIndex(p => p.id === currentPlayer.id);
+      if (playerIndex !== -1) {
+        game.players.splice(playerIndex, 1);
+        
+        // If removed player was the owner, transfer ownership
+        if (currentPlayer.socketId === game.ownerId && game.players.length > 0) {
+          game.ownerId = game.players[0].socketId;
+          game.ownerName = game.players[0].name;
+          game.players[0].ready = true;
+          io.to(game.id).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+        }
+        
+        emitPlayerList(io, game);
+        broadcastLobbyList(io);
+        
+        // Delete game if empty
+        if (game.players.length === 0) {
+          delete games[game.id];
+          return;
+        }
+        
+        // Adjust turn index if needed
+        game.turnIndex = game.turnIndex % game.players.length;
+        const nextPlayerId = game.players[game.turnIndex].id;
+        io.to(game.id).emit('turnChanged', { currentPlayerId: nextPlayerId });
+        
+        // Start timer for next turn
+        startTurnTimer(io, game, 15);
+      }
+      
+      return;
+    }
+    
+    // Notify all players that turn was auto-skipped
+    io.to(game.id).emit('turnAutoSkipped', {
+      playerId: currentPlayer.id,
+      playerName: currentPlayer.name,
+      timeoutCount: currentPlayer.turnTimeoutCount
+    });
+    
+    // Advance to next turn
+    const playerCount = game.players.length;
+    const step = game.direction;
+    const nextIndex = ((game.turnIndex + step) % playerCount + playerCount) % playerCount;
+    game.turnIndex = nextIndex;
+    const nextPlayerId = game.players[game.turnIndex].id;
+    io.to(game.id).emit('turnChanged', { currentPlayerId: nextPlayerId });
+    
+    // Start timer for next turn
+    startTurnTimer(io, game, 15);
+  }, initialDuration * 1000);
+}
+
+function extendTurnTimer(io, game, newDuration = 30) {
+  // Don't extend if no timer or game not started
+  if (!game.started || !game.turnTimer) {
+    console.log('Cannot extend timer: game not started or no active timer');
+    return;
+  }
+  
+  const currentPlayer = game.players[game.turnIndex];
+  if (!currentPlayer) {
+    return;
+  }
+  
+  console.log(`Extending turn timer for ${currentPlayer.name} to ${newDuration} seconds`);
+  
+  // Clear existing timer and restart with new duration
+  startTurnTimer(io, game, newDuration);
+}
+
 function setupSocketHandlers(io) {
   io.on('connection', (socket) => {
     const sess = socket.request && socket.request.session;
@@ -202,7 +345,8 @@ function setupSocketHandlers(io) {
             selectedTitle: customization.selectedTitle,
             selectedTitleColor: customization.selectedTitleColor,
             selectedBadge: customization.selectedBadge,
-            selectedEffect: customization.selectedEffect
+            selectedEffect: customization.selectedEffect,
+            turnTimeoutCount: 0  // Track how many times turn auto-skipped
           };
           game.players.push(player);
           socket.join(gameId);
@@ -274,7 +418,8 @@ function setupSocketHandlers(io) {
             selectedEffect: customization.selectedEffect,
             readyTimeout: null,
             readyCountdown: null,
-            readyTimeRemaining: null
+            readyTimeRemaining: null,
+            turnTimeoutCount: 0  // Track how many times turn auto-skipped
           };
           game.players.push(player);
           console.log(`New player ${name} joined game ${gameId}`);
@@ -481,7 +626,8 @@ function setupSocketHandlers(io) {
           selectedEffect: customization.selectedEffect,
           readyTimeout: null,
           readyCountdown: null,
-          readyTimeRemaining: null
+          readyTimeRemaining: null,
+          turnTimeoutCount: 0  // Track how many times turn auto-skipped
         };
         game.players.push(player);
         socket.join(gameId);
@@ -715,11 +861,18 @@ function setupSocketHandlers(io) {
                 const turnPlayer = game.players[game.turnIndex];
                 if (turnPlayer) {
                   io.to(gameId).emit('turnChanged', { currentPlayerId: turnPlayer.id });
+                  startTurnTimer(io, game, 15);
                 }
               }
             }
           }, 10000);
+        } else {
+          // Start turn timer if not waiting for wild color selection
+          startTurnTimer(io, game, 15);
         }
+      } else {
+        // Start turn timer if no discard pile
+        startTurnTimer(io, game, 15);
       }
 
       console.log('game started', gameId);
@@ -750,6 +903,12 @@ function setupSocketHandlers(io) {
 
       const player = game.players[playerIndex];
       
+      // Clear turn timer when player takes action
+      clearTurnTimer(game);
+      
+      // Reset timeout count when player takes action
+      player.turnTimeoutCount = 0;
+      
       // Prevent drawing if there's already a pending drawn card decision
       if (game.pendingDrawnCard && game.pendingDrawnCard.playerId === player.id) {
         socket.emit('invalidMove', { reason: 'Must decide on current drawn card first' });
@@ -768,6 +927,10 @@ function setupSocketHandlers(io) {
         // When drawing from stack, draw all cards and skip turn
         const stackDrawn = drawFromDeck(game, drawCount);
         player.hand.push(...stackDrawn);
+        // Reset calledOne if player now has more than 1 card
+        if (player.hand.length > 1) {
+          player.calledOne = false;
+        }
         io.to(player.socketId).emit('deal', player.hand);
         io.to(gameId).emit('playerDrewCards', { playerId: player.id, count: stackDrawn.length });
         io.to(gameId).emit('drawPileCount', { count: game.deck.length });
@@ -780,6 +943,7 @@ function setupSocketHandlers(io) {
         game.turnIndex = nextIndex;
         const nextPlayerId = game.players[game.turnIndex].id;
         io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+        startTurnTimer(io, game, 15);
         return;
       }
 
@@ -815,6 +979,10 @@ function setupSocketHandlers(io) {
       } else {
         //card not playable, auto add to hand
         player.hand.push(drawnCard);
+        // Reset calledOne if player now has more than 1 card
+        if (player.hand.length > 1) {
+          player.calledOne = false;
+        }
         io.to(player.socketId).emit('deal', player.hand);
         io.to(gameId).emit('playerDrew', { playerId: player.id, count: 1});
         io.to(gameId).emit('drawPileCount', { count: game.deck.length });
@@ -828,6 +996,7 @@ function setupSocketHandlers(io) {
 
         const nextPlayerId = game.players[game.turnIndex].id;
         io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+        startTurnTimer(io, game, 15);
       }
       });
 
@@ -852,6 +1021,10 @@ function setupSocketHandlers(io) {
         if (action === 'keep') {
           //add to hand
           player.hand.push(card);
+          // Reset calledOne if player now has more than 1 card
+          if (player.hand.length > 1) {
+            player.calledOne = false;
+          }
           io.to(player.socketId).emit('deal', player.hand);
           io.to(gameId).emit('playerDrew', { playerId: player.id, count: 1 });
           emitPlayerList(io, game);
@@ -864,6 +1037,7 @@ function setupSocketHandlers(io) {
 
           const nextPlayerId = game.players[game.turnIndex].id;
           io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+          startTurnTimer(io, game, 15);
         } else if (action === 'play') {
           //play the card
           const isWild = card.color === 'wild';
@@ -880,7 +1054,12 @@ function setupSocketHandlers(io) {
           }
 
           game.discardPile.push(card);
-          io.to(gameId).emit('cardPlayed', { playerId: player.id, playerName: player.name, card });
+          io.to(gameId).emit('cardPlayed', { 
+            playerId: player.id, 
+            playerName: player.name, 
+            card,
+            selectedTitleColor: player.selectedTitleColor || 'white'
+          });
 
           // Clear any existing jump-in window
           if (game.jumpInWindow && game.jumpInWindow.timeoutId) {
@@ -957,6 +1136,7 @@ function setupSocketHandlers(io) {
 
           const nextPlayerId = game.players[game.turnIndex].id;
           io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+          startTurnTimer(io, game, 15);
           io.to(gameId).emit('drawPileCount', { count: game.deck.length });
           emitPlayerList(io, game);
         }
@@ -988,6 +1168,7 @@ function setupSocketHandlers(io) {
 
       io.to(gameId).emit('cardPlacedOnTable', top);
       io.to(gameId).emit('turnChanged', { currentPlayerId: currentPlayer.id });
+      startTurnTimer(io, game, 15);
 
       console.log(`Start color chosen for game ${gameId}: ${color}`);
     });
@@ -1050,6 +1231,7 @@ function setupSocketHandlers(io) {
 
       const nextPlayerId = game.players[game.turnIndex].id;
       io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      startTurnTimer(io, game, 15);
       io.to(gameId).emit('drawPileCount', { count: game.deck.length });
 
       console.log(`Hands swapped. Turn advances to ${game.players[game.turnIndex].name}`);
@@ -1126,7 +1308,12 @@ function setupSocketHandlers(io) {
 
       // Add card to discard pile
       game.discardPile.push(card);
-      io.to(gameId).emit('cardPlayed', { playerId: player.id, playerName: player.name, card });
+      io.to(gameId).emit('cardPlayed', { 
+        playerId: player.id, 
+        playerName: player.name, 
+        card,
+        selectedTitleColor: player.selectedTitleColor || 'white'
+      });
       io.to(gameId).emit('jumpedIn', { playerId: player.id, playerName: player.name });
 
       // Set turn to the player who jumped in
@@ -1140,6 +1327,7 @@ function setupSocketHandlers(io) {
 
       const nextPlayerId = game.players[game.turnIndex].id;
       io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      startTurnTimer(io, game, 15);
       io.to(gameId).emit('drawPileCount', { count: game.deck.length });
       emitPlayerList(io, game);
 
@@ -1152,8 +1340,17 @@ function setupSocketHandlers(io) {
         const penaltyDelayMs = 5000;
         const timeoutId = setTimeout(() => {
           if (!game.onePending || game.onePending.playerId !== player.id) return;
+          // Only penalize if player still has exactly 1 card
+          if (player.hand.length !== 1) {
+            clearOnePending(game);
+            return;
+          }
           const drawn = drawFromDeck(game, 2);
           player.hand.push(...drawn);
+          // Reset calledOne if player now has more than 1 card
+          if (player.hand.length > 1) {
+            player.calledOne = false;
+          }
           io.to(player.socketId).emit('deal', player.hand);
           io.to(gameId).emit('playerPenalized', { 
             playerId: player.id, 
@@ -1217,6 +1414,13 @@ function setupSocketHandlers(io) {
         return;
       }
       const player = game.players[playerIndex];
+      
+      // Clear turn timer when player takes action
+      clearTurnTimer(game);
+      
+      // Reset timeout count when player takes action
+      player.turnTimeoutCount = 0;
+      
       const cardIndex = player.hand.findIndex(c => c.id === cardId);
       if (cardIndex === -1) {
         socket.emit('invalidMove', { reason: 'Card not in hand' });
@@ -1233,6 +1437,10 @@ function setupSocketHandlers(io) {
         // Penalize: give them 2 cards and reject the play
         const penaltyCards = drawFromDeck(game, 2);
         player.hand.push(...penaltyCards);
+        // Reset calledOne if player now has more than 1 card
+        if (player.hand.length > 1) {
+          player.calledOne = false;
+        }
         io.to(player.socketId).emit('deal', player.hand);
         socket.emit('invalidMove', { reason: 'You must call ONE before playing your last card!' });
         io.to(gameId).emit('playerPenalized', { 
@@ -1306,7 +1514,12 @@ function setupSocketHandlers(io) {
       }
 
       game.discardPile.push(card);
-      io.to(gameId).emit('cardPlayed', { playerId: player.id, playerName: player.name, card });
+      io.to(gameId).emit('cardPlayed', { 
+        playerId: player.id, 
+        playerName: player.name, 
+        card,
+        selectedTitleColor: player.selectedTitleColor || 'white'
+      });
 
       // Clear any existing jump-in window
       if (game.jumpInWindow && game.jumpInWindow.timeoutId) {
@@ -1463,6 +1676,7 @@ function setupSocketHandlers(io) {
 
       const nextPlayerId = game.players[game.turnIndex].id;
       io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      startTurnTimer(io, game, 15);
       io.to(gameId).emit('drawPileCount', { count: game.deck.length });
       emitPlayerList(io, game);
 
@@ -1476,9 +1690,18 @@ function setupSocketHandlers(io) {
         const penaltyDelayMs = 5000;
         const timeoutId = setTimeout(() => {
           if (!game.onePending || game.onePending.playerId !== player.id) return;
+          // Only penalize if player still has exactly 1 card
+          if (player.hand.length !== 1) {
+            clearOnePending(game);
+            return;
+          }
           // Player didn't call ONE in time - penalize
           const drawn = drawFromDeck(game, 2);
           player.hand.push(...drawn);
+          // Reset calledOne if player now has more than 1 card
+          if (player.hand.length > 1) {
+            player.calledOne = false;
+          }
           io.to(player.socketId).emit('deal', player.hand);
           io.to(gameId).emit('playerPenalized', { 
             playerId: player.id, 
@@ -1505,6 +1728,9 @@ function setupSocketHandlers(io) {
       // Win detection
       if (player.hand.length === 0) {
         if (game.onePending && game.onePending.playerId === player.id) clearOnePending(game);
+
+        // Clear turn timer when game ends
+        clearTurnTimer(game);
 
         game.started = false;
         game.winner = { id: player.id, name: player.name, timestamp: Date.now() };
@@ -1867,6 +2093,7 @@ function setupSocketHandlers(io) {
             } else if (game.started && game.players.length > 0) {
               game.turnIndex = game.turnIndex % game.players.length;
               io.to(gameId).emit('turnChanged', { currentPlayerId: game.players[game.turnIndex].id });
+              startTurnTimer(io, game, 15);
             } else if (!game.started) {
               game.status = 'waiting';
             }
@@ -1901,11 +2128,17 @@ function setupSocketHandlers(io) {
         distractionName
       });
       
+      // Extend turn timer to 30 seconds when a distraction is played
+      const game = games[gameId];
+      if (game && game.started) {
+        extendTurnTimer(io, game, 30);
+        console.log(`Turn timer extended to 30 seconds due to distraction`);
+      }
+      
       // Update the user's inventory in the database (async, don't block the effect)
       const db = require('../util/database');
       
       // Get userId from the game's player object
-      const game = games[gameId];
       if (!game) {
         console.warn(`No game found with ID ${gameId} when using distraction`);
         return;

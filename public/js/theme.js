@@ -15,6 +15,9 @@ class ThemeManager {
     
     // Add fade-in animation to body
     document.body.classList.add('fade-in');
+    
+    // Initialize Robert theme effects if applicable
+    this.initRobertThemeEffects();
   }
 
   createToggleButton() {
@@ -40,6 +43,9 @@ class ThemeManager {
     if (toggleButton) {
       toggleButton.innerHTML = theme === 'dark' ? '☀️' : '🌙';
     }
+    
+    // Initialize or clean up Robert theme effects
+    this.initRobertThemeEffects();
   }
 
   toggleTheme() {
@@ -55,6 +61,89 @@ class ThemeManager {
 
   getTheme() {
     return this.currentTheme;
+  }
+
+  initRobertThemeEffects() {
+    // Clean up existing intervals if any
+    if (this.robertEffectInterval) {
+      clearInterval(this.robertEffectInterval);
+      this.robertEffectInterval = null;
+    }
+    
+    // Only run for robert theme
+    if (this.currentTheme === 'robert') {
+      this.startRobertEffects();
+    }
+  }
+
+  startRobertEffects() {
+    const images = [
+      '/img/shadow.png',
+      '/img/eye.png',
+      '/img/cronos.png',
+      '/img/demon.png',
+      '/img/shadowGuy.png'
+    ];
+
+    const spawnRandomImage = () => {
+      // Random image from the array
+      const randomImage = images[Math.floor(Math.random() * images.length)];
+      
+      // Random position on screen (avoiding edges)
+      const randomX = Math.random() * 80 + 10; // 10% to 90%
+      const randomY = Math.random() * 80 + 10; // 10% to 90%
+      
+      // Random size between 100px and 300px
+      const randomSize = Math.floor(Math.random() * 200) + 100;
+      
+      // Create image element
+      const imgElement = document.createElement('img');
+      imgElement.src = randomImage;
+      imgElement.className = 'robert-floating-image';
+      imgElement.style.position = 'fixed';
+      imgElement.style.left = `${randomX}%`;
+      imgElement.style.top = `${randomY}%`;
+      imgElement.style.width = `${randomSize}px`;
+      imgElement.style.height = 'auto';
+      imgElement.style.opacity = '0';
+      imgElement.style.transition = 'opacity 2s ease-in-out';
+      imgElement.style.pointerEvents = 'none';
+      imgElement.style.zIndex = '9999';
+      imgElement.style.transform = 'translate(-50%, -50%)';
+      
+      document.body.appendChild(imgElement);
+      
+      // Fade in
+      setTimeout(() => {
+        imgElement.style.opacity = '0.8';
+      }, 100);
+      
+      // Linger duration: 8-15 seconds
+      const lingerTime = Math.random() * 7000 + 8000;
+      
+      // Fade out and remove
+      setTimeout(() => {
+        imgElement.style.opacity = '0';
+        setTimeout(() => {
+          if (imgElement.parentNode) {
+            imgElement.parentNode.removeChild(imgElement);
+          }
+        }, 2000); // Wait for fade out to complete
+      }, lingerTime);
+    };
+
+    // Spawn first image immediately
+    setTimeout(spawnRandomImage, 1000);
+    
+    // Spawn multiple images more frequently
+    const spawnImages = () => {
+      spawnRandomImage();
+      // Schedule next spawn in 2-6 seconds
+      setTimeout(spawnImages, Math.random() * 4000 + 2000);
+    };
+    
+    // Start the spawning cycle
+    setTimeout(spawnImages, 2000);
   }
 }
 

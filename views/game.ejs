@@ -586,8 +586,6 @@
     </style>
 </head>
 <body>
-  <!-- Logout button (upper-left) -->
-  <a href="/logout" class="btn logout-button">Logout</a>
   
   <!-- Emoji Reaction Button (upper-left) -->
   <button class="emoji-reaction-button" id="emojiReactionBtn" onclick="toggleEmojiMenu()">😊</button>
@@ -615,9 +613,15 @@
   <div class="confetti-container" id="confettiContainer"></div>
 
   <div class="game-container">
-    <h1 class="game-title">ONEBAR</h1>
+    <h1 class="game-title" id="gameTitle">ONEBAR</h1>
     <div id="playerList"><span class="loading" style="width: 200px; height: 20px; display: inline-block;"></span></div>
     <div id="status">Waiting for game to start...</div>
+    
+    <!-- Turn Timer Display -->
+    <div id="turnTimerDisplay" style="display: none; text-align: center; margin: 5px auto; font-size: 0.85rem; font-weight: 600; padding: 4px 12px; background: rgba(0,0,0,0.3); border-radius: 8px; max-width: fit-content;">
+      Countdown before turn skip: <span id="turnTimerValue">15</span>s
+    </div>
+    
     <div id="tableArea"></div>
     <div id="table"></div>
     <div id="hand"></div>
@@ -625,7 +629,7 @@
     <!-- Jump In Button -->
     <div id="jumpInContainer" style="display: none; margin-top: 15px; text-align: center;">
       <button id="jumpInButton" class="jump-in-button" disabled>
-        <span class="jump-in-icon">⚡</span>
+        <span class="jump-in-icon"></span>
         <span class="jump-in-text">JUMP IN!</span>
         <span id="jumpInTimer" class="jump-in-timer"></span>
       </button>
@@ -1637,6 +1641,7 @@
     // Track current turn player
     let currentTurnPlayerId = null;
     let myPlayerId = null;
+    let myTitleColor = 'white'; // Store player's title color
     let currentTableCard = null; // Track the card on top of discard pile
     let currentDrawStack = 0; // Track active draw stack for stacking rule
     let jumpInWindowActive = false; // Track if jump-in window is active
@@ -2176,6 +2181,12 @@
           const badgeEmoji = getBadgeEmoji(p.selectedBadge);
           const badge = badgeEmoji ? `<span class="player-badge">${badgeEmoji}</span> ` : '';
           const titleColor = p.selectedTitleColor || 'inherit';
+          
+          // Store our own title color
+          if (p.id === myPlayerId) {
+            myTitleColor = p.selectedTitleColor || 'white';
+          }
+          
           return `<span id="p_${p.id}" style="color: ${titleColor}">${badge}${p.name} (${p.cardCount ?? '?'})</span>`;
         }).join(' | ');
     });
@@ -2203,6 +2214,56 @@
     socket.on('turnChanged', ({ currentPlayerId }) => {
         currentTurnPlayerId = currentPlayerId;
         updateCurrentPlayer(currentPlayerId);
+        
+        // Show turn timer when game is active
+        const timerDisplay = document.getElementById('turnTimerDisplay');
+        if (timerDisplay && gameActive) {
+          timerDisplay.style.display = 'block';
+        }
+    });
+
+    // Turn timer update
+    socket.on('turnTimerUpdate', ({ timeRemaining }) => {
+      const timerValue = document.getElementById('turnTimerValue');
+      const timerDisplay = document.getElementById('turnTimerDisplay');
+      
+      if (timerValue) {
+        timerValue.textContent = timeRemaining;
+        
+        // Change color based on time remaining
+        if (timeRemaining <= 5) {
+          timerValue.style.color = '#ff4444';
+        } else if (timeRemaining <= 10) {
+          timerValue.style.color = '#ffa500';
+        } else {
+          timerValue.style.color = '#4CAF50';
+        }
+      }
+      
+      if (timerDisplay && gameActive) {
+        timerDisplay.style.display = 'block';
+      }
+    });
+
+    // Turn auto-skipped notification
+    socket.on('turnAutoSkipped', ({ playerId, playerName, timeoutCount }) => {
+      console.log(`Turn auto-skipped for ${playerName} (${timeoutCount}/5 timeouts)`);
+      const countMsg = timeoutCount ? ` (${timeoutCount}/5 timeouts)` : '';
+      showGameNotification(`${playerName}'s turn was skipped (time ran out)${countMsg}`, 'warning');
+      playSoundIfEnabled(getSoundPath('skip'), 0.5);
+    });
+
+    // Player kicked for inactivity
+    socket.on('kickedForInactivity', ({ reason }) => {
+      console.log('Kicked for inactivity:', reason);
+      alert(reason);
+      window.location.href = '/lobby';
+    });
+
+    // Another player was kicked
+    socket.on('playerKicked', ({ playerId, playerName, reason }) => {
+      console.log(`${playerName} was kicked for ${reason}`);
+      showGameNotification(`${playerName} was kicked for inactivity`, 'error');
     });
 
     // 7-0 Rule: Show player selection when 7 is played
@@ -2228,7 +2289,7 @@
       playSoundIfEnabled(getSoundPath('card'), 0.3);
     });
 
-    // Jump-in window opened
+    // Jump-in window
     socket.on('jumpInWindowOpened', ({ card, expiresAt }) => {
       console.log('Jump-in window opened:', card);
       jumpInWindowActive = true;
@@ -2273,7 +2334,7 @@
       }
     });
 
-    // Jump-in window closed
+    // Jump-in closed
     socket.on('jumpInWindowClosed', () => {
       console.log('Jump-in window closed');
       closeJumpInWindow();
@@ -2282,7 +2343,7 @@
     // Someone jumped in
     socket.on('jumpedIn', ({ playerId, playerName }) => {
       console.log(`${playerName} jumped in!`);
-      showGameNotification(`⚡ ${playerName} jumped in!`, 'warning');
+      showGameNotification(`${playerName} jumped in!`, 'warning');
       playSoundIfEnabled(getSoundPath('card'), 0.5);
       closeJumpInWindow();
     });
@@ -2334,18 +2395,22 @@
     });
 
     socket.on('cardPlacedOnTable', (card) => {
-      currentTableCard = card; // Store current table card
-      addCardToTable(card, null, 'Top of Discard Pile');
+      currentTableCard = card;
+      addCardToTable(card, null, 'Top of Discard Pile', null);
+      updateGameColors(card);
     });
 
-    socket.on('cardPlayed', ({ playerId, playerName, card }) => {
-        currentTableCard = card; // Store current table card
-        addCardToTable(card, playerId, playerName);
+    socket.on('cardPlayed', ({ playerId, playerName, card, selectedTitleColor }) => {
+        currentTableCard = card; 
+        addCardToTable(card, playerId, playerName, selectedTitleColor);
         removeCardFromHand(card.id);
         // Update local hand tracking
         currentHand = currentHand.filter(c => c.id !== card.id);
         
-        // Close jump-in window when any card is played (ends the window early)
+        // Update game colors based on card played
+        updateGameColors(card);
+        
+        // Close jump-in window when any card is played
         if (jumpInWindowActive) {
           closeJumpInWindow();
         }
@@ -2387,12 +2452,19 @@
 
     socket.on('invalidMove', ({ reason }) => {
         alert('Invalid move: ' + reason);
-        // Re-render hand to restore any cards that were hidden during animation
+        // Re-render hand to restore
         renderHand(currentHand, false);
     });
 
     socket.on('gameEnded', (data) => {
       console.log('gameEnded', data)
+      
+      // Hide turn timer
+      const timerDisplay = document.getElementById('turnTimerDisplay');
+      if (timerDisplay) {
+        timerDisplay.style.display = 'none';
+      }
+      
       disableGameUI();
     })
 
@@ -2524,6 +2596,12 @@
         cardEl.dataset.cardId = fixedId;
         cardEl.title = `${card.name} (value ${card.value})`;
         
+        // Add subtle player color aura to hand cards (visible on hover)
+        if (myTitleColor && myTitleColor !== 'white') {
+          cardEl.style.setProperty('--player-aura-color', myTitleColor);
+          cardEl.classList.add('has-player-aura');
+        }
+        
         // Only animate all cards on initial deal
         if (animateAll) {
           cardEl.classList.add('card-slide-in');
@@ -2577,12 +2655,12 @@
 
     // Validate if a card can be played on the current table card
     function canPlayCard(card) {
-      if (!currentTableCard) return true; // No table card yet, any card is valid
+      if (!currentTableCard) return true; 
       
       // Wild cards can always be played
       if (card.color === 'wild') return true;
       
-      // Get the active color (for wild cards that were played)
+      // Get the active color 
       const tableColor = currentTableCard.activeColor || currentTableCard.chosenColor || currentTableCard.color;
       const tableValue = currentTableCard.value;
       
@@ -2590,9 +2668,8 @@
       return card.color === tableColor || card.value === tableValue;
     }
 
-    function addCardToTable(card, playerId, playerName) {
+    function addCardToTable(card, playerId, playerName, titleColor) {
       const table = document.getElementById('table');
-      //clear other cards only show top
       table.innerHTML = '';
 
       const wrapper = document.createElement('div');
@@ -2610,7 +2687,14 @@
       // Fix the card id format for CSS sprite
       const fixedId = fixCardId(card.id);
       cardEl.dataset.cardId = fixedId;
-      cardEl.classList.add('card-pop', 'card'); // Add pop animation
+      cardEl.classList.add('card-pop', 'card');
+      
+      // Add player color aura if titleColor is provided
+      if (titleColor && titleColor !== 'white') {
+        cardEl.style.boxShadow = `0 0 15px 3px ${titleColor}, 0 0 25px 5px ${titleColor}80, 0 4px 15px rgba(0, 0, 0, 0.3)`;
+        cardEl.style.transition = 'all 0.3s ease';
+      }
+      
       wrapper.appendChild(cardEl);
 
       const active = card.activeColor || card.chosenColor;
@@ -2637,8 +2721,81 @@
      function updateCurrentPlayer(currentId, playerName) {
       const status = document.getElementById('status');
       const displayName = playerName || (document.getElementById('p_' + currentId)?.textContent) || currentId;
-      status.innerText = `Current turn: ${displayName || currentId}`;
-      // Highlight the player's name in playerList here
+      // Make the player name black for better readability on the colored background
+      status.innerHTML = `Current turn: <span style="color: #000; font-weight: 800;">${displayName || currentId}</span>`;
+      
+      // Gray out cards if it's not your turn
+      const handElement = document.getElementById('hand');
+      if (handElement) {
+        if (currentId === myPlayerId) {
+          handElement.classList.remove('not-turn');
+        } else {
+          handElement.classList.add('not-turn');
+        }
+      }
+    }
+
+    // Update game UI colors based on current playable color
+    function updateGameColors(card) {
+      if (!card) return;
+      
+      const gameTitle = document.getElementById('gameTitle');
+      const statusBar = document.getElementById('status');
+      
+      if (!gameTitle || !statusBar) return;
+      
+      // Get the active color (wild cards have activeColor property)
+      const activeColor = card.activeColor || card.color;
+      
+      let colorStart, colorEnd, shadowColor;
+      
+      switch(activeColor) {
+        case 'red':
+          colorStart = '#ff4444';
+          colorEnd = '#cc0000';
+          shadowColor = 'rgba(255, 68, 68, 0.5)';
+          break;
+        case 'blue':
+          colorStart = '#4169E1';
+          colorEnd = '#0047AB';
+          shadowColor = 'rgba(65, 105, 225, 0.5)';
+          break;
+        case 'green':
+          colorStart = '#28a745';
+          colorEnd = '#198754';
+          shadowColor = 'rgba(40, 167, 69, 0.5)';
+          break;
+        case 'yellow':
+          colorStart = '#ffc107';
+          colorEnd = '#ff9800';
+          shadowColor = 'rgba(255, 193, 7, 0.5)';
+          break;
+        case 'wild':
+          // Rainbow gradient for wild cards
+          gameTitle.style.background = 'linear-gradient(135deg, #ff4444, #4169E1, #28a745, #ffc107)';
+          gameTitle.style.webkitBackgroundClip = 'text';
+          gameTitle.style.webkitTextFillColor = 'transparent';
+          gameTitle.style.backgroundClip = 'text';
+          
+          statusBar.style.background = 'linear-gradient(135deg, #ff4444, #4169E1, #28a745, #ffc107)';
+          statusBar.style.boxShadow = '0 3px 15px rgba(255, 193, 7, 0.4)';
+          return;
+        default:
+          // Default gradient if color is unknown
+          colorStart = '#f85149';
+          colorEnd = '#ff6b6b';
+          shadowColor = 'rgba(255, 0, 0, 0.4)';
+      }
+      
+      // Update game title with gradient
+      gameTitle.style.background = `linear-gradient(135deg, ${colorStart}, ${colorEnd})`;
+      gameTitle.style.webkitBackgroundClip = 'text';
+      gameTitle.style.webkitTextFillColor = 'transparent';
+      gameTitle.style.backgroundClip = 'text';
+      
+      // Update status bar
+      statusBar.style.background = `linear-gradient(135deg, ${colorStart}, ${colorEnd})`;
+      statusBar.style.boxShadow = `0 3px 15px ${shadowColor}`;
     }
 
     // ONE button: shows a "1" image and allows calling ONE
@@ -2653,7 +2810,7 @@
     oneBtn.style.alignItems = 'center';
     oneBtn.style.justifyContent = 'center';
     oneBtn.style.borderRadius = '12px';
-    // border and drop shadow so it appears cleaner
+    // border and drop shadow 
     oneBtn.style.border = 'none';
     oneBtn.style.background = 'transparent';
     oneBtn.style.boxShadow = 'none';
@@ -2701,8 +2858,8 @@
       socket.emit('callOne', { gameId: gameId });
     });
 
-    // Append the ONE button to the controls container (right of piles) when available,
-    // otherwise try the draw pile, and finally fallback to body.
+    // Append the ONE button to the controls when available,
+    // otherwise try the draw pile, and finally fallback to body
     function placeOneBtn() {
       // Always append to body when using fixed positioning so placement is predictable
       if (!document.body.contains(oneBtn)) document.body.appendChild(oneBtn);
@@ -2737,7 +2894,7 @@
         }, 2000);
     }
 
-    // Global handler for transfer button (called by inline onclick)
+    // Global handler for transfer button 
     window.handleTransferClick = async function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -2746,7 +2903,7 @@
     };
     
     // Payment modal functions
-    let paymentHandlerAttached = false; // Track if handler is already attached
+    let paymentHandlerAttached = false; 
     
     window.showPaymentModal = async function () {
         console.log(' showPaymentModal called');
@@ -2763,7 +2920,7 @@
         }
         
         modal.style.display = 'block';
-        console.log('✅ Payment modal displayed');
+        console.log(' Payment modal displayed');
     };
 
     window.hidePaymentModal = function () {
@@ -2773,7 +2930,7 @@
 
     // Listen for payment success
     window.addEventListener('paymentSuccess', () => {
-        console.log('💳 Payment successful! Refreshing status and redirecting...');
+        console.log(' Payment successful! Refreshing status and redirecting...');
         hidePaymentModal();
         hasPaid = true;
         // Redirect to lobby after successful payment
@@ -2847,7 +3004,7 @@
       // Initial update
       updateCountdown();
       
-      // Update every 1 second (1000ms)
+      // Update every 1 second 
       oneCountdownInterval = setInterval(updateCountdown, 1000);
     });
 
@@ -2859,7 +3016,7 @@ drawContainer.style.display = 'inline-block';
 drawContainer.style.textAlign = 'center';
 drawContainer.style.margin = '8px';
 
-// count badge (placed above the draw image)
+// count badge 
 const drawCount = document.createElement('div');
 drawCount.id = 'drawCount';
 drawCount.style.marginBottom = '6px';
@@ -2867,7 +3024,7 @@ drawCount.style.fontWeight = '600';
 drawCount.innerText = ''; 
 drawContainer.appendChild(drawCount);
 
-// draw pile image - using card back
+// draw pile image 
 const drawImg = document.createElement('img');
 drawImg.id = 'drawPileImg';
 drawImg.src = '/img/cards/bing.png';

@@ -1,5 +1,5 @@
 /* ===========================
-   SHOP PAGE - FANCY STYLES
+   SHOP PAGE
    =========================== */
 
 :root {
@@ -992,8 +992,9 @@ body {
 .item-icon {
     font-size: 5rem;
     text-align: center;
-    margin-bottom: 20px;
-    margin-top: 10px;
+    margin-bottom: 25px;
+    margin-top: 20px;
+    padding-top: 10px;
     animation: iconFloat 3s ease-in-out infinite;
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
 }
@@ -1008,6 +1009,7 @@ body {
     box-shadow: 
         0 0 0 2px var(--shop-primary),
         0 8px 20px rgba(0, 0, 0, 0.5);
+    margin-top: 10px;
 }
 
 @keyframes iconFloat {

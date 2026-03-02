@@ -161,7 +161,7 @@ html, body {
 
 /* Card Images on Table */
 #table img {
-    width: 60px;
+    width: 100px;
     border-radius: 6px;
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -173,7 +173,7 @@ html, body {
 }
 
 #drawPile img {
-    width: 85px;
+    width: 100px;
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

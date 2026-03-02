@@ -18,16 +18,20 @@ function setupRoutes(app) {
   app.get('/game', isAuthenticated, (req, res) => {
     const userId = req.session.token?.id;
     if (userId) {
-      db.get('SELECT selectedEmotes, selectedEffect, distractionsInventory FROM users WHERE id = ?', [userId], (err, userData) => {
+      db.get('SELECT selectedEmotes, selectedEffect, distractionsInventory, selectedSoundPack, customSounds FROM users WHERE id = ?', [userId], (err, userData) => {
         const selectedEmotes = userData?.selectedEmotes || '["wave","thumbsup","party","fire"]';
         const selectedEffect = userData?.selectedEffect || 'confetti';
         const distractionsInventory = userData?.distractionsInventory || '{}';
+        const selectedSoundPack = userData?.selectedSoundPack || 'default';
+        const customSounds = userData?.customSounds || '{}';
         res.render('game.ejs', { 
           user: req.session.user, 
           gameId: req.query.gameId || 'default',
           selectedEmotes: selectedEmotes,
           selectedEffect: selectedEffect,
-          distractionsInventory: distractionsInventory
+          distractionsInventory: distractionsInventory,
+          selectedSoundPack: selectedSoundPack,
+          customSounds: customSounds
         });
       });
     } else {
@@ -36,7 +40,9 @@ function setupRoutes(app) {
         gameId: req.query.gameId || 'default',
         selectedEmotes: '["wave","thumbsup","party","fire"]',
         selectedEffect: 'confetti',
-        distractionsInventory: '{}'
+        distractionsInventory: '{}',
+        selectedSoundPack: 'default',
+        customSounds: '{}'
       });
     }
   });
@@ -196,17 +202,6 @@ function setupRoutes(app) {
                 mysteryBoxInventory = JSON.parse(userData?.mysteryBoxInventory || '{}');
               } catch (e) {
                 mysteryBoxInventory = {};
-              }
-              
-              // Auto-assign king picture when reaching #1, but don't force removal when losing it
-              // Users can manually change their picture regardless of leaderboard position
-              if (shouldHaveKing && currentPfp !== kingPicture) {
-                // Only auto-assign king if they're #1 and don't already have it
-                db.run('UPDATE users SET profilePicture = ? WHERE id = ?', [kingPicture, userId], (updateErr) => {
-                  if (updateErr) {
-                    console.error('Error updating profile picture:', updateErr);
-                  }
-                });
               }
               
               res.render('profile.ejs', { 
@@ -770,13 +765,25 @@ function setupRoutes(app) {
       return res.status(200).json({ success: false, message: 'User not authenticated' });
     }
 
+    // Log received data for debugging
+    console.log(`Mystery box purchase attempt - boxType: ${boxType}, price: ${price}, priceType: ${typeof price}`);
+
     // Validate box type and price
     const validBoxes = {
-      'standard': 30
+      'standard': 15
     };
 
-    if (!validBoxes.hasOwnProperty(boxType) || validBoxes[boxType] !== price) {
-      return res.status(200).json({ success: false, message: 'Invalid mystery box type or price' });
+    // Convert price to number to handle both string and number inputs
+    const priceNum = parseInt(price);
+
+    if (!validBoxes.hasOwnProperty(boxType)) {
+      console.log(`Invalid box type: ${boxType}`);
+      return res.status(200).json({ success: false, message: `Invalid mystery box type: ${boxType}` });
+    }
+
+    if (validBoxes[boxType] !== priceNum) {
+      console.log(`Price mismatch - expected: ${validBoxes[boxType]}, got: ${priceNum}`);
+      return res.status(200).json({ success: false, message: `Invalid price. Expected ${validBoxes[boxType]} Onecells` });
     }
 
     // Get user's current onecells and mystery box inventory
@@ -795,15 +802,15 @@ function setupRoutes(app) {
       }
 
       // Check if user has enough onecells
-      if (currentOnecells < price) {
+      if (currentOnecells < priceNum) {
         return res.status(200).json({ 
           success: false, 
-          message: `Not enough Onecells! You need ${price} but only have ${currentOnecells}` 
+          message: `Not enough Onecells! You need ${priceNum} but only have ${currentOnecells}` 
         });
       }
 
       // Deduct onecells and add to inventory
-      const newOnecells = currentOnecells - price;
+      const newOnecells = currentOnecells - priceNum;
       inventory[boxType] = (inventory[boxType] || 0) + 1;
       const updatedInventory = JSON.stringify(inventory);
 
@@ -816,7 +823,7 @@ function setupRoutes(app) {
             return res.status(200).json({ success: false, message: 'Failed to complete purchase' });
           }
 
-          console.log(`User ${userId} purchased Mystery Box for ${price} Onecells`);
+          console.log(`User ${userId} purchased Mystery Box for ${priceNum} Onecells`);
           return res.status(200).json({
             success: true,
             message: `Successfully purchased Mystery Box!`,

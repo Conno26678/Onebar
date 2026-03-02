@@ -218,12 +218,14 @@ function startTurnTimer(io, game, initialDuration = 15) {
         }
         
         // Adjust turn index if needed
-        game.turnIndex = game.turnIndex % game.players.length;
-        const nextPlayerId = game.players[game.turnIndex].id;
-        io.to(game.id).emit('turnChanged', { currentPlayerId: nextPlayerId });
-        
-        // Start timer for next turn
-        startTurnTimer(io, game, 15);
+        if (game.players.length > 0) {
+          game.turnIndex = game.turnIndex % game.players.length;
+          const nextPlayerId = game.players[game.turnIndex].id;
+          io.to(game.id).emit('turnChanged', { currentPlayerId: nextPlayerId });
+          
+          // Start timer for next turn
+          startTurnTimer(io, game, 15);
+        }
       }
       
       return;
@@ -238,6 +240,13 @@ function startTurnTimer(io, game, initialDuration = 15) {
     
     // Advance to next turn
     const playerCount = game.players.length;
+    
+    // Check if there are still players in the game
+    if (playerCount === 0) {
+      console.log('No players left in game, skipping turn advance');
+      return;
+    }
+    
     const step = game.direction;
     const nextIndex = ((game.turnIndex + step) % playerCount + playerCount) % playerCount;
     game.turnIndex = nextIndex;
@@ -519,17 +528,10 @@ function setupSocketHandlers(io) {
           return;
         }
       }
-      if (game.started) {
-        socket.emit('lobbyJoinError', { reason: 'Game already started' });
-        return;
-      }
-      if (game.players.length >= (game.maxPlayers || 8)) {
-        socket.emit('lobbyJoinError', { reason: 'Lobby is full' });
-        return;
-      }
 
       const playerName = (sessUser && String(sessUser)) || clientName || 'Player';
 
+      // Check for existing player by socket ID first
       const existing = game.players.find(p => p.socketId === socket.id);
       if (existing) {
         socket.join(gameId);
@@ -551,6 +553,7 @@ function setupSocketHandlers(io) {
         return;
       }
 
+      // Check for existing player by name (reconnection case)
       const existingByName = game.players.find(p => p.name === playerName);
       if (existingByName) {
         const wasReady = existingByName.ready;
@@ -601,6 +604,16 @@ function setupSocketHandlers(io) {
         emitPlayerList(io, game);
         broadcastLobbyList(io);
         console.log(`${playerName} rejoined lobby ${gameId} (${game.lobbyName})`);
+        return;
+      }
+
+      // If not an existing player, check if new players can join
+      if (game.started) {
+        socket.emit('lobbyJoinError', { reason: 'Game already started' });
+        return;
+      }
+      if (game.players.length >= (game.maxPlayers || 8)) {
+        socket.emit('lobbyJoinError', { reason: 'Lobby is full' });
         return;
       }
 

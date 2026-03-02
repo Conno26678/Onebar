@@ -710,6 +710,21 @@
         }
     };
 
+    // Sync sound preferences from server (authoritative source) into localStorage
+    (function syncSoundPrefs() {
+        const serverSoundPack = '<%- selectedSoundPack || "default" %>';
+        const serverCustomSounds = '<%- customSounds || "{}" %>';
+        if (serverSoundPack) {
+            localStorage.setItem('selectedSoundPack', serverSoundPack);
+        }
+        if (serverCustomSounds && serverCustomSounds !== '{}') {
+            localStorage.setItem('customSounds', serverCustomSounds);
+        } else {
+            // Clear stale custom sounds so they don't override the chosen pack
+            localStorage.removeItem('customSounds');
+        }
+    })();
+
     // Function to get current sound pack
     function getCurrentSoundPack() {
         return localStorage.getItem('selectedSoundPack') || 'default';
@@ -719,21 +734,24 @@
     function getSoundPath(soundType) {
         const pack = getCurrentSoundPack();
         
-        // First check for custom sounds (only if pack is 'custom' or customSounds exist)
-        const customSounds = localStorage.getItem('customSounds');
-        if (customSounds && customSounds !== '{}') {
-            try {
-                const customSoundsObj = JSON.parse(customSounds);
-                if (customSoundsObj[soundType]) {
-                    console.log(`Playing custom sound for ${soundType}:`, customSoundsObj[soundType]);
-                    return customSoundsObj[soundType];
+        // Only use custom sounds when the 'custom' pack is active
+        if (pack === 'custom') {
+            const customSoundsRaw = localStorage.getItem('customSounds');
+            if (customSoundsRaw && customSoundsRaw !== '{}') {
+                try {
+                    const customSoundsObj = JSON.parse(customSoundsRaw);
+                    if (customSoundsObj[soundType]) {
+                        console.log(`Playing custom sound for ${soundType}:`, customSoundsObj[soundType]);
+                        return customSoundsObj[soundType];
+                    }
+                } catch (e) {
+                    console.log('Error parsing custom sounds:', e);
                 }
-            } catch (e) {
-                console.log('Error parsing custom sounds:', e);
             }
+            // Fall through to default if this custom slot wasn't configured
         }
         
-        // Fall back to sound pack
+        // Use the selected pack (or default as fallback)
         const soundPath = soundMappings[pack]?.[soundType] || soundMappings.default[soundType];
         console.log(`Playing ${pack} sound for ${soundType}:`, soundPath);
         return soundPath;
@@ -1312,6 +1330,15 @@
         return;
       }
       
+      // Warn about mobile users not seeing the effect
+      const isMobile = window.innerWidth <= 768;
+      if (!isMobile) {
+        const proceed = confirm('Note: Mobile users cannot see distraction effects.\n\nDo you want to use this distraction?');
+        if (!proceed) {
+          return;
+        }
+      }
+      
       // Send distraction to server and other players
       socket.emit('useDistraction', {
         gameId,
@@ -1413,6 +1440,13 @@
     
     // Apply distraction visual effects
     function applyDistractionEffect(type, icon, name, fromPlayer) {
+      // Don't show distraction effects on mobile devices
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        console.log('Skipping distraction effect on mobile device');
+        return;
+      }
+      
       // Show notification
       const notification = document.createElement('div');
       notification.className = 'distraction-notification';
@@ -1976,43 +2010,6 @@
   buttons.style.justifyContent = 'center';
   buttons.style.marginTop = '30px';
   
-  const playAgainBtn = document.createElement('button');
-  playAgainBtn.textContent = 'Play Again';
-  playAgainBtn.className = 'play-again-btn';
-  playAgainBtn.style.padding = '15px 30px';
-  playAgainBtn.style.fontSize = '1.2em';
-  playAgainBtn.style.border = 'none';
-  playAgainBtn.style.borderRadius = '10px';
-  playAgainBtn.style.cursor = 'pointer';
-  playAgainBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
-  playAgainBtn.style.color = 'white';
-  playAgainBtn.style.fontWeight = 'bold';
-  playAgainBtn.style.transition = 'all 0.3s ease';
-  playAgainBtn.addEventListener('mouseover', () => {
-    playAgainBtn.style.background = 'linear-gradient(135deg, #c53030 0%, #e53e3e 100%)';
-    playAgainBtn.style.transform = 'translateY(-2px)';
-    playAgainBtn.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
-  });
-  playAgainBtn.addEventListener('mouseout', () => {
-    playAgainBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
-    playAgainBtn.style.transform = 'translateY(0)';
-    playAgainBtn.style.boxShadow = 'none';
-  });
-  playAgainBtn.addEventListener('click', () => {
-    console.log('Play Again clicked, checking payment status...');
-    console.log('Current hasPaid status:', hasPaid);
-    
-    // Check payment status before allowing play again
-    if (!hasPaid) {
-      console.log('Payment required, showing modal...');
-      showPaymentModal();
-    } else {
-      console.log('Payment verified, redirecting to room...');
-      window.location.href = '/room/' + encodeURIComponent(currentRommId);
-    }
-  });
-  buttons.appendChild(playAgainBtn);
-  
   const lobbyBtn = document.createElement('button');
   lobbyBtn.textContent = 'Back to Lobby';
   lobbyBtn.className = 'back-lobby-btn';
@@ -2406,6 +2403,23 @@
         removeCardFromHand(card.id);
         // Update local hand tracking
         currentHand = currentHand.filter(c => c.id !== card.id);
+        
+        // Update card count in player list when card is played
+        const playerElement = document.getElementById('p_' + playerId);
+        if (playerElement) {
+          const currentText = playerElement.textContent;
+          const match = currentText.match(/(.+)\s\((\d+)\)/);
+          if (match) {
+            const playerNameOnly = match[1];
+            const currentCount = parseInt(match[2]);
+            const newCount = Math.max(0, currentCount - 1);
+            // Extract the badge part (everything before the player name)
+            const fullHTML = playerElement.innerHTML;
+            const badgeMatch = fullHTML.match(/^(<span[^>]*>.*?<\/span>\s*)?/);
+            const badge = badgeMatch ? badgeMatch[0] : '';
+            playerElement.innerHTML = badge + playerNameOnly + ' (' + newCount + ')';
+          }
+        }
         
         // Update game colors based on card played
         updateGameColors(card);
@@ -2986,7 +3000,7 @@
         
         if (secs > 0) {
           s.innerHTML = baseText + '<span id="oneCountdown" style="font-size: 1.4em; font-weight: bold;">' + secs + '</span>' + endText;
-          s.style.color = secs <= 2 ? '#ff4444' : '#ffaa00';
+          s.style.color = secs <= 2 ? '#ff4444' : '#000000';
           s.style.fontWeight = 'bold';
           s.style.fontSize = '1.2em';
         } else {
@@ -3144,20 +3158,55 @@ socket.on('drawStackUpdated', ({ drawStack }) => {
 
 // Show notification when any player draws
 socket.on('playerDrew', ({ playerId, count }) => {
-  const name = document.getElementById('p_' + playerId)?.textContent || playerId;
+  const playerElement = document.getElementById('p_' + playerId);
+  const name = playerElement?.textContent || playerId;
   const s = document.getElementById('status');
   s.innerText = `${name} drew ${count} card${count !== 1 ? 's' : ''}`;
+  
+  // Update card count in player list
+  if (playerElement) {
+    const currentText = playerElement.textContent;
+    const match = currentText.match(/(.+)\s\((\d+)\)/);
+    if (match) {
+      const playerName = match[1];
+      const currentCount = parseInt(match[2]);
+      const newCount = currentCount + count;
+      // Extract the badge part (everything before the player name)
+      const fullHTML = playerElement.innerHTML;
+      const badgeMatch = fullHTML.match(/^(<span[^>]*>.*?<\/span>\s*)?/);
+      const badge = badgeMatch ? badgeMatch[0] : '';
+      playerElement.innerHTML = badge + playerName + ' (' + newCount + ')';
+    }
+  }
 });
 
 // Show notification when any player draws cards (including from stack)
 socket.on('playerDrewCards', ({ playerId, count }) => {
-  const name = document.getElementById('p_' + playerId)?.textContent || playerId;
+  const playerElement = document.getElementById('p_' + playerId);
+  const name = playerElement?.textContent || playerId;
   const s = document.getElementById('status');
   if (count > 1) {
     s.innerHTML = `<span style="color: #ff6b6b; font-weight: bold;">${name} drew ${count} cards from the stack!</span>`;
   } else {
     s.innerText = `${name} drew ${count} card`;
   }
+  
+  // Update card count in player list
+  if (playerElement) {
+    const currentText = playerElement.textContent;
+    const match = currentText.match(/(.+)\s\((\d+)\)/);
+    if (match) {
+      const playerName = match[1];
+      const currentCount = parseInt(match[2]);
+      const newCount = currentCount + count;
+      // Extract the badge part (everything before the player name)
+      const fullHTML = playerElement.innerHTML;
+      const badgeMatch = fullHTML.match(/^(<span[^>]*>.*?<\/span>\s*)?/);
+      const badge = badgeMatch ? badgeMatch[0] : '';
+      playerElement.innerHTML = badge + playerName + ' (' + newCount + ')';
+    }
+  }
+  
   // Play draw sound if enabled
   playSoundIfEnabled(getSoundPath('draw'), 0.3);
 });

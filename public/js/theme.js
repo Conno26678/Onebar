@@ -70,9 +70,20 @@ class ThemeManager {
       this.robertEffectInterval = null;
     }
     
+    // Clean up peak theme intervals if any
+    if (this.peakEffectTimeout) {
+      clearTimeout(this.peakEffectTimeout);
+      this.peakEffectTimeout = null;
+    }
+    
     // Only run for robert theme
     if (this.currentTheme === 'robert') {
       this.startRobertEffects();
+    }
+    
+    // Only run for peak (chickens memory) theme
+    if (this.currentTheme === 'peak') {
+      this.startPeakEffects();
     }
   }
 
@@ -144,6 +155,65 @@ class ThemeManager {
     
     // Start the spawning cycle
     setTimeout(spawnImages, 2000);
+  }
+
+  startPeakEffects() {
+    const spawnChickenSandwich = () => {
+      // Random position on screen (avoiding edges)
+      const randomX = Math.random() * 80 + 10; // 10% to 90%
+      const randomY = Math.random() * 80 + 10; // 10% to 90%
+      
+      // Random size between 80px and 250px for variety
+      const randomSize = Math.floor(Math.random() * 170) + 80;
+      
+      // Create image element
+      const imgElement = document.createElement('img');
+      imgElement.src = '/img/chickenSandwich.png';
+      imgElement.className = 'peak-floating-sandwich';
+      imgElement.style.position = 'fixed';
+      imgElement.style.left = `${randomX}%`;
+      imgElement.style.top = `${randomY}%`;
+      imgElement.style.width = `${randomSize}px`;
+      imgElement.style.height = 'auto';
+      imgElement.style.opacity = '0';
+      imgElement.style.transition = 'opacity 1.5s ease-in-out';
+      imgElement.style.pointerEvents = 'none';
+      imgElement.style.zIndex = '9999';
+      imgElement.style.transform = 'translate(-50%, -50%)';
+      
+      document.body.appendChild(imgElement);
+      
+      // Fade in
+      setTimeout(() => {
+        imgElement.style.opacity = '0.85';
+      }, 100);
+      
+      // Linger duration: 5-10 seconds
+      const lingerTime = Math.random() * 5000 + 5000;
+      
+      // Fade out and remove
+      setTimeout(() => {
+        imgElement.style.opacity = '0';
+        setTimeout(() => {
+          if (imgElement.parentNode) {
+            imgElement.parentNode.removeChild(imgElement);
+          }
+        }, 1500); // Wait for fade out to complete
+      }, lingerTime);
+    };
+
+    // Spawn first sandwich immediately
+    setTimeout(spawnChickenSandwich, 800);
+    
+    // Spawn multiple sandwiches frequently
+    const spawnSandwiches = () => {
+      spawnChickenSandwich();
+      // Schedule next spawn in 1.5-4 seconds
+      this.peakEffectTimeout = setTimeout(spawnSandwiches, Math.random() * 2500 + 1500);
+    };
+    
+    // Start the spawning cycle
+    setTimeout(spawnSandwiches, 1500);
   }
 }
 

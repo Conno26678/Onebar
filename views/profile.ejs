@@ -12,6 +12,174 @@
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/profile.css">
     <link rel="stylesheet" href="/css/mobile.css">
+    <style>
+        /* ── Effect Preview Particle Styles ── */
+        .preview-confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            top: -10px;
+            opacity: 1;
+            pointer-events: none;
+            z-index: 99999;
+            animation: previewConfettiFall linear forwards;
+        }
+        @keyframes previewConfettiFall {
+            0%   { transform: translateY(0) rotateZ(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotateZ(720deg); opacity: 0; }
+        }
+
+        .preview-sparkle {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(circle, #fff 0%, #ffd700 50%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 99999;
+            animation: previewSparkleFloat linear forwards;
+        }
+        @keyframes previewSparkleFloat {
+            0%   { opacity: 1; transform: translate(0,0) scale(1); }
+            100% { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(0.2); }
+        }
+
+        .preview-fire {
+            position: fixed;
+            border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%;
+            background: radial-gradient(ellipse at bottom, rgba(255,100,0,1) 0%, rgba(255,200,0,.9) 30%, rgba(255,100,0,.5) 60%, transparent 100%);
+            pointer-events: none;
+            z-index: 99999;
+            animation: previewFireRise linear forwards;
+        }
+        @keyframes previewFireRise {
+            0%   { opacity: 1; transform: translate(0,0) scale(1); }
+            50%  { opacity: .8; transform: translate(var(--fx), calc(var(--fy)*.5)) scale(1.2); }
+            100% { opacity: 0; transform: translate(var(--fx), var(--fy)) scale(.4); }
+        }
+
+        .preview-skip {
+            position: fixed;
+            width: 180px;
+            height: 180px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%) scale(0);
+            pointer-events: none;
+            z-index: 99999;
+            animation: previewSkipPop 1.2s ease-out forwards;
+        }
+        .preview-skip::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 18px solid #ff0000;
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255,0,0,.8), 0 0 60px rgba(255,0,0,.4), inset 0 0 20px rgba(255,0,0,.3);
+        }
+        .preview-skip::after {
+            content: '';
+            position: absolute;
+            width: calc(100% - 36px);
+            height: 18px;
+            background: #ff0000;
+            top: calc(50% - 9px);
+            left: 18px;
+            border-radius: 9px;
+            box-shadow: 0 0 20px rgba(255,0,0,.8);
+        }
+        @keyframes previewSkipPop {
+            0%   { transform: translate(-50%,-50%) scale(0); opacity: 1; }
+            30%  { transform: translate(-50%,-50%) scale(1.15); opacity: 1; }
+            50%  { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+            80%  { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%,-50%) scale(1.2); opacity: 0; }
+        }
+
+        .preview-lightning-bolt {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 99999;
+        }
+        .preview-lightning-bolt svg {
+            filter: drop-shadow(0 0 15px rgba(150,200,255,1)) drop-shadow(0 0 30px rgba(100,150,255,.8));
+            animation: previewLightningPulse .6s ease-out forwards;
+        }
+        @keyframes previewLightningPulse {
+            0%   { opacity: 0; }
+            15%  { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        .preview-lightning-flash {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(255,255,255,.45);
+            pointer-events: none;
+            z-index: 99998;
+            animation: previewFlash .5s ease-out forwards;
+        }
+        @keyframes previewFlash {
+            0%   { opacity: 0; }
+            10%  { opacity: .8; }
+            100% { opacity: 0; }
+        }
+
+        .preview-arrow {
+            position: fixed;
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(to right, #8B4513 0%, #D2691E 60%, #FFD700 100%);
+            box-shadow: 0 0 10px rgba(255,215,0,.6);
+            pointer-events: none;
+            z-index: 99999;
+            transform-origin: left center;
+            animation: previewArrowFall .9s ease-in forwards;
+        }
+        .preview-arrow::before {
+            content: '';
+            position: absolute;
+            right: -10px; top: -6px;
+            border-left: 15px solid #FFD700;
+            border-top: 7px solid transparent;
+            border-bottom: 7px solid transparent;
+        }
+        .preview-arrow::after {
+            content: '';
+            position: absolute;
+            left: 0; top: -3px;
+            width: 15px; height: 10px;
+            background: #8B4513;
+            border-radius: 0 5px 5px 0;
+        }
+        @keyframes previewArrowFall {
+            0%   { transform: rotate(90deg) translateY(0); opacity: 1; }
+            100% { transform: rotate(90deg) translateY(115vh); opacity: .1; }
+        }
+
+        /* Preview button style */
+        .effect-preview-btn {
+            padding: 6px 14px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+            color: #fff;
+            transition: all .2s ease;
+            box-shadow: 0 2px 8px rgba(99,102,241,.4);
+            margin-top: 4px;
+        }
+        .effect-preview-btn:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(99,102,241,.6);
+        }
+    </style>
 </head>
 <body>
     <a href="/" class="btn home-button">Home</a>
@@ -381,6 +549,8 @@
         const customSounds = '<%= customSounds %>';
         if (customSounds && customSounds !== '{}') {
             localStorage.setItem('customSounds', customSounds);
+        } else {
+            localStorage.removeItem('customSounds');
         }
 
         // Define popup functions first so they're available to onclick handlers
@@ -1345,7 +1515,10 @@
                         <div class="customization-item-name">${effect.name}</div>
                         ${!effect.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
                         ${!effect.unlocked ? `<div class="customization-item-requirement">${effect.requirement}</div>` : ''}
-                        ${effect.unlocked ? '<button class="customization-select-btn" onclick="toggleEffectSelection(\'' + effect.id + '\')">' + (isSelected ? 'Selected ✓' : 'Select') + '</button>' : ''}
+                        ${effect.unlocked ? `
+                          <button class="customization-select-btn" onclick="toggleEffectSelection('${effect.id}')">${isSelected ? 'Selected ✓' : 'Select'}</button>
+                          <button class="effect-preview-btn" onclick="previewEffect('${effect.id}')">▶ Preview</button>
+                        ` : ''}
                     </div>
                 `;
                 
@@ -1367,6 +1540,130 @@
             }
             
             loadEffectsOptions(); // Reload to update button states
+        }
+
+        function previewEffect(effectId) {
+            // Clean up any lingering preview elements
+            document.querySelectorAll(
+                '.preview-confetti,.preview-sparkle,.preview-fire,.preview-skip,' +
+                '.preview-lightning-bolt,.preview-lightning-flash,.preview-arrow'
+            ).forEach(el => el.remove());
+
+            if (effectId === 'confetti') {
+                const colors = ['#ff0000','#00ff00','#0000ff','#ffff00','#ff00ff','#00ffff','#ff8800','#ff0088','#88ff00','#0088ff'];
+                for (let i = 0; i < 120; i++) {
+                    setTimeout(() => {
+                        const c = document.createElement('div');
+                        c.className = 'preview-confetti';
+                        c.style.left = Math.random() * 100 + '%';
+                        c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                        c.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                        c.style.width = c.style.height = (Math.random() * 12 + 8) + 'px';
+                        document.body.appendChild(c);
+                        setTimeout(() => c.remove(), 4500);
+                    }, Math.random() * 1500);
+                }
+
+            } else if (effectId === 'sparkles') {
+                const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+                for (let i = 0; i < 50; i++) {
+                    setTimeout(() => {
+                        const s = document.createElement('div');
+                        s.className = 'preview-sparkle';
+                        const angle = Math.random() * Math.PI * 2;
+                        const r = 20 + Math.random() * 60;
+                        s.style.left = (cx + Math.cos(angle) * r) + 'px';
+                        s.style.top  = (cy + Math.sin(angle) * r) + 'px';
+                        const ma = Math.random() * Math.PI * 2;
+                        const md = 60 + Math.random() * 100;
+                        s.style.setProperty('--sx', (Math.cos(ma) * md) + 'px');
+                        s.style.setProperty('--sy', (Math.sin(ma) * md - 40) + 'px');
+                        s.style.animationDuration = (.7 + Math.random() * .8) + 's';
+                        document.body.appendChild(s);
+                        setTimeout(() => s.remove(), 1600);
+                    }, i * 30);
+                }
+
+            } else if (effectId === 'lightning') {
+                const flash = document.createElement('div');
+                flash.className = 'preview-lightning-flash';
+                document.body.appendChild(flash);
+                setTimeout(() => flash.remove(), 600);
+
+                const tx = window.innerWidth / 2, ty = window.innerHeight / 2;
+                for (let b = 0; b < 3; b++) {
+                    setTimeout(() => {
+                        const bolt = document.createElement('div');
+                        bolt.className = 'preview-lightning-bolt';
+                        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                        svg.setAttribute('width', window.innerWidth);
+                        svg.setAttribute('height', window.innerHeight);
+                        svg.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;';
+                        let startX = tx + (Math.random() - 0.5) * 200;
+                        let pd = `M ${startX} 0`;
+                        const segs = 8;
+                        for (let j = 1; j <= segs; j++) {
+                            const prog = j / segs;
+                            startX = startX + (tx - startX) * 0.3 + (Math.random() - 0.5) * 50 * (1 - prog * 0.7);
+                            pd += ` L ${startX} ${(ty / segs) * j}`;
+                        }
+                        pd += ` L ${tx} ${ty}`;
+                        const mkPath = (stroke, width, opacity) => {
+                            const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            p.setAttribute('d', pd); p.setAttribute('stroke', stroke);
+                            p.setAttribute('stroke-width', width); p.setAttribute('fill', 'none');
+                            p.setAttribute('stroke-linecap', 'round'); p.setAttribute('opacity', opacity);
+                            return p;
+                        };
+                        svg.appendChild(mkPath('#4d94ff', '12', '0.6'));
+                        svg.appendChild(mkPath('#b3d9ff', '6', '1'));
+                        svg.appendChild(mkPath('#ffffff', '3', '1'));
+                        bolt.appendChild(svg);
+                        document.body.appendChild(bolt);
+                        setTimeout(() => bolt.remove(), 700);
+                    }, b * 90);
+                }
+
+            } else if (effectId === 'skip') {
+                const sym = document.createElement('div');
+                sym.className = 'preview-skip';
+                document.body.appendChild(sym);
+                setTimeout(() => sym.remove(), 1400);
+
+            } else if (effectId === 'flames') {
+                const W = window.innerWidth, H = window.innerHeight;
+                for (let i = 0; i < 50; i++) {
+                    setTimeout(() => {
+                        const f = document.createElement('div');
+                        f.className = 'preview-fire';
+                        const large = i < 10;
+                        const sz = large ? (35 + Math.random() * 15) : (10 + Math.random() * 18);
+                        f.style.width = sz + 'px';
+                        f.style.height = (sz * 1.4) + 'px';
+                        f.style.left = (Math.random() * W) + 'px';
+                        f.style.top  = (H - sz) + 'px';
+                        f.style.setProperty('--fx', ((Math.random() - 0.5) * 80) + 'px');
+                        f.style.setProperty('--fy', (-(large ? (250 + Math.random() * 200) : (100 + Math.random() * 150))) + 'px');
+                        f.style.animationDuration = (large ? 2 : 1.2 + Math.random() * 0.8) + 's';
+                        document.body.appendChild(f);
+                        setTimeout(() => f.remove(), 3200);
+                    }, i * 60);
+                }
+
+            } else if (effectId === 'bow') {
+                const W = window.innerWidth;
+                for (let i = 0; i < 12; i++) {
+                    setTimeout(() => {
+                        const a = document.createElement('div');
+                        a.className = 'preview-arrow';
+                        a.style.left = (Math.random() * (W - 90)) + 'px';
+                        a.style.top  = '-10px';
+                        a.style.animationDuration = (.7 + Math.random() * .5) + 's';
+                        document.body.appendChild(a);
+                        setTimeout(() => a.remove(), 1600);
+                    }, i * 80);
+                }
+            }
         }
 
         function saveSelectedEffects() {

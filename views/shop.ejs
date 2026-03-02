@@ -641,13 +641,6 @@
         
         // Initialize on page load
         updateShopPage();
-        
-        // Allow Enter key to submit purchase
-        document.getElementById('onecellsPin').addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                confirmOnecellsPurchase();
-            }
-        });
     </script>
     
     <!-- Free Games Purchase Modal -->
@@ -745,5 +738,17 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // Add Enter key listener for Onecells PIN input (must be after modal HTML)
+        const onecellsPinInput = document.getElementById('onecellsPin');
+        if (onecellsPinInput) {
+            onecellsPinInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    confirmOnecellsPurchase();
+                }
+            });
+        }
+    </script>
 </body>
 </html>

@@ -69,6 +69,12 @@ class ThemeManager {
       clearInterval(this.robertEffectInterval);
       this.robertEffectInterval = null;
     }
+
+    // Clean up robert ambient sound timeout if any
+    if (this.robertSoundTimeout) {
+      clearTimeout(this.robertSoundTimeout);
+      this.robertSoundTimeout = null;
+    }
     
     // Clean up peak theme intervals if any
     if (this.peakEffectTimeout) {
@@ -155,6 +161,25 @@ class ThemeManager {
     
     // Start the spawning cycle
     setTimeout(spawnImages, 2000);
+
+    // Ambient sounds: play "long wispers" or "schizo" rarely
+    const robertSounds = [
+      '/sfx/long wispers.wav',
+      '/sfx/schizo.mp3'
+    ];
+
+    const playRandomRobertSound = () => {
+      const sound = robertSounds[Math.floor(Math.random() * robertSounds.length)];
+      const audio = new Audio(sound);
+      audio.volume = 0.4;
+      audio.play().catch(() => {}); // Ignore autoplay errors
+
+      // Schedule next play in 60-180 seconds
+      this.robertSoundTimeout = setTimeout(playRandomRobertSound, Math.random() * 120000 + 60000);
+    };
+
+    // Start first sound after 30-90 seconds
+    this.robertSoundTimeout = setTimeout(playRandomRobertSound, Math.random() * 60000 + 30000);
   }
 
   startPeakEffects() {

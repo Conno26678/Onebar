@@ -16,7 +16,7 @@ const { setupSocketHandlers } = require('./modules/socket-handlers');
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
-const port = Number(process.env.PORT) || 2000;
+const port = Number(process.env.PORT) || 4000;
 
 // Middleware
 app.set('view engine', 'ejs');

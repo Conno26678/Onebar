@@ -625,32 +625,32 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Handle play again payment requirement
-  socket.on('playAgainPaymentRequired', () => {
-    console.log('Payment required! Showing payment modal...');
-    // Close winner modal and XP notification
-    document.getElementById('winnerModal').style.display = 'none';
-    const xpNotification = document.getElementById('xpNotification');
-    if (xpNotification) xpNotification.style.display = 'none';
-    // Show payment modal
-    const modal = document.getElementById('paymentModal');
-    console.log('Payment modal element:', modal);
-    if (modal) {
-      modal.style.display = 'block';
-      console.log('Payment modal should now be visible');
-    } else {
-      console.error('Payment modal element not found!');
-    }
-  });
+  // socket.on('playAgainPaymentRequired', () => {
+  //   console.log('Payment required! Showing payment modal...');
+  //   // Close winner modal and XP notification
+  //   document.getElementById('winnerModal').style.display = 'none';
+  //   const xpNotification = document.getElementById('xpNotification');
+  //   if (xpNotification) xpNotification.style.display = 'none';
+  //   // Show payment modal
+  //   const modal = document.getElementById('paymentModal');
+  //   console.log('Payment modal element:', modal);
+  //   if (modal) {
+  //     modal.style.display = 'block';
+  //     console.log('Payment modal should now be visible');
+  //   } else {
+  //     console.error('Payment modal element not found!');
+  //   }
+  // });
 
   // Handle game reset (from play again)
-  socket.on('gameReset', ({ message }) => {
-    console.log('Game reset:', message);
-    // Close winner modal and XP notification if still open
-    document.getElementById('winnerModal').style.display = 'none';
-    const xpNotification = document.getElementById('xpNotification');
-    if (xpNotification) xpNotification.style.display = 'none';
-    // The playerList update will refresh the UI automatically
-  });
+  // socket.on('gameReset', ({ message }) => {
+  //   console.log('Game reset:', message);
+  //   // Close winner modal and XP notification if still open
+  //   document.getElementById('winnerModal').style.display = 'none';
+  //   const xpNotification = document.getElementById('xpNotification');
+  //   if (xpNotification) xpNotification.style.display = 'none';
+  //   // The playerList update will refresh the UI automatically
+  // });
 
   // Back to Lobby button handler
   document.getElementById('backToLobbyBtn').addEventListener('click', () => {
@@ -672,17 +672,17 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Listen for payment success
-  window.addEventListener('paymentSuccess', () => {
-    console.log('Payment successful! Refreshing payment status...');
-    hidePaymentModal();
-    // Request server to refresh payment status
-    socket.emit('refreshPaymentStatus');
-    // Wait a brief moment for server to update session, then retry play again
-    setTimeout(() => {
-      console.log('Retrying play again after payment...');
-      socket.emit('playAgain', { gameId });
-    }, 500);
-  });
+  // window.addEventListener('paymentSuccess', () => {
+  //   console.log('Payment successful! Refreshing payment status...');
+  //   hidePaymentModal();
+  //   // Request server to refresh payment status
+  //   socket.emit('refreshPaymentStatus');
+  //   // Wait a brief moment for server to update session, then retry play again
+  //   setTimeout(() => {
+  //     console.log('Retrying play again after payment...');
+  //     socket.emit('playAgain', { gameId });
+  //   }, 500);
+  // });
 
   window.addEventListener('hidePaymentModal', () => {
     hidePaymentModal();

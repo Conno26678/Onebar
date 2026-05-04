@@ -1,14 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#f85149">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
     <title>Onebar - Game</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/cards-atlas.css">
     <link rel="stylesheet" href="/css/game.css">
     <link rel="stylesheet" href="/css/lobby.css">
     <link rel="stylesheet" href="/css/room.css">
+    <link rel="stylesheet" href="/css/mobile.css">
     <style>
         @keyframes popIn {
             0% {
@@ -75,19 +81,559 @@
             pointer-events: auto !important;
             cursor: pointer;
         }
+        
+        /* Confetti animation */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            overflow: hidden;
+        }
+        
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f0f;
+            top: -10px;
+            opacity: 1;
+            animation: confetti-fall linear forwards;
+        }
+        
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) rotateZ(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotateZ(720deg);
+                opacity: 0;
+            }
+        }
+        
+        /* Lightning bolt effect for ONE button */
+        .lightning-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 99999;
+            overflow: visible;
+        }
+        
+        .lightning-bolt {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 99999;
+        }
+        
+        .lightning-bolt svg {
+            filter: drop-shadow(0 0 15px rgba(150, 200, 255, 1))
+                    drop-shadow(0 0 30px rgba(100, 150, 255, 0.8))
+                    drop-shadow(0 0 45px rgba(50, 100, 255, 0.6));
+            animation: lightning-pulse 0.6s ease-out forwards;
+        }
+        
+        @keyframes lightning-pulse {
+            0% {
+                opacity: 0;
+                filter: brightness(3) drop-shadow(0 0 20px rgba(255, 255, 255, 1));
+            }
+            15% {
+                opacity: 1;
+                filter: brightness(3) drop-shadow(0 0 25px rgba(200, 220, 255, 1));
+            }
+            30% {
+                opacity: 1;
+                filter: brightness(2.5) drop-shadow(0 0 20px rgba(150, 200, 255, 0.9));
+            }
+            50% {
+                opacity: 0.8;
+                filter: brightness(2) drop-shadow(0 0 15px rgba(100, 150, 255, 0.7));
+            }
+            70% {
+                opacity: 0.4;
+                filter: brightness(1.5) drop-shadow(0 0 10px rgba(50, 100, 255, 0.5));
+            }
+            100% {
+                opacity: 0;
+                filter: brightness(1) drop-shadow(0 0 5px rgba(50, 100, 255, 0.2));
+            }
+        }
+        
+        .lightning-flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+            z-index: 9997;
+            animation: flash 0.5s ease-out forwards;
+        }
+        
+        @keyframes flash {
+            0% {
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.8;
+            }
+            30% {
+                opacity: 0.4;
+            }
+            50% {
+                opacity: 0.2;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+        
+        .lightning-glow {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9996;
+            animation: glow-expand 0.8s ease-out forwards;
+        }
+        
+        @keyframes glow-expand {
+            0% {
+                width: 50px;
+                height: 50px;
+                opacity: 1;
+                box-shadow: 0 0 20px 10px rgba(255, 255, 150, 0.8);
+            }
+            50% {
+                opacity: 0.6;
+                box-shadow: 0 0 40px 20px rgba(200, 200, 255, 0.6);
+            }
+            100% {
+                width: 200px;
+                height: 200px;
+                opacity: 0;
+                box-shadow: 0 0 60px 30px rgba(100, 100, 255, 0.2);
+            }
+        }
+        
+        /* Sparkle effect for last card */
+        #hand .card.sparkle-glow {
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8),
+                        0 0 40px rgba(255, 215, 0, 0.6),
+                        0 0 60px rgba(255, 215, 0, 0.4) !important;
+            animation: sparkle-pulse 1.5s ease-in-out infinite !important;
+            position: relative;
+            z-index: 50 !important;
+        }
+        
+        @keyframes sparkle-pulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(255, 215, 0, 0.8),
+                            0 0 40px rgba(255, 215, 0, 0.6),
+                            0 0 60px rgba(255, 215, 0, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(255, 215, 0, 1),
+                            0 0 60px rgba(255, 215, 0, 0.8),
+                            0 0 90px rgba(255, 215, 0, 0.6);
+            }
+        }
+        
+        .sparkle-particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 215, 0, 1) 50%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9995;
+            animation: sparkle-float linear forwards;
+        }
+        
+        @keyframes sparkle-float {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--sparkle-x), var(--sparkle-y)) scale(0.3);
+            }
+        }
+        
+        /* Fire effect for +2 cards */
+        .fire-particle {
+            position: absolute;
+            width: 12px;
+            height: 16px;
+            background: radial-gradient(ellipse at bottom, rgba(255, 100, 0, 1) 0%, rgba(255, 200, 0, 0.9) 30%, rgba(255, 100, 0, 0.5) 60%, transparent 100%);
+            border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%;
+            pointer-events: none;
+            z-index: 9995;
+            animation: fire-rise linear forwards;
+        }
+        
+        @keyframes fire-rise {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1) rotate(0deg);
+            }
+            50% {
+                opacity: 0.8;
+                transform: translate(var(--fire-x), calc(var(--fire-y) * 0.5)) scale(1.2) rotate(var(--fire-rotation));
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--fire-x), var(--fire-y)) scale(0.5) rotate(calc(var(--fire-rotation) * 2));
+            }
+        }
+        
+        /* Sparkle effect for last card */
+        .sparkle-glow {
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8),
+                        0 0 40px rgba(255, 215, 0, 0.6),
+                        0 0 60px rgba(255, 215, 0, 0.4) !important;
+            animation: sparkle-pulse 1.5s ease-in-out infinite !important;
+        }
+        
+        @keyframes sparkle-pulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(255, 215, 0, 0.8),
+                            0 0 40px rgba(255, 215, 0, 0.6),
+                            0 0 60px rgba(255, 215, 0, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(255, 215, 0, 1),
+                            0 0 60px rgba(255, 215, 0, 0.8),
+                            0 0 90px rgba(255, 215, 0, 0.6);
+            }
+        }
+        
+        .sparkle-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(255, 215, 0, 1) 50%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9995;
+            animation: sparkle-float linear forwards;
+        }
+        
+        @keyframes sparkle-float {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--sparkle-x), var(--sparkle-y)) scale(0.3);
+            }
+        }
+        
+        /* Skip effect - red prohibition symbol */
+        .skip-symbol {
+            position: fixed;
+            width: 200px;
+            height: 200px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            pointer-events: none;
+            z-index: 99999;
+            animation: skip-popup 1.2s ease-out forwards;
+        }
+        
+        .skip-symbol::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 20px solid #ff0000;
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.8),
+                        0 0 60px rgba(255, 0, 0, 0.5),
+                        inset 0 0 30px rgba(255, 0, 0, 0.3);
+        }
+        
+        .skip-symbol::after {
+            content: '';
+            position: absolute;
+            width: 180px;
+            height: 20px;
+            background: #ff0000;
+            top: calc(50% - 10px);
+            left: calc(50% - 90px);
+            transform: rotate(0deg);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.8),
+                        0 0 40px rgba(255, 0, 0, 0.5);
+        }
+        
+        @keyframes skip-popup {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0) rotate(-180deg);
+            }
+            40% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2) rotate(10deg);
+            }
+            60% {
+                transform: translate(-50%, -50%) scale(0.95) rotate(-5deg);
+            }
+            80% {
+                transform: translate(-50%, -50%) scale(1.05) rotate(2deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8) rotate(0deg);
+            }
+        }
+        
+        /* Bow and arrow effect */
+        .bow-arrow {
+            position: fixed;
+            width: 100px;
+            height: 100px;
+            pointer-events: none;
+            z-index: 99999;
+        }
+        
+        .bow-arrow-bow {
+            position: absolute;
+            width: 60px;
+            height: 80px;
+            left: 20px;
+            top: 10px;
+            border: 4px solid #8B4513;
+            border-right: none;
+            border-radius: 40px 0 0 40px;
+            box-shadow: 0 0 10px rgba(139, 69, 19, 0.8);
+            opacity: 0;
+        }
+        
+        .bow-arrow-string {
+            position: absolute;
+            width: 2px;
+            height: 80px;
+            background: #DEB887;
+            left: 20px;
+            top: 10px;
+            box-shadow: 0 0 5px rgba(222, 184, 135, 0.8);
+            opacity: 0;
+        }
+        
+        .bow-arrow-arrow {
+            position: absolute;
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(to right, #8B4513 0%, #D2691E 60%, #FFD700 100%);
+            top: 48px;
+            left: 10px;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+            animation: arrow-shoot 0.8s ease-out forwards;
+        }
+        
+        .bow-arrow-arrow::before {
+            content: '';
+            position: absolute;
+            right: -10px;
+            top: -6px;
+            width: 0;
+            height: 0;
+            border-left: 15px solid #FFD700;
+            border-top: 7px solid transparent;
+            border-bottom: 7px solid transparent;
+        }
+        
+        .bow-arrow-arrow::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: -3px;
+            width: 15px;
+            height: 10px;
+            background: #8B4513;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        @keyframes arrow-shoot {
+            0% {
+                transform: translateY(0) rotate(90deg) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(120vh) rotate(90deg) scale(1);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes bow-fade {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+
+        @keyframes slideInDown {
+            from {
+                transform: translate(-50%, -100px);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+
+        /* Jump In Button Styles */
+        .jump-in-button {
+            background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%);
+            color: #1a1a1a;
+            border: 3px solid #fff;
+            border-radius: 12px;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(255, 215, 0, 0.5);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .jump-in-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(255, 215, 0, 0.7);
+            background: linear-gradient(135deg, #ffed4e 0%, #ffd700 100%);
+        }
+
+        .jump-in-button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .jump-in-button:disabled {
+            background: linear-gradient(135deg, #666 0%, #444 100%);
+            cursor: not-allowed;
+            opacity: 0.5;
+            box-shadow: none;
+        }
+
+        .jump-in-icon {
+            font-size: 24px;
+            animation: pulse 1s infinite;
+        }
+
+        .jump-in-text {
+            font-size: 20px;
+            letter-spacing: 1px;
+        }
+
+        .jump-in-timer {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        @keyframes jumpInGlow {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(255, 215, 0, 1); }
+        }
+
+        .jump-in-button.active {
+            animation: jumpInGlow 1s infinite;
+        }
     </style>
 </head>
 <body>
-  <!-- Logout button (upper-left) -->
-  <a href="/logout" class="btn logout-button">Logout</a>
+  
+  <!-- Emoji Reaction Button (upper-left) -->
+  <button class="emoji-reaction-button" id="emojiReactionBtn" onclick="toggleEmojiMenu()">😊</button>
+  
+  <!-- Emoji Selection Menu -->
+  <div class="emoji-menu" id="emojiMenu" style="display: none;">
+    <div class="emoji-menu-item" data-emoji="0"></div>
+    <div class="emoji-menu-item" data-emoji="1"></div>
+    <div class="emoji-menu-item" data-emoji="2"></div>
+    <div class="emoji-menu-item" data-emoji="3"></div>
+  </div>
+  
+  <!-- Emoji Reactions Display Area -->
+  <div class="emoji-reactions-area" id="emojiReactionsArea"></div>
+  
+  <!-- Distraction Button (upper-right) -->
+  <button class="distraction-button" id="distractionBtn" onclick="toggleDistractionMenu()">🎯</button>
+  
+  <!-- Distraction Selection Menu -->
+  <div class="distraction-menu" id="distractionMenu" style="display: none;">
+    <!-- Distraction items will be dynamically populated -->
+  </div>
+  
+  <!-- Confetti Container -->
+  <div class="confetti-container" id="confettiContainer"></div>
 
   <div class="game-container">
-    <h1 class="game-title">ONEBAR</h1>
+    <h1 class="game-title" id="gameTitle">ONEBAR</h1>
     <div id="playerList"><span class="loading" style="width: 200px; height: 20px; display: inline-block;"></span></div>
     <div id="status">Waiting for game to start...</div>
+    
+    <!-- Turn Timer Display -->
+    <div id="turnTimerDisplay" style="display: none; text-align: center; margin: 5px auto; font-size: 0.85rem; font-weight: 600; padding: 4px 12px; background: rgba(0,0,0,0.3); border-radius: 8px; max-width: fit-content;">
+      Countdown before turn skip: <span id="turnTimerValue">15</span>s
+    </div>
+    
     <div id="tableArea"></div>
     <div id="table"></div>
     <div id="hand"></div>
+    
+    <!-- Jump In Button -->
+    <div id="jumpInContainer" style="display: none; margin-top: 15px; text-align: center;">
+      <button id="jumpInButton" class="jump-in-button" disabled>
+        <span class="jump-in-icon"></span>
+        <span class="jump-in-text">JUMP IN!</span>
+        <span id="jumpInTimer" class="jump-in-timer"></span>
+      </button>
+    </div>
   </div>
 
   <!-- XP Notification Box -->
@@ -109,6 +655,9 @@
     </div>
   </div>
 
+  <!-- Lightning Container for ONE button effect -->
+  <div id="lightningContainer" class="lightning-container"></div>
+
   <!-- Payment Modal -->
   <div id="paymentModal" class="payment-modal" style="display: none;">
     <div class="payment-modal-content">
@@ -121,6 +670,93 @@
     <script src="/js/theme.js"></script>
 </body>
 <script>
+    // Sound pack mapping
+    const soundMappings = {
+        default: {
+            loading: '/sfx/loading.mp3',
+            win: '/sfx/yippie.mp3',
+            lose: '/sfx/spongebobfail.mp3',
+            plus2: '/sfx/slap.mp3',
+            reverse: '/sfx/reverse.mp3',
+            skip: '/sfx/pluh.mp3',
+            startgame: '/sfx/afewmoments.mp3',
+            wild: '/sfx/omaewa.mp3',
+            plus4: '/sfx/slap.mp3',
+            cardPlace: '/sfx/pluh.mp3'
+        },
+        hayden: {
+            loading: '/sfx/loading.mp3',
+            win: '/sfx/haydenwinner.mp3',
+            lose: '/sfx/haydenlose.mp3',
+            plus2: '/sfx/hayden+2.mp3',
+            reverse: '/sfx/haydenreverse.mp3',
+            skip: '/sfx/haydenskip.mp3',
+            startgame: '/sfx/haydenstartgame.mp3',
+            wild: '/sfx/haydenwild.mp3',
+            plus4: '/sfx/hayden+4.mp3',
+            cardPlace: '/sfx/pluh.mp3'
+        },
+        custom: {
+            loading: '/sfx/loading.mp3',
+            win: '/sfx/yippie.mp3',
+            lose: '/sfx/spongebobfail.mp3',
+            plus2: '/sfx/slap.mp3',
+            reverse: '/sfx/reverse.mp3',
+            skip: '/sfx/pluh.mp3',
+            startgame: '/sfx/afewmoments.mp3',
+            wild: '/sfx/omaewa.mp3',
+            plus4: '/sfx/slap.mp3',
+            cardPlace: '/sfx/pluh.mp3'
+        }
+    };
+
+    // Sync sound preferences from server (authoritative source) into localStorage
+    (function syncSoundPrefs() {
+        const serverSoundPack = '<%- selectedSoundPack || "default" %>';
+        const serverCustomSounds = '<%- customSounds || "{}" %>';
+        if (serverSoundPack) {
+            localStorage.setItem('selectedSoundPack', serverSoundPack);
+        }
+        if (serverCustomSounds && serverCustomSounds !== '{}') {
+            localStorage.setItem('customSounds', serverCustomSounds);
+        } else {
+            // Clear stale custom sounds so they don't override the chosen pack
+            localStorage.removeItem('customSounds');
+        }
+    })();
+
+    // Function to get current sound pack
+    function getCurrentSoundPack() {
+        return localStorage.getItem('selectedSoundPack') || 'default';
+    }
+
+    // Function to get sound path based on custom sounds and selected pack
+    function getSoundPath(soundType) {
+        const pack = getCurrentSoundPack();
+        
+        // Only use custom sounds when the 'custom' pack is active
+        if (pack === 'custom') {
+            const customSoundsRaw = localStorage.getItem('customSounds');
+            if (customSoundsRaw && customSoundsRaw !== '{}') {
+                try {
+                    const customSoundsObj = JSON.parse(customSoundsRaw);
+                    if (customSoundsObj[soundType]) {
+                        console.log(`Playing custom sound for ${soundType}:`, customSoundsObj[soundType]);
+                        return customSoundsObj[soundType];
+                    }
+                } catch (e) {
+                    console.log('Error parsing custom sounds:', e);
+                }
+            }
+            // Fall through to default if this custom slot wasn't configured
+        }
+        
+        // Use the selected pack (or default as fallback)
+        const soundPath = soundMappings[pack]?.[soundType] || soundMappings.default[soundType];
+        console.log(`Playing ${pack} sound for ${soundType}:`, soundPath);
+        return soundPath;
+    }
+
     // Sound control helper function
     function playSoundIfEnabled(soundPath, volume = 0.5) {
         const soundEnabled = localStorage.getItem('soundEffectsEnabled');
@@ -137,9 +773,422 @@
     // Override alert to play loading sound
     const originalAlert = window.alert;
     window.alert = function(message) {
-        playSoundIfEnabled('/sfx/loading.mp3', 0.5);
+        playSoundIfEnabled(getSoundPath('loading'), 0.5);
         originalAlert.call(window, message);
     };
+    
+    // Mobile detection utility
+    function isMobileDevice() {
+        return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+    
+    // Confetti effect function
+    function triggerConfetti(duration = 6000) {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Confetti disabled on mobile');
+            return;
+        }
+        const container = document.getElementById('confettiContainer');
+        if (!container) return;
+        
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ff8800', '#ff0088', '#88ff00', '#0088ff', '#ff5555', '#55ff55', '#5555ff', '#ffaa00'];
+        const confettiCount = 300;
+        
+        for (let i = 0; i < confettiCount; i++) {
+            setTimeout(() => {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = (Math.random() * 3 + 3) + 's';
+                confetti.style.width = (Math.random() * 15 + 10) + 'px';
+                confetti.style.height = (Math.random() * 15 + 10) + 'px';
+                confetti.style.animationDelay = '0s';
+                
+                container.appendChild(confetti);
+                
+                // Remove confetti element after animation
+                setTimeout(() => {
+                    confetti.remove();
+                }, 7000);
+            }, Math.random() * duration);
+        }
+    }
+    
+    // Skip effect function - shows red prohibition symbol
+    function triggerSkipEffect() {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Skip effect disabled on mobile');
+            return;
+        }
+        const symbol = document.createElement('div');
+        symbol.className = 'skip-symbol';
+        document.body.appendChild(symbol);
+        
+        // Remove after animation completes
+        setTimeout(() => {
+            symbol.remove();
+        }, 1200);
+    }
+    
+    // Bow and arrow effect function
+    function triggerBowArrowEffect() {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Bow arrow effect disabled on mobile');
+            return;
+        }
+        const arrowCount = 15;
+        
+        for (let i = 0; i < arrowCount; i++) {
+            setTimeout(() => {
+                const container = document.createElement('div');
+                container.className = 'bow-arrow';
+                
+                // Position at top of screen with random horizontal positions
+                const randomX = Math.random() * window.innerWidth;
+                container.style.top = '-100px';
+                container.style.left = randomX + 'px';
+                
+                // Create bow (hidden)
+                const bow = document.createElement('div');
+                bow.className = 'bow-arrow-bow';
+                container.appendChild(bow);
+                
+                // Create string (hidden)
+                const string = document.createElement('div');
+                string.className = 'bow-arrow-string';
+                container.appendChild(string);
+                
+                // Create arrow
+                const arrow = document.createElement('div');
+                arrow.className = 'bow-arrow-arrow';
+                container.appendChild(arrow);
+                
+                document.body.appendChild(container);
+                
+                // Remove after animation completes
+                setTimeout(() => {
+                    container.remove();
+                }, 2000);
+            }, i * 80);
+        }
+    }
+    
+    // Lightning effect function for ONE button
+    function triggerLightningEffect(targetElement) {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Lightning effect disabled on mobile');
+            return;
+        }
+        const container = document.getElementById('lightningContainer');
+        if (!container) return;
+        
+        // Get the position of the target element (ONE button)
+        const rect = targetElement.getBoundingClientRect();
+        const targetX = rect.left + rect.width / 2;
+        const targetY = rect.top + rect.height / 2;
+        
+        // Create flash effect
+        const flash = document.createElement('div');
+        flash.className = 'lightning-flash';
+        document.body.appendChild(flash);
+        
+        // Create glow at button location
+        const glow = document.createElement('div');
+        glow.className = 'lightning-glow';
+        glow.style.left = (targetX - 25) + 'px';
+        glow.style.top = (targetY - 25) + 'px';
+        document.body.appendChild(glow);
+        
+        // Create multiple lightning bolts striking the button
+        const boltCount = 3;
+        for (let i = 0; i < boltCount; i++) {
+            setTimeout(() => {
+                const bolt = document.createElement('div');
+                bolt.className = 'lightning-bolt';
+                
+                // Random starting position at top of screen
+                const startX = (Math.random() * 200 - 100) + targetX;
+                
+                // Create SVG lightning bolt
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.position = 'absolute';
+                svg.style.left = '0';
+                svg.style.top = '0';
+                svg.style.width = '100%';
+                svg.style.height = '100%';
+                svg.style.pointerEvents = 'none';
+                svg.setAttribute('width', window.innerWidth);
+                svg.setAttribute('height', window.innerHeight);
+                
+                // Generate jagged lightning path
+                let pathData = `M ${startX} 0`;
+                let currentX = startX;
+                let currentY = 0;
+                const segments = 8 + Math.floor(Math.random() * 4);
+                const segmentHeight = targetY / segments;
+                
+                for (let j = 1; j <= segments; j++) {
+                    const nextY = j * segmentHeight;
+                    // Add randomness to X position, but trend toward target
+                    const targetProgress = j / segments;
+                    const targetXAtSegment = startX + (targetX - startX) * targetProgress;
+                    const jitter = (Math.random() - 0.5) * 40 * (1 - targetProgress * 0.7);
+                    currentX = targetXAtSegment + jitter;
+                    currentY = nextY;
+                    pathData += ` L ${currentX} ${currentY}`;
+                }
+                
+                // Final segment to exact target
+                pathData += ` L ${targetX} ${targetY}`;
+                
+                // Create outer glow path
+                const outerPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                outerPath.setAttribute('d', pathData);
+                outerPath.setAttribute('stroke', '#4d94ff');
+                outerPath.setAttribute('stroke-width', '12');
+                outerPath.setAttribute('fill', 'none');
+                outerPath.setAttribute('stroke-linecap', 'round');
+                outerPath.setAttribute('opacity', '0.6');
+                svg.appendChild(outerPath);
+                
+                // Create main lightning path
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathData);
+                path.setAttribute('stroke', '#b3d9ff');
+                path.setAttribute('stroke-width', '6');
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke-linecap', 'round');
+                svg.appendChild(path);
+                
+                // Create inner glow path
+                const innerPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                innerPath.setAttribute('d', pathData);
+                innerPath.setAttribute('stroke', '#ffffff');
+                innerPath.setAttribute('stroke-width', '3');
+                innerPath.setAttribute('fill', 'none');
+                innerPath.setAttribute('stroke-linecap', 'round');
+                svg.appendChild(innerPath);
+                
+                bolt.appendChild(svg);
+                container.appendChild(bolt);
+                
+                // Remove bolt after animation
+                setTimeout(() => {
+                    bolt.remove();
+                }, 700);
+            }, i * 80);
+        }
+        
+        // Remove flash and glow after animation
+        setTimeout(() => {
+            flash.remove();
+            glow.remove();
+        }, 900);
+    }
+    
+    // Sparkle effect function for last card
+    function addSparkleEffect(element) {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Sparkle effect disabled on mobile');
+            return;
+        }
+        console.log('🌟 Adding sparkle effect to element:', element);
+        // Add glow to the element
+        element.classList.add('sparkle-glow');
+        console.log('Element classes after adding sparkle:', element.className);
+        
+        // Create sparkle particles continuously
+        const sparkleInterval = setInterval(() => {
+            const rect = element.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // Create 3-5 sparkles at random positions around the card
+            const sparkleCount = 3 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < sparkleCount; i++) {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle-particle';
+                
+                // Random starting position around the card
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 30 + Math.random() * 40;
+                const startX = Math.cos(angle) * radius;
+                const startY = Math.sin(angle) * radius;
+                
+                sparkle.style.left = (centerX + startX) + 'px';
+                sparkle.style.top = (centerY + startY) + 'px';
+                
+                // Random movement direction
+                const moveAngle = Math.random() * Math.PI * 2;
+                const moveDistance = 40 + Math.random() * 60;
+                const moveX = Math.cos(moveAngle) * moveDistance;
+                const moveY = Math.sin(moveAngle) * moveDistance - 30; // Bias upward
+                
+                sparkle.style.setProperty('--sparkle-x', moveX + 'px');
+                sparkle.style.setProperty('--sparkle-y', moveY + 'px');
+                sparkle.style.animationDuration = (0.8 + Math.random() * 0.6) + 's';
+                
+                document.body.appendChild(sparkle);
+                
+                // Remove sparkle after animation
+                setTimeout(() => sparkle.remove(), 1500);
+            }
+        }, 300);
+        
+        // Store interval ID on the element so we can clear it later
+        element.dataset.sparkleInterval = sparkleInterval;
+        console.log('✅ Sparkle effect added, interval ID:', sparkleInterval);
+    }
+    
+    function removeSparkleEffect(element) {
+        if (!element) return;
+        element.classList.remove('sparkle-glow');
+        if (element.dataset.sparkleInterval) {
+            clearInterval(element.dataset.sparkleInterval);
+            delete element.dataset.sparkleInterval;
+        }
+    }
+    
+    function triggerDrawPileSparkles() {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Draw pile sparkles disabled on mobile');
+            return;
+        }
+        const drawPile = document.getElementById('drawPileImg');
+        if (!drawPile) return;
+        
+        console.log('🌟 Triggering draw pile sparkles');
+        const rect = drawPile.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        // Create burst of sparkles
+        const sparkleCount = 15 + Math.floor(Math.random() * 10);
+        for (let i = 0; i < sparkleCount; i++) {
+            setTimeout(() => {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle-particle';
+                
+                // Random starting position around the draw pile
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 10 + Math.random() * 30;
+                const startX = Math.cos(angle) * radius;
+                const startY = Math.sin(angle) * radius;
+                
+                sparkle.style.left = (centerX + startX) + 'px';
+                sparkle.style.top = (centerY + startY) + 'px';
+                
+                // Random movement direction for burst effect
+                const moveAngle = Math.random() * Math.PI * 2;
+                const moveDistance = 60 + Math.random() * 80;
+                const moveX = Math.cos(moveAngle) * moveDistance;
+                const moveY = Math.sin(moveAngle) * moveDistance - 20;
+                
+                sparkle.style.setProperty('--sparkle-x', moveX + 'px');
+                sparkle.style.setProperty('--sparkle-y', moveY + 'px');
+                sparkle.style.animationDuration = (1 + Math.random() * 0.8) + 's';
+                
+                document.body.appendChild(sparkle);
+                
+                // Remove sparkle after animation
+                setTimeout(() => sparkle.remove(), 2000);
+            }, i * 20); // Stagger the sparkle creation
+        }
+    }
+    
+    function triggerBackgroundFireEffect() {
+        // Disable on mobile for better performance
+        if (isMobileDevice()) {
+            console.log('Fire effect disabled on mobile');
+            return;
+        }
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+        
+        // Create large background flames
+        const largeFlameCount = 8 + Math.floor(Math.random() * 5);
+        for (let i = 0; i < largeFlameCount; i++) {
+            setTimeout(() => {
+                const flame = document.createElement('div');
+                flame.className = 'fire-particle';
+                
+                // Position along bottom of screen
+                const startX = (screenWidth / largeFlameCount) * i + (Math.random() * (screenWidth / largeFlameCount));
+                const startY = screenHeight - 20;
+                
+                flame.style.left = startX + 'px';
+                flame.style.top = startY + 'px';
+                
+                // Make them larger
+                flame.style.width = '40px';
+                flame.style.height = '60px';
+                
+                // Large flames rise high
+                const driftX = (Math.random() - 0.5) * 100;
+                const riseY = -300 - Math.random() * 200;
+                const rotation = (Math.random() - 0.5) * 180;
+                
+                flame.style.setProperty('--fire-x', driftX + 'px');
+                flame.style.setProperty('--fire-y', riseY + 'px');
+                flame.style.setProperty('--fire-rotation', rotation + 'deg');
+                flame.style.animationDuration = (2 + Math.random() * 1) + 's';
+                
+                document.body.appendChild(flame);
+                
+                setTimeout(() => flame.remove(), 3500);
+            }, i * 80);
+        }
+        
+        // Create smaller flames across the bottom and sides of the screen
+        const flameCount = 40 + Math.floor(Math.random() * 20);
+        for (let i = 0; i < flameCount; i++) {
+            setTimeout(() => {
+                const flame = document.createElement('div');
+                flame.className = 'fire-particle';
+                
+                // Random starting position along bottom and sides
+                let startX, startY;
+                const position = Math.random();
+                if (position < 0.6) {
+                    // Bottom of screen
+                    startX = Math.random() * screenWidth;
+                    startY = screenHeight - 20;
+                } else if (position < 0.8) {
+                    // Left side
+                    startX = Math.random() * 100;
+                    startY = Math.random() * screenHeight;
+                } else {
+                    // Right side
+                    startX = screenWidth - (Math.random() * 100);
+                    startY = Math.random() * screenHeight;
+                }
+                
+                flame.style.left = startX + 'px';
+                flame.style.top = startY + 'px';
+                
+                // Flames rise upward with drift
+                const driftX = (Math.random() - 0.5) * 60;
+                const riseY = -100 - Math.random() * 150;
+                const rotation = (Math.random() - 0.5) * 180;
+                
+                flame.style.setProperty('--fire-x', driftX + 'px');
+                flame.style.setProperty('--fire-y', riseY + 'px');
+                flame.style.setProperty('--fire-rotation', rotation + 'deg');
+                flame.style.animationDuration = (1.5 + Math.random() * 1) + 's';
+                
+                document.body.appendChild(flame);
+                
+                setTimeout(() => flame.remove(), 2800);
+            }, i * 20);
+        }
+    }
 
     const socket = io();
 
@@ -147,6 +1196,453 @@
     let gameActive = true;
 
     const playerName = <%- JSON.stringify(user || 'Anonymous') %>;
+    
+    // Initialize user's distractions inventory
+    let distractionsInventory = {};
+    try {
+      const distractionsData = '<%- typeof distractionsInventory !== "undefined" ? distractionsInventory : "{}" %>';
+      distractionsInventory = JSON.parse(distractionsData);
+    } catch (e) {
+      console.error('Error parsing distractions:', e);
+      distractionsInventory = {};
+    }
+    
+    const availableDistractions = [
+      { id: 'Flashbang', icon: '💥', name: 'Flashbang' },
+      { id: 'Jumpscare', icon: '😱', name: 'Jumpscare' },
+      { id: 'SubwaySurfers', icon: '🚇', name: 'Subway Surfers' },
+      { id: 'PeterGriffin', icon: '👨', name: 'Peter Griffin' },
+      { id: 'Shake', icon: '📳', name: 'Shake' },
+      { id: 'SixSeven', icon: '🎵', name: 'Six Seven' },
+      { id: 'Trollface', icon: '😈', name: 'Trollface' }
+    ];
+    
+    // Initialize user's selected emojis
+    const availableEmojis = [
+      { id: 'wave', icon: '👋' },
+      { id: 'thumbsup', icon: '👍' },
+      { id: 'party', icon: '🎉' },
+      { id: 'fire', icon: '🔥' },
+      { id: 'hearteyes', icon: '😍' },
+      { id: 'crown', icon: '👑' },
+      { id: 'cool', icon: '😎' },
+      { id: 'partysmith', icon: '🎊', image: 'partySmith.png' },
+      { id: 'cowboy', icon: '🤠' },
+      { id: 'rocket', icon: '🚀' },
+      { id: 'star', icon: '⭐' },
+      { id: 'disasmithed', icon: '😵', image: 'disasmithed.png' }
+    ];
+    
+    let selectedEmojis = [];
+    try {
+      const emotesData = '<%- typeof selectedEmotes !== "undefined" ? selectedEmotes : "[]" %>';
+      selectedEmojis = JSON.parse(emotesData);
+      if (!Array.isArray(selectedEmojis) || selectedEmojis.length !== 4) {
+        selectedEmojis = ['wave', 'thumbsup', 'party', 'fire'];
+      }
+    } catch (e) {
+      console.error('Error parsing selected emotes:', e);
+      selectedEmojis = ['wave', 'thumbsup', 'party', 'fire'];
+    }
+    
+    // Get user's selected effects (can be multiple)
+    let userSelectedEffects = [];
+    try {
+      const effectData = '<%- typeof selectedEffect !== "undefined" ? selectedEffect : "confetti" %>';
+      userSelectedEffects = effectData.startsWith('[') ? JSON.parse(effectData) : [effectData];
+    } catch(e) {
+      userSelectedEffects = ['confetti'];
+    }
+    console.log('User selected effects:', userSelectedEffects);
+    
+    // Initialize emoji menu items
+    function initEmojiMenu() {
+      const menuItems = document.querySelectorAll('.emoji-menu-item');
+      selectedEmojis.forEach((emojiId, index) => {
+        const emoji = availableEmojis.find(e => e.id === emojiId);
+        if (emoji && menuItems[index]) {
+          if (emoji.image) {
+            menuItems[index].innerHTML = `<img src="/img/${emoji.image}" alt="${emoji.id}" style="width: 40px; height: 40px; border-radius: 5px;">`;
+          } else {
+            menuItems[index].textContent = emoji.icon;
+          }
+          menuItems[index].onclick = () => sendEmojiReaction(emojiId, emoji.icon, emoji.image);
+        }
+      });
+    }
+    
+    // Toggle emoji menu visibility
+    function toggleEmojiMenu() {
+      const menu = document.getElementById('emojiMenu');
+      if (menu.style.display === 'none') {
+        menu.style.display = 'flex';
+      } else {
+        menu.style.display = 'none';
+      }
+    }
+    
+    // Initialize distraction menu items
+    function initDistractionMenu() {
+      const menu = document.getElementById('distractionMenu');
+      menu.innerHTML = ''; // Clear existing items
+      
+      const hasDistractions = Object.keys(distractionsInventory).length > 0;
+      
+      if (!hasDistractions) {
+        menu.innerHTML = '<div class="distraction-menu-empty">No distractions available!<br>Purchase some in the shop</div>';
+        return;
+      }
+      
+      // Add each distraction type with count
+      Object.entries(distractionsInventory).forEach(([type, count]) => {
+        if (count > 0) {
+          const distraction = availableDistractions.find(d => d.id === type);
+          if (distraction) {
+            const item = document.createElement('div');
+            item.className = 'distraction-menu-item';
+            item.innerHTML = `
+              <span class="distraction-icon">${distraction.icon}</span>
+              <span class="distraction-name">${distraction.name}</span>
+              <span class="distraction-count">×${count}</span>
+            `;
+            item.onclick = () => useDistraction(type, distraction.icon, distraction.name);
+            menu.appendChild(item);
+          }
+        }
+      });
+    }
+    
+    // Toggle distraction menu visibility
+    function toggleDistractionMenu() {
+      const menu = document.getElementById('distractionMenu');
+      if (menu.style.display === 'none') {
+        initDistractionMenu(); // Refresh menu each time it opens
+        menu.style.display = 'flex';
+      } else {
+        menu.style.display = 'none';
+      }
+    }
+    
+    // Use a distraction
+    function useDistraction(type, icon, name) {
+      if (!distractionsInventory[type] || distractionsInventory[type] <= 0) {
+        alert('You have no ' + name + ' distractions left!');
+        return;
+      }
+      
+      // Warn about mobile users not seeing the effect
+      const isMobile = window.innerWidth <= 768;
+      if (!isMobile) {
+        const proceed = confirm('Note: Mobile users cannot see distraction effects.\n\nDo you want to use this distraction?');
+        if (!proceed) {
+          return;
+        }
+      }
+      
+      // Send distraction to server and other players
+      socket.emit('useDistraction', {
+        gameId,
+        playerName,
+        distractionType: type,
+        distractionIcon: icon,
+        distractionName: name
+      });
+      
+      // Optimistically update local count
+      distractionsInventory[type]--;
+      if (distractionsInventory[type] <= 0) {
+        delete distractionsInventory[type];
+      }
+      
+      toggleDistractionMenu();
+    }
+    
+    // Close menus when clicking outside
+    document.addEventListener('click', (e) => {
+      const emojiMenu = document.getElementById('emojiMenu');
+      const emojiBtn = document.getElementById('emojiReactionBtn');
+      if (emojiMenu && emojiBtn && !emojiMenu.contains(e.target) && !emojiBtn.contains(e.target)) {
+        emojiMenu.style.display = 'none';
+      }
+      
+      const distractionMenu = document.getElementById('distractionMenu');
+      const distractionBtn = document.getElementById('distractionBtn');
+      if (distractionMenu && distractionBtn && !distractionMenu.contains(e.target) && !distractionBtn.contains(e.target)) {
+        distractionMenu.style.display = 'none';
+      }
+    });
+    
+    // Send emoji reaction
+    function sendEmojiReaction(emojiId, emojiIcon, emojiImage) {
+      socket.emit('emojiReaction', { 
+        gameId, 
+        playerName,
+        emojiId, 
+        emojiIcon, 
+        emojiImage 
+      });
+      toggleEmojiMenu();
+    }
+    
+    // Display emoji reaction
+    function displayEmojiReaction(playerName, emojiIcon, emojiImage) {
+      // Optionally disable reactions on mobile (comment this out if you want to keep reactions on mobile)
+      if (isMobileDevice()) {
+        console.log('Emoji reactions disabled on mobile');
+        return;
+      }
+      const reactionsArea = document.getElementById('emojiReactionsArea');
+      const reaction = document.createElement('div');
+      reaction.className = 'emoji-reaction';
+      
+      if (emojiImage) {
+        reaction.innerHTML = `
+          <img src="/img/${emojiImage}" alt="${playerName}" style="width: 50px; height: 50px; border-radius: 10px;">
+          <span class="emoji-reaction-name">${playerName}</span>
+        `;
+      } else {
+        reaction.innerHTML = `
+          <span class="emoji-reaction-icon">${emojiIcon}</span>
+          <span class="emoji-reaction-name">${playerName}</span>
+        `;
+      }
+      
+      reactionsArea.appendChild(reaction);
+      
+      // Remove after animation
+      setTimeout(() => {
+        reaction.remove();
+      }, 3000);
+    }
+    
+    // Listen for emoji reactions from server
+    socket.on('emojiReaction', ({ playerName, emojiIcon, emojiImage }) => {
+      displayEmojiReaction(playerName, emojiIcon, emojiImage);
+      playSoundIfEnabled(getSoundPath('cardPlace'), 0.3);
+    });
+    
+    // Listen for distractions from other players
+    socket.on('distractionReceived', ({ playerName, distractionType, distractionIcon, distractionName }) => {
+      console.log(`Received distraction from ${playerName}: ${distractionType}`);
+      applyDistractionEffect(distractionType, distractionIcon, distractionName, playerName);
+    });
+
+    // Listen for inventory updates from server (after using a distraction)
+    socket.on('distractionInventoryUpdated', ({ inventory }) => {
+      console.log('Distraction inventory updated from server:', inventory);
+      distractionsInventory = inventory;
+      // Refresh the menu if it's currently open
+      const menu = document.getElementById('distractionMenu');
+      if (menu && menu.style.display !== 'none') {
+        initDistractionMenu();
+      }
+    });
+    
+    // Apply distraction visual effects
+    function applyDistractionEffect(type, icon, name, fromPlayer) {
+      // Don't show distraction effects on mobile devices
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        console.log('Skipping distraction effect on mobile device');
+        return;
+      }
+      
+      // Show notification
+      const notification = document.createElement('div');
+      notification.className = 'distraction-notification';
+      notification.innerHTML = `
+        <span class="distraction-notif-icon">${icon}</span>
+        <span class="distraction-notif-text">${fromPlayer} used ${name}!</span>
+      `;
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.remove();
+      }, 3000);
+      
+      // Apply specific effects based on distraction type
+      switch(type) {
+        case 'Flashbang':
+          applyFlashbangEffect();
+          break;
+        case 'Shake':
+          applyShakeEffect();
+          break;
+        case 'Jumpscare':
+          applyJumpscareEffect();
+          break;
+        case 'SubwaySurfers':
+          applySubwaySurfersEffect();
+          break;
+        case 'PeterGriffin':
+          applyPeterGriffinEffect();
+          break;
+        case 'SixSeven':
+          applySixSevenEffect();
+          break;
+        case 'Trollface':
+          applyTrollfaceEffect();
+          break;
+      }
+    }
+    
+    function applyFlashbangEffect() {
+      // Play the sound directly
+      playSoundIfEnabled('/sfx/thinkfastchucklenuts.mp3', 0.7);
+      
+      const flash = document.createElement('div');
+      flash.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: white;
+        z-index: 9999;
+        animation: flashbang 7s ease-out forwards;
+      `;
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 7000);
+    }
+    
+    function applyShakeEffect() {
+      document.body.style.animation = 'shake 0.5s ease-in-out';
+      document.body.style.animationIterationCount = 'infinite';
+      setTimeout(() => {
+        document.body.style.animation = '';
+        document.body.style.animationIterationCount = '';
+      }, 10000);
+    }
+    
+    function applyJumpscareEffect() {
+      playSoundIfEnabled('/sfx/foxyscream.mp3', 1);
+      
+      setTimeout(() => {
+        const jumpscare = document.createElement('img');
+        jumpscare.src = '/img/foxyJumpscare.png';
+        jumpscare.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%) scale(0);
+          width: 800px;
+          height: auto;
+          z-index: 9999;
+          animation: jumpscare 0.8s ease-out forwards;
+        `;
+        document.body.appendChild(jumpscare);
+        setTimeout(() => jumpscare.remove(), 2000);
+      }, 200);
+    }
+    
+    function applySubwaySurfersEffect() {
+      const container = document.createElement('div');
+      container.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        width: 250px;
+        height: 400px;
+        z-index: 9998;
+        animation: slideInBottom 0.5s ease-out;
+        border: 1px solid rgba(0, 0, 0, 0.8);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      `;
+      
+      const video = document.createElement('video');
+      video.src = '/subwaysurfers.mp4';
+      video.autoplay = true;
+      video.loop = true;
+      video.muted = false;
+      video.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      `;
+      
+      container.appendChild(video);
+      document.body.appendChild(container);
+      setTimeout(() => container.remove(), 30000);
+    }
+    
+    function applyPeterGriffinEffect() {
+      // Play bird is the word sound first
+      playSoundIfEnabled('/sfx/birdistheword.mp3', 0.7);
+      
+      // Play peter laugh after 3 seconds
+      setTimeout(() => {
+        playSoundIfEnabled('/sfx/peterlaugh.mp3', 0.7);
+      }, 3000);
+      
+      const peter = document.createElement('div');
+      peter.innerHTML = '<img src="/img/peter.png" alt="Peter Griffin" style="width: 550px; height: auto;">';
+      peter.style.cssText = `
+        position: fixed;
+        bottom: -600px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9998;
+        animation: peterSlideUp 1s ease-out forwards, peterFlip 2s ease-in-out 1s infinite;
+      `;
+      document.body.appendChild(peter);
+      setTimeout(() => peter.remove(), 13000);
+    }
+    
+    function applySixSevenEffect() {
+      // Play 67 sound
+      playSoundIfEnabled('/sfx/67.mp3', 0.7);
+      
+      // Apply shake animation
+      document.body.style.animation = 'shake 0.5s ease-in-out';
+      document.body.style.animationIterationCount = 'infinite';
+      
+      // Add SIX SEVEN text overlay
+      const sixSeven = document.createElement('div');
+      sixSeven.innerHTML = 'SIX SEVEN';
+      sixSeven.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 8rem;
+        font-weight: 900;
+        color: white;
+        text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000, 4px 4px 8px rgba(0,0,0,0.8);
+        z-index: 9998;
+        animation: pulseAndBounce 1s ease-in-out infinite;
+        letter-spacing: 0.2em;
+      `;
+      document.body.appendChild(sixSeven);
+      
+      setTimeout(() => {
+        document.body.style.animation = '';
+        document.body.style.animationIterationCount = '';
+        sixSeven.remove();
+      }, 15000);
+    }
+    
+    function applyTrollfaceEffect() {
+      // Play trollface sound
+      playSoundIfEnabled('/sfx/trollface.mp3', 0.7);
+      
+      const troll = document.createElement('div');
+      troll.innerHTML = '<img src="/img/trollface.png" alt="Trollface" style="width: 600px; height: 600px;">';
+      troll.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(0deg);
+        z-index: 9999;
+        animation: trollRotate 10s linear forwards;
+      `;
+      document.body.appendChild(troll);
+      setTimeout(() => troll.remove(), 10000);
+    }
+    
+    // Initialize emoji menu on page load
+    setTimeout(initEmojiMenu, 100);
     
     // Track if this is the initial page load vs a reconnection
     let isInitialLoad = true;
@@ -163,77 +1659,30 @@
         console.log('Payment status updated in game:', hasPaid);
     });
     
+    // Badge to emoji mapping
+    function getBadgeEmoji(badge) {
+      if (!badge || badge === 'none') return '';
+      const badgeMap = {
+        'bronze': '🥉',
+        'silver': '🥈',
+        'gold': '🥇',
+        'trophy': '🏆',
+        'diamond': '💎'
+      };
+      return badgeMap[badge] || badge;
+    }
+    
     // Track current turn player
     let currentTurnPlayerId = null;
     let myPlayerId = null;
+    let myTitleColor = 'white'; // Store player's title color
     let currentTableCard = null; // Track the card on top of discard pile
+    let currentDrawStack = 0; // Track active draw stack for stacking rule
+    let jumpInWindowActive = false; // Track if jump-in window is active
+    let jumpInTimerInterval = null; // Track jump-in timer interval
+    let jumpInMatchingCard = null; // Track the matching card for jump-in
 
-    function showWinMedal(winnerName, isCurrentUserWinner) {
-      disableGameUI();
-      
-      // Play appropriate sound based on win/lose
-      if (isCurrentUserWinner) {
-        playSoundIfEnabled('/sfx/yippie.mp3', 0.5);
-      } else {
-        playSoundIfEnabled('/sfx/spongebobfail.mp3', 0.5);
-      }
 
-      const overlay = document.createElement('div');
-      overlay.className = 'win-modal-overlay';
-
-      const modal = document.createElement('div');
-      modal.className = 'win-modal';
-
-      const trophy = document.createElement('div');
-      trophy.className = 'win-modal-trophy';
-      trophy.textContent = isCurrentUserWinner ? '🏆' : '';
-      if (trophy.textContent) modal.appendChild(trophy);
-
-      const title = document.createElement('div');
-      title.className = 'win-modal-title';
-      title.textContent = isCurrentUserWinner ? 'Congratulations! You Won!' : `get gud`;
-      modal.appendChild(title);
-
-      const winner = document.createElement('div');
-      winner.className = 'win-modal-winner';
-      winner.textContent = winnerName;
-      modal.appendChild(winner);
-
-      const subtitle = document.createElement('div');
-      subtitle.className = 'win-modal-subtitle';
-      subtitle.textContent = isCurrentUserWinner ? 'Congrats on your win' : `${winnerName} has won the game!`;
-      modal.appendChild(subtitle);
-
-      const buttons = document.createElement('div');
-      buttons.className = 'win-modal-buttons';
-
-      /* Play Again Button - Commented Out
-      const playAgainBtn = document.createElement('button');
-      playAgainBtn.className = 'win-modal-btn play-again';
-      playAgainBtn.textContent = 'Play Again';
-      playAgainBtn.addEventListener('click', () => {
-        window.location.href = '/room/' + encodeURIComponent(currentRommId);
-      });
-      buttons.appendChild(playAgainBtn);
-      */
-
-      const goHomeBtn = document.createElement('button');
-      goHomeBtn.className = 'win-modal-btn go-home';
-      goHomeBtn.textContent = 'Go to Home';
-      goHomeBtn.addEventListener('click', () => {
-        window.location.href = '/';
-      });
-      buttons.appendChild(goHomeBtn);
-
-      modal.appendChild(buttons);
-      overlay.appendChild(modal);
-      document.body.appendChild(overlay);
-
-      //Prevent clicking through overlay
-      overlay.addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
-    }
     
     // Helper function to fix card IDs for CSS sprite matching
     function fixCardId(id) {
@@ -284,6 +1733,107 @@
         }
       });
     }
+
+    // Player Selection Function (for 7 card swap)
+    function showPlayerSelection(players, callback) {
+      // Create overlay
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      overlay.style.display = 'flex';
+      overlay.style.justifyContent = 'center';
+      overlay.style.alignItems = 'center';
+      overlay.style.zIndex = '10000';
+      
+      // Create container
+      const container = document.createElement('div');
+      container.style.backgroundColor = '#2a2a2a';
+      container.style.padding = '30px';
+      container.style.borderRadius = '15px';
+      container.style.boxShadow = '0 10px 40px rgba(0,0,0,0.5)';
+      container.style.maxWidth = '400px';
+      container.style.width = '90%';
+      
+      // Title
+      const title = document.createElement('h2');
+      title.textContent = 'Choose a player to swap hands with';
+      title.style.color = '#fff';
+      title.style.marginBottom = '20px';
+      title.style.textAlign = 'center';
+      title.style.fontSize = '20px';
+      container.appendChild(title);
+      
+      // Player list
+      const playerList = document.createElement('div');
+      playerList.style.display = 'flex';
+      playerList.style.flexDirection = 'column';
+      playerList.style.gap = '10px';
+      
+      players.forEach(player => {
+        const playerBtn = document.createElement('button');
+        playerBtn.textContent = `${player.name} (${player.cardCount} card${player.cardCount !== 1 ? 's' : ''})`;
+        playerBtn.style.padding = '15px 20px';
+        playerBtn.style.backgroundColor = '#4a4a4a';
+        playerBtn.style.color = '#fff';
+        playerBtn.style.border = 'none';
+        playerBtn.style.borderRadius = '8px';
+        playerBtn.style.fontSize = '16px';
+        playerBtn.style.cursor = 'pointer';
+        playerBtn.style.transition = 'all 0.2s';
+        
+        playerBtn.addEventListener('mouseenter', () => {
+          playerBtn.style.backgroundColor = '#5a5a5a';
+          playerBtn.style.transform = 'translateY(-2px)';
+        });
+        
+        playerBtn.addEventListener('mouseleave', () => {
+          playerBtn.style.backgroundColor = '#4a4a4a';
+          playerBtn.style.transform = 'translateY(0)';
+        });
+        
+        playerBtn.addEventListener('click', () => {
+          overlay.remove();
+          callback(player.id);
+        });
+        
+        playerList.appendChild(playerBtn);
+      });
+      
+      container.appendChild(playerList);
+      overlay.appendChild(container);
+      document.body.appendChild(overlay);
+    }
+
+    // Game Notification Function
+    function showGameNotification(message, type = 'info') {
+      const notification = document.createElement('div');
+      notification.textContent = message;
+      notification.style.position = 'fixed';
+      notification.style.top = '20px';
+      notification.style.left = '50%';
+      notification.style.transform = 'translateX(-50%)';
+      notification.style.backgroundColor = type === 'warning' ? '#ff9800' : '#2196F3';
+      notification.style.color = '#fff';
+      notification.style.padding = '15px 30px';
+      notification.style.borderRadius = '8px';
+      notification.style.fontSize = '18px';
+      notification.style.fontWeight = 'bold';
+      notification.style.zIndex = '9999';
+      notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+      notification.style.animation = 'slideInDown 0.5s ease-out';
+      
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.style.animation = 'fadeOut 0.5s ease-out';
+        setTimeout(() => notification.remove(), 500);
+      }, 3000);
+    }
+
     // Listen for XP gained from server (has correct level calculation)
     socket.on('xpGained', ({ xpAdded, currentXP, level, levelsGained, xpForNextLevel }) => {
       console.log('⭐ XP Gained from server:', { xpAdded, currentXP, level, levelsGained, xpForNextLevel });
@@ -320,12 +1870,30 @@
       }
     });
 
-    socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError, payoutErrorMessage }) => {
+    socket.on('showWinnerScreen', ({ winnerName, winnerId, digipogs, playerCount, payoutError, payoutErrorMessage, selectedTitle, selectedTitleColor, selectedEffect }) => {
   console.log('🏆 Winner screen data:', { winnerName, winnerId, digipogs, playerCount, payoutError });
   
   const isCurrentUserWinner = (winnerName === playerName);
   
-  // Note: XP notification is now handled by the xpGained event from the server
+  // Play winner or loser sound
+  if (isCurrentUserWinner) {
+    playSoundIfEnabled(getSoundPath('win'), 0.5);
+  } else {
+    playSoundIfEnabled(getSoundPath('lose'), 0.5);
+  }
+  
+  // Trigger confetti effect if user won and has confetti effect equipped
+  if (isCurrentUserWinner) {
+    let winnerEffects = [];
+    try {
+      winnerEffects = selectedEffect?.startsWith('[') ? JSON.parse(selectedEffect) : [selectedEffect];
+    } catch(e) {
+      winnerEffects = selectedEffect ? [selectedEffect] : ['confetti'];
+    }
+    if (winnerEffects.includes('confetti')) {
+      triggerConfetti();
+    }
+  }
   
   // Create winner modal overlay
   const overlay = document.createElement('div');
@@ -364,11 +1932,26 @@
   
   const name = document.createElement('div');
   name.className = 'winner-name';
-  name.textContent = isCurrentUserWinner ? 'You are the winner!' : `${winnerName} won`;
   name.style.fontSize = '2em';
-  name.style.color = '#fff';
   name.style.margin = '20px 0';
   name.style.fontWeight = 'bold';
+  
+  // Create title span
+  const titleSpan = document.createElement('span');
+  titleSpan.textContent = `[${selectedTitle || 'Newbie'}] `;
+  titleSpan.style.color = selectedTitleColor || 'white';
+  
+  // Create name span
+  const nameSpan = document.createElement('span');
+  if (isCurrentUserWinner) {
+    nameSpan.textContent = 'You are the winner!';
+  } else {
+    nameSpan.textContent = `${winnerName} won`;
+  }
+  nameSpan.style.color = selectedTitleColor || 'white';
+  
+  name.appendChild(titleSpan);
+  name.appendChild(nameSpan);
   content.appendChild(name);
   
   const amount = document.createElement('div');
@@ -428,45 +2011,7 @@
   buttons.style.justifyContent = 'center';
   buttons.style.marginTop = '30px';
   
-  /* Play Again Button - Commented Out
-  const playAgainBtn = document.createElement('button');
-  playAgainBtn.textContent = 'Play Again';
-  playAgainBtn.className = 'play-again-btn';
-  playAgainBtn.style.padding = '15px 30px';
-  playAgainBtn.style.fontSize = '1.2em';
-  playAgainBtn.style.border = 'none';
-  playAgainBtn.style.borderRadius = '10px';
-  playAgainBtn.style.cursor = 'pointer';
-  playAgainBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
-  playAgainBtn.style.color = 'white';
-  playAgainBtn.style.fontWeight = 'bold';
-  playAgainBtn.style.transition = 'all 0.3s ease';
-  playAgainBtn.addEventListener('mouseover', () => {
-    playAgainBtn.style.background = 'linear-gradient(135deg, #c53030 0%, #e53e3e 100%)';
-    playAgainBtn.style.transform = 'translateY(-2px)';
-    playAgainBtn.style.boxShadow = '0 6px 20px rgba(229, 62, 62, 0.4)';
-  });
-  playAgainBtn.addEventListener('mouseout', () => {
-    playAgainBtn.style.background = 'linear-gradient(135deg, #e53e3e 0%, #fc8181 100%)';
-    playAgainBtn.style.transform = 'translateY(0)';
-    playAgainBtn.style.boxShadow = 'none';
-  });
-  playAgainBtn.addEventListener('click', () => {
-    console.log('Play Again clicked, checking payment status...');
-    console.log('Current hasPaid status:', hasPaid);
-    
-    // Check payment status before allowing play again
-    if (!hasPaid) {
-      console.log('Payment required, showing modal...');
-      showPaymentModal();
-    } else {
-      console.log('Payment verified, redirecting to room...');
-      window.location.href = '/room/' + encodeURIComponent(currentRommId);
-    }
-  });
-  buttons.appendChild(playAgainBtn);
-  */
-  
+
   const lobbyBtn = document.createElement('button');
   lobbyBtn.textContent = 'Back to Lobby';
   lobbyBtn.className = 'back-lobby-btn';
@@ -631,9 +2176,18 @@
 
     socket.on('playerList', (players) => {
         const el = document.getElementById('playerList');
-        if (el) el.innerHTML = 'Players: ' + players.map(p =>
-          `<span id="p_${p.id}">${p.name} (${p.cardCount ?? '?'})</span>`
-        ).join(' | ');
+        if (el) el.innerHTML = 'Players: ' + players.map(p => {
+          const badgeEmoji = getBadgeEmoji(p.selectedBadge);
+          const badge = badgeEmoji ? `<span class="player-badge">${badgeEmoji}</span> ` : '';
+          const titleColor = p.selectedTitleColor || 'inherit';
+          
+          // Store our own title color
+          if (p.id === myPlayerId) {
+            myTitleColor = p.selectedTitleColor || 'white';
+          }
+          
+          return `<span id="p_${p.id}" style="color: ${titleColor}">${badge}${p.name} (${p.cardCount ?? '?'})</span>`;
+        }).join(' | ');
     });
 
     let isInitialDeal = true;
@@ -652,58 +2206,282 @@
       gameActive = true;
         currentTurnPlayerId = currentPlayerId;
         updateCurrentPlayer(currentPlayerId);
+        // Play start game sound
+        playSoundIfEnabled(getSoundPath('startgame'), 0.5);
     });
 
     socket.on('turnChanged', ({ currentPlayerId }) => {
         currentTurnPlayerId = currentPlayerId;
         updateCurrentPlayer(currentPlayerId);
+        
+        // Show turn timer when game is active
+        const timerDisplay = document.getElementById('turnTimerDisplay');
+        if (timerDisplay && gameActive) {
+          timerDisplay.style.display = 'block';
+        }
+    });
+
+    // Turn timer update
+    socket.on('turnTimerUpdate', ({ timeRemaining }) => {
+      const timerValue = document.getElementById('turnTimerValue');
+      const timerDisplay = document.getElementById('turnTimerDisplay');
+      
+      if (timerValue) {
+        timerValue.textContent = timeRemaining;
+        
+        // Change color based on time remaining
+        if (timeRemaining <= 5) {
+          timerValue.style.color = '#ff4444';
+        } else if (timeRemaining <= 10) {
+          timerValue.style.color = '#ffa500';
+        } else {
+          timerValue.style.color = '#4CAF50';
+        }
+      }
+      
+      if (timerDisplay && gameActive) {
+        timerDisplay.style.display = 'block';
+      }
+    });
+
+    // Turn auto-skipped notification
+    socket.on('turnAutoSkipped', ({ playerId, playerName, timeoutCount }) => {
+      console.log(`Turn auto-skipped for ${playerName} (${timeoutCount}/5 timeouts)`);
+      const countMsg = timeoutCount ? ` (${timeoutCount}/5 timeouts)` : '';
+      showGameNotification(`${playerName}'s turn was skipped (time ran out)${countMsg}`, 'warning');
+      playSoundIfEnabled(getSoundPath('skip'), 0.5);
+    });
+
+    // Player kicked for inactivity
+    socket.on('kickedForInactivity', ({ reason }) => {
+      console.log('Kicked for inactivity:', reason);
+      alert(reason);
+      window.location.href = '/lobby';
+    });
+
+    // Another player was kicked
+    socket.on('playerKicked', ({ playerId, playerName, reason }) => {
+      console.log(`${playerName} was kicked for ${reason}`);
+      showGameNotification(`${playerName} was kicked for inactivity`, 'error');
+    });
+
+    // 7-0 Rule: Show player selection when 7 is played
+    socket.on('choosePlayerForSwap', ({ players }) => {
+      console.log('Choose player for swap:', players);
+      showPlayerSelection(players, (selectedPlayerId) => {
+        console.log('Player selected for swap:', selectedPlayerId);
+        socket.emit('chooseSwapTarget', { gameId, targetPlayerId: selectedPlayerId });
+      });
+    });
+
+    // Notify when hands are swapped (7 rule)
+    socket.on('handsSwapped', ({ player1, player2 }) => {
+      console.log(`Hands swapped between ${player1.name} and ${player2.name}`);
+      showGameNotification(`${player1.name} swapped hands with ${player2.name}!`, 'info');
+      playSoundIfEnabled(getSoundPath('card'), 0.3);
+    });
+
+    // Notify when hands are rotated (0 rule)
+    socket.on('handsRotated', ({ playerName, direction }) => {
+      console.log(`${playerName} played a 0 - hands rotated ${direction}`);
+      showGameNotification(`${playerName} played a 0! All hands rotated ${direction}!`, 'warning');
+      playSoundIfEnabled(getSoundPath('card'), 0.3);
+    });
+
+    // Jump-in window
+    socket.on('jumpInWindowOpened', ({ card, expiresAt }) => {
+      console.log('Jump-in window opened:', card);
+      jumpInWindowActive = true;
+      
+      // Check if player has a matching card
+      const matchingCard = currentHand.find(c => 
+        c.color === card.color && c.value === card.value
+      );
+      
+      if (matchingCard && currentTurnPlayerId !== myPlayerId) {
+        jumpInMatchingCard = matchingCard;
+        const jumpInButton = document.getElementById('jumpInButton');
+        const jumpInContainer = document.getElementById('jumpInContainer');
+        const jumpInTimer = document.getElementById('jumpInTimer');
+        
+        jumpInButton.disabled = false;
+        jumpInButton.classList.add('active');
+        jumpInContainer.style.display = 'block';
+        
+        // Update timer display
+        const updateTimer = () => {
+          const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+          jumpInTimer.textContent = remaining + 's';
+          
+          if (remaining <= 0) {
+            clearInterval(jumpInTimerInterval);
+          }
+        };
+        
+        updateTimer();
+        jumpInTimerInterval = setInterval(updateTimer, 100);
+        
+        // Highlight the matching card
+        const handContainer = document.getElementById('hand');
+        const cardElements = handContainer.querySelectorAll('.card');
+        cardElements.forEach(cardEl => {
+          if (cardEl.dataset.cardId === fixCardId(matchingCard.id)) {
+            cardEl.style.border = '3px solid gold';
+            cardEl.style.boxShadow = '0 0 20px rgba(255, 215, 0, 0.8)';
+          }
+        });
+      }
+    });
+
+    // Jump-in closed
+    socket.on('jumpInWindowClosed', () => {
+      console.log('Jump-in window closed');
+      closeJumpInWindow();
+    });
+
+    // Someone jumped in
+    socket.on('jumpedIn', ({ playerId, playerName }) => {
+      console.log(`${playerName} jumped in!`);
+      showGameNotification(`${playerName} jumped in!`, 'warning');
+      playSoundIfEnabled(getSoundPath('card'), 0.5);
+      closeJumpInWindow();
+    });
+
+    // Function to close jump-in window
+    function closeJumpInWindow() {
+      jumpInWindowActive = false;
+      jumpInMatchingCard = null;
+      
+      const jumpInButton = document.getElementById('jumpInButton');
+      const jumpInContainer = document.getElementById('jumpInContainer');
+      
+      if (jumpInButton) {
+        jumpInButton.disabled = true;
+        jumpInButton.classList.remove('active');
+      }
+      
+      if (jumpInContainer) {
+        jumpInContainer.style.display = 'none';
+      }
+      
+      if (jumpInTimerInterval) {
+        clearInterval(jumpInTimerInterval);
+        jumpInTimerInterval = null;
+      }
+      
+      // Remove card highlights
+      const handContainer = document.getElementById('hand');
+      if (handContainer) {
+        const cardElements = handContainer.querySelectorAll('.card');
+        cardElements.forEach(cardEl => {
+          cardEl.style.border = '';
+          cardEl.style.boxShadow = '';
+        });
+      }
+    }
+
+    // Jump-in button click handler
+    document.getElementById('jumpInButton').addEventListener('click', () => {
+      if (!jumpInWindowActive || !jumpInMatchingCard) {
+        return;
+      }
+      
+      console.log('Jumping in with card:', jumpInMatchingCard);
+      socket.emit('jumpIn', { gameId, cardId: jumpInMatchingCard.id });
+      
+      // Immediately close the window (server will confirm)
+      closeJumpInWindow();
     });
 
     socket.on('cardPlacedOnTable', (card) => {
-      currentTableCard = card; // Store current table card
-      addCardToTable(card, null, 'Top of Discard Pile');
+      currentTableCard = card;
+      addCardToTable(card, null, 'Top of Discard Pile', null);
+      updateGameColors(card);
     });
 
-    socket.on('cardPlayed', ({ playerId, playerName, card }) => {
-        currentTableCard = card; // Store current table card
-        addCardToTable(card, playerId, playerName);
+    socket.on('cardPlayed', ({ playerId, playerName, card, selectedTitleColor }) => {
+        currentTableCard = card; 
+        addCardToTable(card, playerId, playerName, selectedTitleColor);
         removeCardFromHand(card.id);
         // Update local hand tracking
         currentHand = currentHand.filter(c => c.id !== card.id);
         
+        // Update card count in player list when card is played
+        const playerElement = document.getElementById('p_' + playerId);
+        if (playerElement) {
+          const currentText = playerElement.textContent;
+          const match = currentText.match(/(.+)\s\((\d+)\)/);
+          if (match) {
+            const playerNameOnly = match[1];
+            const currentCount = parseInt(match[2]);
+            const newCount = Math.max(0, currentCount - 1);
+            // Extract the badge part (everything before the player name)
+            const fullHTML = playerElement.innerHTML;
+            const badgeMatch = fullHTML.match(/^(<span[^>]*>.*?<\/span>\s*)?/);
+            const badge = badgeMatch ? badgeMatch[0] : '';
+            playerElement.innerHTML = badge + playerNameOnly + ' (' + newCount + ')';
+          }
+        }
+        
+        // Update game colors based on card played
+        updateGameColors(card);
+        
+        // Close jump-in window when any card is played
+        if (jumpInWindowActive) {
+          closeJumpInWindow();
+        }
+        
+        // Check if fire effect should trigger on +2 cards
+        if (userSelectedEffects.includes('flames') && playerId === myPlayerId) {
+          if (card.value === 'Draw Two' || card.id?.includes('DrawTwo')) {
+            triggerBackgroundFireEffect();
+          }
+        }
+        
+        // Check if skip effect should trigger on skip cards
+        if (userSelectedEffects.includes('skip') && playerId === myPlayerId) {
+          if (card.value === 'Skip') {
+            triggerSkipEffect();
+          }
+        }
+        
+        // Check if bow effect should trigger on +4 cards
+        if (userSelectedEffects.includes('bow') && playerId === myPlayerId) {
+          if (card.value === 'Wild Draw Four' || card.id?.includes('WildDrawFour')) {
+            triggerBowArrowEffect();
+          }
+        }
+        
         // Play sound effects based on card type
         if (card.value === 'Skip') {
-          playSoundIfEnabled('/sfx/slap.mp3', 0.4);
+          playSoundIfEnabled(getSoundPath('skip'), 0.4);
         } else if (card.value === 'Reverse') {
-          playSoundIfEnabled('/sfx/reverse.mp3', 0.4);
-        } else if (card.value === 'Draw Two' || card.value === 'Wild Draw Four' || card.id?.includes('DrawTwo') || card.id?.includes('WildDrawFour')) {
-          playSoundIfEnabled('/sfx/pluh.mp3', 0.4);
+          playSoundIfEnabled(getSoundPath('reverse'), 0.4);
+        } else if (card.value === 'Wild Draw Four' || card.id?.includes('WildDrawFour')) {
+          playSoundIfEnabled(getSoundPath('plus4'), 0.4);
+        } else if (card.value === 'Wild' || (card.color === 'wild' && card.value !== 'Wild Draw Four')) {
+          playSoundIfEnabled(getSoundPath('wild'), 0.4);
+        } else if (card.value === 'Draw Two' || card.id?.includes('DrawTwo')) {
+          playSoundIfEnabled(getSoundPath('plus2'), 0.4);
         }
     });
 
     socket.on('invalidMove', ({ reason }) => {
         alert('Invalid move: ' + reason);
-        // Re-render hand to restore any cards that were hidden during animation
+        // Re-render hand to restore
         renderHand(currentHand, false);
-    });
-
-    socket.on('playerWon', ({ playerId, playerName }) => {
-        const isCurrentUserWinner = (playerName === <%- JSON.stringify(user || 'Anonymous') %>);
-        showWinMedal(playerName, isCurrentUserWinner);
     });
 
     socket.on('gameEnded', (data) => {
       console.log('gameEnded', data)
-      disableGameUI();
-      const winner = data?.winner;
-      if (winner) {
-        const status = document.getElementById('status');
-        status.innerText = `Game over! Winner: ${winner.name || winner.id}`;
-        if (!document.querySelector('.wub-medal-overlay')) {
-          const isCurrentUserWinner = (winner.name === <%- JSON.stringify(user || 'Anonymous') %>);
-          showWinMedal(winner.name || winner.id, isCurrentUserWinner);
-        }
+      
+      // Hide turn timer
+      const timerDisplay = document.getElementById('turnTimerDisplay');
+      if (timerDisplay) {
+        timerDisplay.style.display = 'none';
       }
+      
+      disableGameUI();
     })
 
      function disableGameUI() {
@@ -819,7 +2597,13 @@
 
     function renderHand(hand, animateAll = false) {
       const container = document.getElementById('hand');
+      
+      // Clean up any existing sparkle effects before clearing the hand
+      const existingCards = container.querySelectorAll('.card');
+      existingCards.forEach(card => removeSparkleEffect(card));
+      
       container.innerHTML = '';
+      
       hand.forEach((card, index) => {
         const cardEl = document.createElement('div');
         cardEl.classList.add('card');
@@ -827,6 +2611,12 @@
         const fixedId = fixCardId(card.id);
         cardEl.dataset.cardId = fixedId;
         cardEl.title = `${card.name} (value ${card.value})`;
+        
+        // Add subtle player color aura to hand cards (visible on hover)
+        if (myTitleColor && myTitleColor !== 'white') {
+          cardEl.style.setProperty('--player-aura-color', myTitleColor);
+          cardEl.classList.add('has-player-aura');
+        }
         
         // Only animate all cards on initial deal
         if (animateAll) {
@@ -849,6 +2639,9 @@
             return;
           }
           
+          // Remove sparkle effect before playing the card
+          removeSparkleEffect(cardEl);
+          
           // Animate card to discard pile
           await animateCardToDiscard(cardEl, card.img);
           
@@ -863,16 +2656,27 @@
         });
         container.appendChild(cardEl);
       });
+      
+      // Reapply jump-in highlights if window is active
+      if (jumpInWindowActive && jumpInMatchingCard) {
+        const cardElements = container.querySelectorAll('.card');
+        cardElements.forEach(cardEl => {
+          if (cardEl.dataset.cardId === fixCardId(jumpInMatchingCard.id)) {
+            cardEl.style.border = '3px solid gold';
+            cardEl.style.boxShadow = '0 0 20px rgba(255, 215, 0, 0.8)';
+          }
+        });
+      }
     }
 
     // Validate if a card can be played on the current table card
     function canPlayCard(card) {
-      if (!currentTableCard) return true; // No table card yet, any card is valid
+      if (!currentTableCard) return true; 
       
       // Wild cards can always be played
       if (card.color === 'wild') return true;
       
-      // Get the active color (for wild cards that were played)
+      // Get the active color 
       const tableColor = currentTableCard.activeColor || currentTableCard.chosenColor || currentTableCard.color;
       const tableValue = currentTableCard.value;
       
@@ -880,9 +2684,8 @@
       return card.color === tableColor || card.value === tableValue;
     }
 
-    function addCardToTable(card, playerId, playerName) {
+    function addCardToTable(card, playerId, playerName, titleColor) {
       const table = document.getElementById('table');
-      //clear other cards only show top
       table.innerHTML = '';
 
       const wrapper = document.createElement('div');
@@ -900,7 +2703,14 @@
       // Fix the card id format for CSS sprite
       const fixedId = fixCardId(card.id);
       cardEl.dataset.cardId = fixedId;
-      cardEl.classList.add('card-pop', 'card'); // Add pop animation
+      cardEl.classList.add('card-pop', 'card');
+      
+      // Add player color aura if titleColor is provided
+      if (titleColor && titleColor !== 'white') {
+        cardEl.style.boxShadow = `0 0 15px 3px ${titleColor}, 0 0 25px 5px ${titleColor}80, 0 4px 15px rgba(0, 0, 0, 0.3)`;
+        cardEl.style.transition = 'all 0.3s ease';
+      }
+      
       wrapper.appendChild(cardEl);
 
       const active = card.activeColor || card.chosenColor;
@@ -927,8 +2737,81 @@
      function updateCurrentPlayer(currentId, playerName) {
       const status = document.getElementById('status');
       const displayName = playerName || (document.getElementById('p_' + currentId)?.textContent) || currentId;
-      status.innerText = `Current turn: ${displayName || currentId}`;
-      // Highlight the player's name in playerList here
+      // Make the player name black for better readability on the colored background
+      status.innerHTML = `Current turn: <span style="color: #000; font-weight: 800;">${displayName || currentId}</span>`;
+      
+      // Gray out cards if it's not your turn
+      const handElement = document.getElementById('hand');
+      if (handElement) {
+        if (currentId === myPlayerId) {
+          handElement.classList.remove('not-turn');
+        } else {
+          handElement.classList.add('not-turn');
+        }
+      }
+    }
+
+    // Update game UI colors based on current playable color
+    function updateGameColors(card) {
+      if (!card) return;
+      
+      const gameTitle = document.getElementById('gameTitle');
+      const statusBar = document.getElementById('status');
+      
+      if (!gameTitle || !statusBar) return;
+      
+      // Get the active color (wild cards have activeColor property)
+      const activeColor = card.activeColor || card.color;
+      
+      let colorStart, colorEnd, shadowColor;
+      
+      switch(activeColor) {
+        case 'red':
+          colorStart = '#ff4444';
+          colorEnd = '#cc0000';
+          shadowColor = 'rgba(255, 68, 68, 0.5)';
+          break;
+        case 'blue':
+          colorStart = '#4169E1';
+          colorEnd = '#0047AB';
+          shadowColor = 'rgba(65, 105, 225, 0.5)';
+          break;
+        case 'green':
+          colorStart = '#28a745';
+          colorEnd = '#198754';
+          shadowColor = 'rgba(40, 167, 69, 0.5)';
+          break;
+        case 'yellow':
+          colorStart = '#ffc107';
+          colorEnd = '#ff9800';
+          shadowColor = 'rgba(255, 193, 7, 0.5)';
+          break;
+        case 'wild':
+          // Rainbow gradient for wild cards
+          gameTitle.style.background = 'linear-gradient(135deg, #ff4444, #4169E1, #28a745, #ffc107)';
+          gameTitle.style.webkitBackgroundClip = 'text';
+          gameTitle.style.webkitTextFillColor = 'transparent';
+          gameTitle.style.backgroundClip = 'text';
+          
+          statusBar.style.background = 'linear-gradient(135deg, #ff4444, #4169E1, #28a745, #ffc107)';
+          statusBar.style.boxShadow = '0 3px 15px rgba(255, 193, 7, 0.4)';
+          return;
+        default:
+          // Default gradient if color is unknown
+          colorStart = '#f85149';
+          colorEnd = '#ff6b6b';
+          shadowColor = 'rgba(255, 0, 0, 0.4)';
+      }
+      
+      // Update game title with gradient
+      gameTitle.style.background = `linear-gradient(135deg, ${colorStart}, ${colorEnd})`;
+      gameTitle.style.webkitBackgroundClip = 'text';
+      gameTitle.style.webkitTextFillColor = 'transparent';
+      gameTitle.style.backgroundClip = 'text';
+      
+      // Update status bar
+      statusBar.style.background = `linear-gradient(135deg, ${colorStart}, ${colorEnd})`;
+      statusBar.style.boxShadow = `0 3px 15px ${shadowColor}`;
     }
 
     // ONE button: shows a "1" image and allows calling ONE
@@ -943,7 +2826,7 @@
     oneBtn.style.alignItems = 'center';
     oneBtn.style.justifyContent = 'center';
     oneBtn.style.borderRadius = '12px';
-    // border and drop shadow so it appears cleaner
+    // border and drop shadow 
     oneBtn.style.border = 'none';
     oneBtn.style.background = 'transparent';
     oneBtn.style.boxShadow = 'none';
@@ -971,6 +2854,11 @@
         return;
       }
       
+      // Trigger lightning effect if user has it equipped
+      if (userSelectedEffects.includes('lightning')) {
+        triggerLightningEffect(oneBtn);
+      }
+      
       // Clear the countdown timer when ONE is pressed
       if (oneCountdownInterval) {
         clearInterval(oneCountdownInterval);
@@ -986,8 +2874,8 @@
       socket.emit('callOne', { gameId: gameId });
     });
 
-    // Append the ONE button to the controls container (right of piles) when available,
-    // otherwise try the draw pile, and finally fallback to body.
+    // Append the ONE button to the controls when available,
+    // otherwise try the draw pile, and finally fallback to body
     function placeOneBtn() {
       // Always append to body when using fixed positioning so placement is predictable
       if (!document.body.contains(oneBtn)) document.body.appendChild(oneBtn);
@@ -1022,7 +2910,7 @@
         }, 2000);
     }
 
-    // Global handler for transfer button (called by inline onclick)
+    // Global handler for transfer button 
     window.handleTransferClick = async function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -1031,7 +2919,7 @@
     };
     
     // Payment modal functions
-    let paymentHandlerAttached = false; // Track if handler is already attached
+    let paymentHandlerAttached = false; 
     
     window.showPaymentModal = async function () {
         console.log(' showPaymentModal called');
@@ -1048,7 +2936,7 @@
         }
         
         modal.style.display = 'block';
-        console.log('✅ Payment modal displayed');
+        console.log(' Payment modal displayed');
     };
 
     window.hidePaymentModal = function () {
@@ -1058,7 +2946,7 @@
 
     // Listen for payment success
     window.addEventListener('paymentSuccess', () => {
-        console.log('💳 Payment successful! Refreshing status and redirecting...');
+        console.log(' Payment successful! Refreshing status and redirecting...');
         hidePaymentModal();
         hasPaid = true;
         // Redirect to lobby after successful payment
@@ -1114,7 +3002,7 @@
         
         if (secs > 0) {
           s.innerHTML = baseText + '<span id="oneCountdown" style="font-size: 1.4em; font-weight: bold;">' + secs + '</span>' + endText;
-          s.style.color = secs <= 2 ? '#ff4444' : '#ffaa00';
+          s.style.color = secs <= 2 ? '#ff4444' : '#000000';
           s.style.fontWeight = 'bold';
           s.style.fontSize = '1.2em';
         } else {
@@ -1132,7 +3020,7 @@
       // Initial update
       updateCountdown();
       
-      // Update every 1 second (1000ms)
+      // Update every 1 second 
       oneCountdownInterval = setInterval(updateCountdown, 1000);
     });
 
@@ -1144,7 +3032,7 @@ drawContainer.style.display = 'inline-block';
 drawContainer.style.textAlign = 'center';
 drawContainer.style.margin = '8px';
 
-// count badge (placed above the draw image)
+// count badge 
 const drawCount = document.createElement('div');
 drawCount.id = 'drawCount';
 drawCount.style.marginBottom = '6px';
@@ -1152,7 +3040,7 @@ drawCount.style.fontWeight = '600';
 drawCount.innerText = ''; 
 drawContainer.appendChild(drawCount);
 
-// draw pile image - using card back
+// draw pile image 
 const drawImg = document.createElement('img');
 drawImg.id = 'drawPileImg';
 drawImg.src = '/img/cards/bing.png';
@@ -1193,6 +3081,19 @@ drawImg.addEventListener('click', async () => {
     return;
   }
   
+  // If there's a draw stack active, confirm the player wants to draw
+  if (currentDrawStack > 0) {
+    const confirmDraw = confirm(` STACKING ACTIVE\n\nYou will draw ${currentDrawStack} cards from the stack.\n\nYou can also play a +2 or +4 card to add to the stack!\n(Note: You can only stack equal or higher values)\n\nDraw ${currentDrawStack} cards?`);
+    if (!confirmDraw) {
+      return;
+    }
+  }
+  
+  // Trigger sparkles if equipped
+  if (userSelectedEffects.includes('sparkles')) {
+    triggerDrawPileSparkles();
+  }
+  
   // Animate card from deck to hand
   await animateCardFromDeck();
   socket.emit('drawCard', { gameId: gameId });
@@ -1201,14 +3102,115 @@ drawImg.addEventListener('click', async () => {
 // Update draw pile count when server tells us
 socket.on('drawPileCount', ({ count }) => {
   const el = document.getElementById('drawCount');
-  el.innerText = `Deck: ${count}`;
+  // Only update if there's no active draw stack
+  if (currentDrawStack === 0) {
+    el.innerText = `Deck: ${count}`;
+  }
 });
 
-//  show a notification when any player draws
+// Update draw stack display for stacking rule
+socket.on('drawStackUpdated', ({ drawStack }) => {
+  currentDrawStack = drawStack; // Update global tracker
+  
+  const statusEl = document.getElementById('status');
+  const drawPileImg = document.getElementById('drawPileImg');
+  const drawCount = document.getElementById('drawCount');
+  
+  if (drawStack > 0) {
+    statusEl.innerHTML = `<span style="color: #f85149; font-weight: bold;"> Play a +2/+4 to add to the stack or draw ${drawStack} cards!</span>`;
+    
+    // Add visual indicator to draw pile
+    if (drawPileImg) {
+      drawPileImg.style.border = '3px solid #f85149';
+      drawPileImg.style.boxShadow = '0 0 20px rgba(248, 81, 73, 0.6)';
+      drawPileImg.title = `Click to draw ${drawStack} cards from the stack`;
+    }
+    
+    //  draw count Stacking 
+    if (drawCount) {
+      drawCount.innerHTML = `
+        <div style="
+          background: linear-gradient(135deg, #f85149 0%, #d43f3a 100%);
+          color: white;
+          padding: 8px 16px;
+          border-radius: 8px;
+          font-weight: bold;
+          font-size: 16px;
+          box-shadow: 0 4px 15px rgba(248, 81, 73, 0.4);
+          display: inline-block;
+          min-width: 120px;
+          text-align: center;
+        ">
+          <div style="font-size: 12px; opacity: 0.9; margin-bottom: 2px;">STACKING</div>
+          <div style="font-size: 24px;">+${drawStack}</div>
+        </div>
+      `;
+    }
+  } else {
+    statusEl.innerText = '';
+    
+    //  visual indicator draw pile
+    if (drawPileImg) {
+      drawPileImg.style.border = '';
+      drawPileImg.style.boxShadow = '';
+      drawPileImg.title = 'Click to draw a card';
+    }
+  }
+});
+
+// Show notification when any player draws
 socket.on('playerDrew', ({ playerId, count }) => {
-  const name = document.getElementById('p_' + playerId)?.textContent || playerId;
+  const playerElement = document.getElementById('p_' + playerId);
+  const name = playerElement?.textContent || playerId;
   const s = document.getElementById('status');
   s.innerText = `${name} drew ${count} card${count !== 1 ? 's' : ''}`;
+  
+  // Update card count in player list
+  if (playerElement) {
+    const currentText = playerElement.textContent;
+    const match = currentText.match(/(.+)\s\((\d+)\)/);
+    if (match) {
+      const playerName = match[1];
+      const currentCount = parseInt(match[2]);
+      const newCount = currentCount + count;
+      // Extract the badge part (everything before the player name)
+      const fullHTML = playerElement.innerHTML;
+      const badgeMatch = fullHTML.match(/^(<span[^>]*>.*?<\/span>\s*)?/);
+      const badge = badgeMatch ? badgeMatch[0] : '';
+      playerElement.innerHTML = badge + playerName + ' (' + newCount + ')';
+    }
+  }
+});
+
+// Show notification when any player draws cards (including from stack)
+socket.on('playerDrewCards', ({ playerId, count }) => {
+  const playerElement = document.getElementById('p_' + playerId);
+  const name = playerElement?.textContent || playerId;
+  const s = document.getElementById('status');
+  if (count > 1) {
+    s.innerHTML = `<span style="color: #ff6b6b; font-weight: bold;">${name} drew ${count} cards from the stack!</span>`;
+  } else {
+    s.innerText = `${name} drew ${count} card`;
+  }
+  
+  // Update card count in player list
+  if (playerElement) {
+    const currentText = playerElement.textContent;
+    const match = currentText.match(/(.+)\s\((\d+)\)/);
+    if (match) {
+      const playerName = match[1];
+      const currentCount = parseInt(match[2]);
+      const newCount = currentCount + count;
+      // Extract the badge part (everything before the player name)
+      const fullHTML = playerElement.innerHTML;
+      const badgeMatch = fullHTML.match(/^(<span[^>]*>.*?<\/span>\s*)?/);
+      const badge = badgeMatch ? badgeMatch[0] : '';
+      playerElement.innerHTML = badge + playerName + ' (' + newCount + ')';
+    }
+  }
+  
+  // Play draw sound if enabled
+  playSoundIfEnabled(getSoundPath('draw'), 0.3);
 });
 </script>
 </html>

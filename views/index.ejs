@@ -1,11 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#f85149">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Onebar">
+    <link rel="manifest" href="/manifest.json">
     <title>Onebar - Home</title>
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/index.css">
+    <link rel="stylesheet" href="/css/mobile.css">
 </head>
 <body>
     <a href="/logout" class="btn logout-button">Logout</a>
@@ -20,6 +26,7 @@
             <a href="/about">About / Rules</a>
             <a href="/leaderboard">Leaderboard</a>
             <a href="/profile">Profile</a>
+            <a href="/shop">Shop</a>
         </nav>
     </div>
     
@@ -70,6 +77,37 @@
                 });
             }
         }
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+
+        // Install prompt for PWA
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            console.log('Install prompt available');
+            
+            // Show custom install button if desired
+            // You can add a custom "Install App" button here
+        });
+
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            deferredPrompt = null;
+        });
     </script>
 </body>
 </html>

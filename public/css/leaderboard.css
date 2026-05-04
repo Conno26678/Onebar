@@ -175,15 +175,23 @@
 
     .leaderboard-title {
         font-size: 2rem;
+        margin-bottom: 25px;
+        letter-spacing: 2px;
     }
 
     .leaderboard-trophy {
         font-size: 3rem;
+        margin-bottom: 15px;
+    }
+
+    .leaderboard-table {
+        border-radius: 15px;
     }
 
     .leaderboard-table thead th {
         padding: 12px 8px;
         font-size: 0.85rem;
+        letter-spacing: 1px;
     }
 
     .leaderboard-table td {
@@ -195,7 +203,99 @@
         font-size: 1.1rem;
     }
 
+    .leaderboard-table tbody tr:nth-child(1) td:first-child {
+        font-size: 1.3rem;
+    }
+
+    .leaderboard-table tbody tr:nth-child(2) td:first-child {
+        font-size: 1.2rem;
+    }
+
+    .leaderboard-table tbody tr:nth-child(3) td:first-child {
+        font-size: 1.15rem;
+    }
+
     .leaderboard-table td:nth-child(2) {
         font-size: 1rem;
+    }
+
+    .leaderboard-nav {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .leaderboard-nav .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .leaderboard-container {
+        padding: 10px;
+        padding-top: 60px;
+    }
+
+    .leaderboard-title {
+        font-size: 1.6rem;
+        margin-bottom: 20px;
+        letter-spacing: 1.5px;
+    }
+
+    .leaderboard-trophy {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+    }
+
+    .leaderboard-table {
+        border-radius: 12px;
+        border: 2px solid;
+    }
+
+    .leaderboard-table thead th {
+        padding: 10px 6px;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+
+    .leaderboard-table td {
+        padding: 10px 6px;
+        font-size: 0.85rem;
+    }
+
+    .leaderboard-table td:first-child {
+        font-size: 1rem;
+    }
+
+    .leaderboard-table tbody tr:nth-child(1) td:first-child {
+        font-size: 1.2rem;
+    }
+
+    .leaderboard-table tbody tr:nth-child(2) td:first-child {
+        font-size: 1.1rem;
+    }
+
+    .leaderboard-table tbody tr:nth-child(3) td:first-child {
+        font-size: 1.05rem;
+    }
+
+    .leaderboard-table td:nth-child(2) {
+        font-size: 0.9rem;
+    }
+
+    .empty-leaderboard {
+        padding: 40px 15px;
+    }
+
+    .empty-leaderboard-icon {
+        font-size: 3rem;
+    }
+
+    .empty-leaderboard-text {
+        font-size: 1.1rem;
+    }
+
+    .leaderboard-nav .btn {
+        padding: 10px 16px;
+        font-size: 0.9rem;
     }
 }

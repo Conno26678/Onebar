@@ -1,11 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#f85149">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
     <title>Onebar - About/Rules</title>
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/about.css">
+    <link rel="stylesheet" href="/css/mobile.css">
 </head>
 <body>
     <a href="/" class="btn home-button">Home</a>
@@ -59,6 +64,16 @@
             </ul>
         </div>
 
+         <div class="about-section fade-in">
+            <h2>Custom Rules</h2>
+            <ul class="rules-list">
+                <li><strong>Enabling Rules</strong> - When in a game room the host can turn on custom rules that change gameplay. Users that aren't the host can see the rules being changed live.</li>
+                <li><strong>Stacking</strong> - Stacking is a classic custom rule where you can stack multiple draw cards on top of each other to deal critical draws.</li>
+                <li><strong>7-0</strong> - Play a 7 to swap cards with a choosen person. Play a 0 and everyones cards are swapped with each other.</li>
+                <li><strong>Jump In</strong>- Players can jump in a play a card if it is the same card that is on top of the discard pile. Be quick though you only have a couple seconds and you have to do it before the next person plays a card.</li>
+            </ul>
+        </div>
+
         <div class="about-section fade-in">
             <h2>DigiPogs</h2>
             <ul class="rules-list">
@@ -96,6 +111,17 @@
                 <li><strong>Premium Pass</strong> - Unlock the premium battle pass for 1000 DigiPogs to get exclusive rewards at almost every tier</li>
                 <li><strong>Seasonal Content</strong> - Content of the pass may change to a different season, it will be updated and all users will be alerted if passes do come to change.</li>
                 <li><strong>Navigation</strong> - Use the arrow buttons to browse through all 50 tiers and see what rewards await you</li>
+                <li><strong>Claim Rewards</strong> - The claim rewards button allows you to collect any free games or tokens that you have earned. Reach the level and click to claim.</li>
+            </ul>
+        </div>
+
+        <div class="about-section fade-in">
+            <h2>Shop/Market</h2>
+            <ul class="rules-list">
+                <li><strong>Onecells</strong> - Buy onecells with digipogs or earn them from the pass. Spend more digipogs on onecells at once get more back for free.</li>
+                <li><strong>Distractions</strong> - Purchase distraction tools to confuse your opponents. Includes special effects and animations to distract your opponents. One purchase is one use so use them wisely.</li>
+                <li><strong>Free game tokens</strong> - Bulk buy games to get a discount on the price.</li>
+                <li><strong>Navigation</strong> - Use the arrow buttons to browse through all available items.</li>
             </ul>
         </div>
     </div>

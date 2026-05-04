@@ -4,6 +4,7 @@ const {
   generateJoinCode, 
   initGame, 
   clearOnePending, 
+  clearTurnTimer,
   drawFromDeck, 
   getLobbyList,
   shuffle
@@ -16,15 +17,263 @@ function broadcastLobbyList(io) {
   io.emit('lobbyList', getLobbyList());
 }
 
+// Helper to fetch user customization data
+function fetchUserCustomization(userId, callback) {
+  if (!userId) {
+    callback(null, { selectedTitle: 'Newbie', selectedTitleColor: 'white', selectedBadge: 'none', selectedEffect: 'confetti' });
+    return;
+  }
+  db.get('SELECT selectedTitle, selectedTitleColor, selectedBadge, selectedEffect FROM users WHERE id = ?', [userId], (err, row) => {
+    if (err || !row) {
+      callback(err, { selectedTitle: 'Newbie', selectedTitleColor: 'white', selectedBadge: 'none', selectedEffect: 'confetti' });
+    } else {
+      callback(null, row);
+    }
+  });
+}
+
 // When emitting playerList, include card counts and ready status:
 function emitPlayerList(io, game) {
   const playerData = game.players.map(p => ({
     id: p.id,
     name: p.name,
     cardCount: p.hand ? p.hand.length : 0,
-    ready: !!p.ready
+    ready: !!p.ready,
+    selectedTitle: p.selectedTitle || 'Newbie',
+    selectedTitleColor: p.selectedTitleColor || 'white',
+    selectedBadge: p.selectedBadge || 'none'
   }));
   io.to(game.id).emit('playerList', playerData);
+}
+
+function startReadyTimeout(io, game, player) {
+  // Don't start timeout for owner or if game already started
+  if (player.socketId === game.ownerId || game.started) {
+    console.log(`Skipping ready timeout for ${player.name} - isOwner: ${player.socketId === game.ownerId}, started: ${game.started}`);
+    return;
+  }
+  
+  console.log(`Starting ready timeout for ${player.name} (${player.socketId})`);
+  
+  // Clear any existing timeout
+  if (player.readyTimeout) {
+    clearInterval(player.readyCountdown);
+    clearTimeout(player.readyTimeout);
+  }
+  
+  const READY_TIMEOUT = 60; // 60 seconds
+  player.readyTimeRemaining = READY_TIMEOUT;
+  
+  // Emit initial countdown value immediately
+  io.to(game.id).emit('readyCountdown', {
+    playerId: player.id,
+    timeRemaining: READY_TIMEOUT
+  });
+  
+  // Send countdown updates every second
+  player.readyCountdown = setInterval(() => {
+    player.readyTimeRemaining--;
+    
+    if (player.readyTimeRemaining > 0) {
+      io.to(game.id).emit('readyCountdown', {
+        playerId: player.id,
+        timeRemaining: player.readyTimeRemaining
+      });
+    } else {
+      clearInterval(player.readyCountdown);
+      player.readyCountdown = null;
+    }
+  }, 1000);
+  
+  // Kick player after timeout
+  player.readyTimeout = setTimeout(() => {
+    console.log(`Kicking ${player.name} for not readying up`);
+    
+    // Notify the player they're being kicked
+    io.to(player.socketId).emit('kickedForNotReady', {
+      reason: 'You were kicked for not readying up within 60 seconds.'
+    });
+    
+    // Remove player from game
+    const playerIndex = game.players.findIndex(p => p.id === player.id);
+    if (playerIndex !== -1) {
+      const [removed] = game.players.splice(playerIndex, 1);
+      
+      // Clear their timeouts
+      if (removed.readyTimeout) clearTimeout(removed.readyTimeout);
+      if (removed.readyCountdown) clearInterval(removed.readyCountdown);
+      
+      // Handle owner transfer if needed
+      if (removed.socketId === game.ownerId && game.players.length > 0) {
+        game.ownerId = game.players[0].socketId;
+        game.ownerName = game.players[0].name;
+        game.players[0].ready = true;
+        io.to(game.id).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+        if (game.ownerId) {
+          io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
+        }
+      }
+      
+      emitPlayerList(io, game);
+      broadcastLobbyList(io);
+      
+      // Delete game if empty
+      if (game.players.length === 0) {
+        delete games[game.id];
+      }
+    }
+  }, READY_TIMEOUT * 1000);
+}
+
+function startTurnTimer(io, game, initialDuration = 15) {
+  // Clear any existing timer
+  clearTurnTimer(game);
+  
+  if (!game.started) {
+    console.log('Game not started, skipping turn timer');
+    return;
+  }
+  
+  const currentPlayer = game.players[game.turnIndex];
+  if (!currentPlayer) {
+    console.log('No current player, skipping turn timer');
+    return;
+  }
+  
+  game.turnTimeRemaining = initialDuration;
+  
+  // Emit initial countdown value immediately
+  io.to(game.id).emit('turnTimerUpdate', {
+    timeRemaining: initialDuration
+  });
+  
+  // Send countdown updates every second
+  game.turnCountdown = setInterval(() => {
+    game.turnTimeRemaining--;
+    
+    if (game.turnTimeRemaining > 0) {
+      io.to(game.id).emit('turnTimerUpdate', {
+        timeRemaining: game.turnTimeRemaining
+      });
+    } else {
+      clearInterval(game.turnCountdown);
+      game.turnCountdown = null;
+    }
+  }, 1000);
+  
+  // Auto-skip turn after timeout
+  game.turnTimer = setTimeout(() => {
+    console.log(`Turn timeout for ${currentPlayer.name} - auto-skipping turn`);
+    
+    // Clear the countdown
+    if (game.turnCountdown) {
+      clearInterval(game.turnCountdown);
+      game.turnCountdown = null;
+    }
+    
+    // Increment timeout count for this player
+    if (!currentPlayer.turnTimeoutCount) {
+      currentPlayer.turnTimeoutCount = 0;
+    }
+    currentPlayer.turnTimeoutCount++;
+    
+    console.log(`${currentPlayer.name} timeout count: ${currentPlayer.turnTimeoutCount}/5`);
+    
+    // Check if player has been auto-skipped 5 times
+    if (currentPlayer.turnTimeoutCount >= 5) {
+      console.log(`${currentPlayer.name} has been auto-skipped 5 times - kicking from game`);
+      
+      // Notify the player they're being kicked
+      io.to(currentPlayer.socketId).emit('kickedForInactivity', {
+        reason: 'You were kicked for being inactive (turn skipped 5 times).'
+      });
+      
+      // Notify other players
+      io.to(game.id).emit('playerKicked', {
+        playerId: currentPlayer.id,
+        playerName: currentPlayer.name,
+        reason: 'inactivity'
+      });
+      
+      // Remove player from game
+      const playerIndex = game.players.findIndex(p => p.id === currentPlayer.id);
+      if (playerIndex !== -1) {
+        game.players.splice(playerIndex, 1);
+        
+        // If removed player was the owner, transfer ownership
+        if (currentPlayer.socketId === game.ownerId && game.players.length > 0) {
+          game.ownerId = game.players[0].socketId;
+          game.ownerName = game.players[0].name;
+          game.players[0].ready = true;
+          io.to(game.id).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+        }
+        
+        emitPlayerList(io, game);
+        broadcastLobbyList(io);
+        
+        // Delete game if empty
+        if (game.players.length === 0) {
+          delete games[game.id];
+          return;
+        }
+        
+        // Adjust turn index if needed
+        if (game.players.length > 0) {
+          game.turnIndex = game.turnIndex % game.players.length;
+          const nextPlayerId = game.players[game.turnIndex].id;
+          io.to(game.id).emit('turnChanged', { currentPlayerId: nextPlayerId });
+          
+          // Start timer for next turn
+          startTurnTimer(io, game, 15);
+        }
+      }
+      
+      return;
+    }
+    
+    // Notify all players that turn was auto-skipped
+    io.to(game.id).emit('turnAutoSkipped', {
+      playerId: currentPlayer.id,
+      playerName: currentPlayer.name,
+      timeoutCount: currentPlayer.turnTimeoutCount
+    });
+    
+    // Advance to next turn
+    const playerCount = game.players.length;
+    
+    // Check if there are still players in the game
+    if (playerCount === 0) {
+      console.log('No players left in game, skipping turn advance');
+      return;
+    }
+    
+    const step = game.direction;
+    const nextIndex = ((game.turnIndex + step) % playerCount + playerCount) % playerCount;
+    game.turnIndex = nextIndex;
+    const nextPlayerId = game.players[game.turnIndex].id;
+    io.to(game.id).emit('turnChanged', { currentPlayerId: nextPlayerId });
+    
+    // Start timer for next turn
+    startTurnTimer(io, game, 15);
+  }, initialDuration * 1000);
+}
+
+function extendTurnTimer(io, game, newDuration = 30) {
+  // Don't extend if no timer or game not started
+  if (!game.started || !game.turnTimer) {
+    console.log('Cannot extend timer: game not started or no active timer');
+    return;
+  }
+  
+  const currentPlayer = game.players[game.turnIndex];
+  if (!currentPlayer) {
+    return;
+  }
+  
+  console.log(`Extending turn timer for ${currentPlayer.name} to ${newDuration} seconds`);
+  
+  // Clear existing timer and restart with new duration
+  startTurnTimer(io, game, newDuration);
 }
 
 function setupSocketHandlers(io) {
@@ -66,6 +315,7 @@ function setupSocketHandlers(io) {
         }
         
         const currentSess = socket.request.session;
+        const userId = currentSess?.token?.id;
         
         // Check payment status
         const hasPaid = currentSess && currentSess.hasPaid;
@@ -92,27 +342,34 @@ function setupSocketHandlers(io) {
           game.joinCode = generateJoinCode(6);
         }
 
-        // Creator auto-joins
-        const player = {
-          socketId: socket.id,
-          id: socket.id,
-          name: playerName || 'Host',
-          hand: [],
-          ready: false,
-          userId: currentSess && currentSess.token ? currentSess.token.id : null
-        };
-        game.players.push(player);
-        socket.join(gameId);
+        // Creator auto-joins - fetch customization data
+        fetchUserCustomization(userId, (err, customization) => {
+          const player = {
+            socketId: socket.id,
+            id: socket.id,
+            name: playerName || 'Host',
+            hand: [],
+            ready: true,  // Owner is always ready
+            userId: userId,
+            selectedTitle: customization.selectedTitle,
+            selectedTitleColor: customization.selectedTitleColor,
+            selectedBadge: customization.selectedBadge,
+            selectedEffect: customization.selectedEffect,
+            turnTimeoutCount: 0  // Track how many times turn auto-skipped
+          };
+          game.players.push(player);
+          socket.join(gameId);
 
-        // Notify creator
-        socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName, isPrivate: game.private, joinCode: game.joinCode });
-        emitPlayerList(io, game);
-        io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
-        // Broadcast join code to all players in the room
-        io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
-        broadcastLobbyList(io);
+          // Notify creator (send owner info first)
+          socket.emit('lobbyCreated', { gameId, lobbyName: game.lobbyName, isPrivate: game.private, joinCode: game.joinCode, ownerId: game.ownerId, ownerName: game.ownerName, rules: game.rules });
+          io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+          emitPlayerList(io, game);
+          // Broadcast join code to all players in the room
+          io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
+          broadcastLobbyList(io);
 
-        console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
+          console.log(`${player.name} created lobby ${gameId} (${game.lobbyName})`);
+        });
       });
     });
 
@@ -146,21 +403,44 @@ function setupSocketHandlers(io) {
       let player = game.players.find(p => p.name === name);
       let isReconnect = false;
       
+      const currentSess = socket.request.session;
+      const userId = currentSess && currentSess.token ? currentSess.token.id : null;
+      
       if (!player) {
         // New player joining mid-game - only allow if game hasn't started
         if (game.started) {
           socket.emit('joinFailed', { reason: 'Game already in progress' });
           return;
         }
-        player = {
-          socketId: socket.id,
-          id: socket.id,
-          name,
-          hand: [],
-          ready: false
-        };
-        game.players.push(player);
-        console.log(`New player ${name} joined game ${gameId}`);
+        
+        fetchUserCustomization(userId, (err, customization) => {
+          player = {
+            socketId: socket.id,
+            id: socket.id,
+            name,
+            hand: [],
+            ready: false,  // New players start not ready
+            userId: userId,
+            selectedTitle: customization.selectedTitle,
+            selectedTitleColor: customization.selectedTitleColor,
+            selectedBadge: customization.selectedBadge,
+            selectedEffect: customization.selectedEffect,
+            readyTimeout: null,
+            readyCountdown: null,
+            readyTimeRemaining: null,
+            turnTimeoutCount: 0  // Track how many times turn auto-skipped
+          };
+          game.players.push(player);
+          console.log(`New player ${name} joined game ${gameId}`);
+          
+          // Start ready timeout for new non-owner players
+          if (!game.started) {
+            startReadyTimeout(io, game, player);
+          }
+          
+          continueJoinGame();
+        });
+        return;
       } else {
         // Existing player reconnecting - clear any pending disconnect timeout
         isReconnect = true;
@@ -171,48 +451,66 @@ function setupSocketHandlers(io) {
         }
         player.socketId = socket.id;
         player.id = socket.id;
-        console.log(`Player ${name} reconnected to game ${gameId}`);
-      }
-
-      socket.join(gameId);
-      socket.emit('joined', { playerId: player.id, gameId, lobbyName: game.lobbyName });
-
-      // Send the player's current hand
-      io.to(player.socketId).emit('deal', player.hand);
-      emitPlayerList(io, game);
-      io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
-      // Broadcast join code to all players in the room
-      io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
-      io.to(gameId).emit('drawPileCount', { count: game.deck.length });
-
-      // Restore game state for reconnecting player
-      if (game.started) {
-        const currentPlayerId = game.players[game.turnIndex]?.id;
-        if (currentPlayerId) {
-          io.to(player.socketId).emit('turnChanged', { currentPlayerId });
+        // Preserve or update userId on reconnect
+        if (userId && !player.userId) {
+          player.userId = userId;
+          console.log(`Set userId ${userId} for reconnecting player ${name}`);
         }
-        // Notify client that game is already in progress
-        io.to(player.socketId).emit('gameStarted', { 
-          currentPlayerId, 
-          players: game.players.map(p => ({ id: p.id, name: p.name })) 
-        });
+        console.log(`Player ${name} reconnected to game ${gameId} with userId: ${player.userId}`);
       }
 
-      if (game.discardPile && game.discardPile.length > 0) {
-        const top = game.discardPile[game.discardPile.length - 1];
-        io.to(player.socketId).emit('cardPlacedOnTable', top);
-        
-        // If it's a wild card without an activeColor and it's this player's turn, ask for color
-        // Add a flag to prevent duplicate requests
-        if (top.color === 'wild' && !top.activeColor && game.started && !game.awaitingStartColor) {
-          const currentPlayer = game.players[game.turnIndex];
-          if (currentPlayer && currentPlayer.socketId === socket.id) {
-            game.awaitingStartColor = true;
-            io.to(socket.id).emit('requestStartColor', { gameId, card: top });
-            console.log('Re-requesting starting color after join for', player.name);
+      function continueJoinGame() {
+        socket.join(gameId);
+        socket.emit('joined', { 
+          playerId: player.id, 
+          gameId, 
+          lobbyName: game.lobbyName,
+          isPrivate: !!game.private,
+          joinCode: null,
+          ownerId: game.ownerId,
+          ownerName: game.ownerName,
+          rules: game.rules || { stacking: false, jumpIn: false, sevenZero: false }
+        });
+
+        // Send the player's current hand
+        io.to(player.socketId).emit('deal', player.hand);
+        io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+        emitPlayerList(io, game);
+        // Broadcast join code to all players in the room
+        io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
+        io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+
+        // Restore game state for reconnecting player
+        if (game.started) {
+          const currentPlayerId = game.players[game.turnIndex]?.id;
+          if (currentPlayerId) {
+            io.to(player.socketId).emit('turnChanged', { currentPlayerId });
+          }
+          // Notify client that game is already in progress
+          io.to(player.socketId).emit('gameStarted', { 
+            currentPlayerId, 
+            players: game.players.map(p => ({ id: p.id, name: p.name })) 
+          });
+        }
+
+        if (game.discardPile && game.discardPile.length > 0) {
+          const top = game.discardPile[game.discardPile.length - 1];
+          io.to(player.socketId).emit('cardPlacedOnTable', top);
+          
+          // If it's a wild card without an activeColor and it's this player's turn, ask for color
+          // Add a flag to prevent duplicate requests
+          if (top.color === 'wild' && !top.activeColor && game.started && !game.awaitingStartColor) {
+            const currentPlayer = game.players[game.turnIndex];
+            if (currentPlayer && currentPlayer.socketId === socket.id) {
+              game.awaitingStartColor = true;
+              io.to(socket.id).emit('requestStartColor', { gameId, card: top });
+              console.log('Re-requesting starting color after join for', player.name);
+            }
           }
         }
       }
+      
+      continueJoinGame();
     });
 
     socket.on('joinLobby', ({ gameId = 'default', playerName: clientName = 'Anonymous', joinCode = null } = {}) => {
@@ -230,17 +528,10 @@ function setupSocketHandlers(io) {
           return;
         }
       }
-      if (game.started) {
-        socket.emit('lobbyJoinError', { reason: 'Game already started' });
-        return;
-      }
-      if (game.players.length >= (game.maxPlayers || 8)) {
-        socket.emit('lobbyJoinError', { reason: 'Lobby is full' });
-        return;
-      }
 
       const playerName = (sessUser && String(sessUser)) || clientName || 'Player';
 
+      // Check for existing player by socket ID first
       const existing = game.players.find(p => p.socketId === socket.id);
       if (existing) {
         socket.join(gameId);
@@ -251,7 +542,8 @@ function setupSocketHandlers(io) {
           isPrivate: !!game.private, 
           joinCode: game.joinCode || null,
           ownerId: game.ownerId,
-          ownerName: game.ownerName
+          ownerName: game.ownerName,
+          rules: game.rules || { stacking: false, jumpIn: false, sevenZero: false }
         });
         emitPlayerList(io, game);
         io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
@@ -261,6 +553,7 @@ function setupSocketHandlers(io) {
         return;
       }
 
+      // Check for existing player by name (reconnection case)
       const existingByName = game.players.find(p => p.name === playerName);
       if (existingByName) {
         const wasReady = existingByName.ready;
@@ -276,13 +569,14 @@ function setupSocketHandlers(io) {
         existingByName.socketId = socket.id;
         existingByName.id = socket.id;
         existingByName.userId = socket.request.session.token?.id || existingByName.userId || null;
-        existingByName.ready = wasReady;
 
         // Update owner socket id BEFORE sending events
         if (isOwner) {
           game.ownerId = socket.id;
-          existingByName.ready = true;
-          console.log(`Owner ${playerName} reconnected, setting ready=true`);
+          existingByName.ready = true;  // Owner is always ready
+          console.log(`Owner ${playerName} reconnected, set ready=true`);
+        } else {
+          existingByName.ready = wasReady;  // Non-owners keep their previous ready state
         }
 
         socket.join(gameId);
@@ -294,11 +588,17 @@ function setupSocketHandlers(io) {
           isPrivate: !!game.private, 
           joinCode: isOwner ? game.joinCode : null,
           ownerId: game.ownerId,
-          ownerName: game.ownerName
+          ownerName: game.ownerName,
+          rules: game.rules || { stacking: false, jumpIn: false, sevenZero: false }
         });
 
         io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
         io.to(gameId).emit('privateSet', { joinCode: game.joinCode || null });
+
+        // Restart ready timeout for non-ready, non-owner players
+        if (!game.started && !isOwner && !existingByName.ready) {
+          startReadyTimeout(io, game, existingByName);
+        }
 
         console.log(`After rejoin - Players:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
         emitPlayerList(io, game);
@@ -307,36 +607,72 @@ function setupSocketHandlers(io) {
         return;
       }
 
-      const player = {
-        socketId: socket.id,
-        id: socket.id,
-        name: playerName || 'Player',
-        userId: socket.request.session.token?.id || null,
-        hand: [],
-        ready: false
-      };
-      game.players.push(player);
-      socket.join(gameId);
-      socket.emit('joined', { 
-        playerId: player.id, 
-        gameId, 
-        lobbyName: game.lobbyName, 
-        isPrivate: !!game.private, 
-        joinCode: (socket.id === game.ownerId ? game.joinCode : null),
-        ownerId: game.ownerId,
-        ownerName: game.ownerName
-      });
-      console.log(`${player.name} joined as NEW player with ready=false`);
-      console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
-      emitPlayerList(io, game);
-      io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
-      // If owner changed, send the private join code to that owner (if any)
-      if (game.ownerId) {
-        io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
+      // If not an existing player, check if new players can join
+      if (game.started) {
+        socket.emit('lobbyJoinError', { reason: 'Game already started' });
+        return;
       }
-      broadcastLobbyList(io);
+      if (game.players.length >= (game.maxPlayers || 8)) {
+        socket.emit('lobbyJoinError', { reason: 'Lobby is full' });
+        return;
+      }
 
-      console.log(`${player.name} joined lobby ${gameId} (${game.lobbyName})`);
+      const userId = socket.request.session.token?.id || null;
+      
+      if (!userId) {
+        console.warn(`WARNING: Player "${playerName}" joining lobby without userId - they won't be able to receive payouts!`);
+      } else {
+        console.log(`Player "${playerName}" joining lobby with userId: ${userId}`);
+      }
+      
+      fetchUserCustomization(userId, (err, customization) => {
+        const player = {
+          socketId: socket.id,
+          id: socket.id,
+          name: playerName || 'Player',
+          userId: userId,
+          hand: [],
+          ready: false,
+          selectedTitle: customization.selectedTitle,
+          selectedTitleColor: customization.selectedTitleColor,
+          selectedBadge: customization.selectedBadge,
+          selectedEffect: customization.selectedEffect,
+          readyTimeout: null,
+          readyCountdown: null,
+          readyTimeRemaining: null,
+          turnTimeoutCount: 0  // Track how many times turn auto-skipped
+        };
+        game.players.push(player);
+        socket.join(gameId);
+        console.log(`Added player "${player.name}" to lobby (userId: ${userId || 'NONE'})`);
+        
+        // Start ready timeout for non-owner players
+        if (!game.started && socket.id !== game.ownerId) {
+          startReadyTimeout(io, game, player);
+        }
+        
+        socket.emit('joined', { 
+          playerId: player.id, 
+          gameId, 
+          lobbyName: game.lobbyName, 
+          isPrivate: !!game.private, 
+          joinCode: (socket.id === game.ownerId ? game.joinCode : null),
+          ownerId: game.ownerId,
+          ownerName: game.ownerName,
+          rules: game.rules || { stacking: false, jumpIn: false, sevenZero: false }
+        });
+        console.log(`${player.name} joined as NEW player with ready=false`);
+        console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
+        emitPlayerList(io, game);
+        io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
+        // If owner changed, send the private join code to that owner (if any)
+        if (game.ownerId) {
+          io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
+        }
+        broadcastLobbyList(io);
+
+        console.log(`${player.name} joined lobby ${gameId} (${game.lobbyName})`);
+      });
     });
 
     socket.on('setPrivate', ({ gameId, isPrivate = false } = {}) => {
@@ -359,6 +695,30 @@ function setupSocketHandlers(io) {
       broadcastLobbyList(io);
     });
 
+    socket.on('setGameRules', ({ gameId, rules = {} } = {}) => {
+      const game = games[gameId];
+      if (!game) return;
+      if (socket.id !== game.ownerId) {
+        socket.emit('invalidMove', { reason: 'Only the host can change game rules' });
+        return;
+      }
+      if (game.started) {
+        socket.emit('invalidMove', { reason: 'Cannot change rules after game has started' });
+        return;
+      }
+      
+      // Update rules
+      if (!game.rules) game.rules = {};
+      if (typeof rules.stacking === 'boolean') game.rules.stacking = rules.stacking;
+      if (typeof rules.jumpIn === 'boolean') game.rules.jumpIn = rules.jumpIn;
+      if (typeof rules.sevenZero === 'boolean') game.rules.sevenZero = rules.sevenZero;
+      
+      console.log(`Game ${gameId} rules updated:`, game.rules);
+      
+      // Broadcast updated rules to all players
+      io.to(gameId).emit('gameRulesUpdated', { rules: game.rules });
+    });
+
     socket.on('leaveLobby', ({ gameId } = {}) => {
       const game = games[gameId];
       if (!game) return;
@@ -372,10 +732,12 @@ function setupSocketHandlers(io) {
         if (game.players.length > 0) {
           game.ownerId = game.players[0].socketId;
           game.ownerName = game.players[0].name;
+          game.players[0].ready = true;  // New owner is always ready
           io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
           if (game.ownerId) {
             io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
           }
+          emitPlayerList(io, game);  // Update player list to show new owner as ready
         } else {
           delete games[gameId];
         }
@@ -388,8 +750,30 @@ function setupSocketHandlers(io) {
       if (!game) return;
       const real = game.players.findIndex(p => p.socketId === socket.id);
       if (real === -1) return;
+      
+      // Don't allow owner to change ready state - they're always ready
+      if (game.players[real].socketId === game.ownerId) {
+        console.log(`Owner ${game.players[real].name} cannot change ready state - always ready`);
+        return;
+      }
+      
       console.log(`Player ${game.players[real].name} setting ready to ${ready}`);
       game.players[real].ready = !!ready;
+      
+      // Clear ready timeout if player readied up
+      if (ready && game.players[real].readyTimeout) {
+        clearInterval(game.players[real].readyCountdown);
+        clearTimeout(game.players[real].readyTimeout);
+        game.players[real].readyTimeout = null;
+        game.players[real].readyCountdown = null;
+        game.players[real].readyTimeRemaining = null;
+      }
+      
+      // Start ready timeout if player unreadied
+      if (!ready && !game.started) {
+        startReadyTimeout(io, game, game.players[real]);
+      }
+      
       console.log(`All players now:`, game.players.map(p => ({ name: p.name, ready: p.ready })));
       emitPlayerList(io, game);
       // Broadcast join code to all players in the room
@@ -450,6 +834,19 @@ function setupSocketHandlers(io) {
 
       game.turnIndex = 0;
       game.started = true;
+      
+      // Clear all ready timeouts since game is starting
+      for (const player of game.players) {
+        if (player.readyTimeout) {
+          clearTimeout(player.readyTimeout);
+          player.readyTimeout = null;
+        }
+        if (player.readyCountdown) {
+          clearInterval(player.readyCountdown);
+          player.readyCountdown = null;
+        }
+        player.readyTimeRemaining = null;
+      }
 
       const currentPlayerId = game.players[game.turnIndex].id;
       const currentSocketId = game.players[game.turnIndex].socketId;
@@ -477,11 +874,18 @@ function setupSocketHandlers(io) {
                 const turnPlayer = game.players[game.turnIndex];
                 if (turnPlayer) {
                   io.to(gameId).emit('turnChanged', { currentPlayerId: turnPlayer.id });
+                  startTurnTimer(io, game, 15);
                 }
               }
             }
           }, 10000);
+        } else {
+          // Start turn timer if not waiting for wild color selection
+          startTurnTimer(io, game, 15);
         }
+      } else {
+        // Start turn timer if no discard pile
+        startTurnTimer(io, game, 15);
       }
 
       console.log('game started', gameId);
@@ -512,9 +916,47 @@ function setupSocketHandlers(io) {
 
       const player = game.players[playerIndex];
       
+      // Clear turn timer when player takes action
+      clearTurnTimer(game);
+      
+      // Reset timeout count when player takes action
+      player.turnTimeoutCount = 0;
+      
       // Prevent drawing if there's already a pending drawn card decision
       if (game.pendingDrawnCard && game.pendingDrawnCard.playerId === player.id) {
         socket.emit('invalidMove', { reason: 'Must decide on current drawn card first' });
+        return;
+      }
+
+      // Check if there's a draw stack from stacking rule
+      let drawCount = count || 1;
+      if (game.rules && game.rules.stacking && game.drawStack > 0) {
+        console.log(`Player ${player.name} drawing from stack: ${game.drawStack} cards`);
+        drawCount = game.drawStack;
+        game.drawStack = 0;  // Reset the stack
+        game.lastDrawAmount = 0; // Reset last draw amount
+        io.to(gameId).emit('drawStackUpdated', { drawStack: 0 });
+        
+        // When drawing from stack, draw all cards and skip turn
+        const stackDrawn = drawFromDeck(game, drawCount);
+        player.hand.push(...stackDrawn);
+        // Reset calledOne if player now has more than 1 card
+        if (player.hand.length > 1) {
+          player.calledOne = false;
+        }
+        io.to(player.socketId).emit('deal', player.hand);
+        io.to(gameId).emit('playerDrewCards', { playerId: player.id, count: stackDrawn.length });
+        io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+        emitPlayerList(io, game);
+        
+        // Advance turn
+        const playerCount = game.players.length;
+        const step = game.direction;
+        const nextIndex = ((game.turnIndex + step) % playerCount + playerCount) % playerCount;
+        game.turnIndex = nextIndex;
+        const nextPlayerId = game.players[game.turnIndex].id;
+        io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+        startTurnTimer(io, game, 15);
         return;
       }
 
@@ -550,6 +992,10 @@ function setupSocketHandlers(io) {
       } else {
         //card not playable, auto add to hand
         player.hand.push(drawnCard);
+        // Reset calledOne if player now has more than 1 card
+        if (player.hand.length > 1) {
+          player.calledOne = false;
+        }
         io.to(player.socketId).emit('deal', player.hand);
         io.to(gameId).emit('playerDrew', { playerId: player.id, count: 1});
         io.to(gameId).emit('drawPileCount', { count: game.deck.length });
@@ -563,6 +1009,7 @@ function setupSocketHandlers(io) {
 
         const nextPlayerId = game.players[game.turnIndex].id;
         io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+        startTurnTimer(io, game, 15);
       }
       });
 
@@ -587,6 +1034,10 @@ function setupSocketHandlers(io) {
         if (action === 'keep') {
           //add to hand
           player.hand.push(card);
+          // Reset calledOne if player now has more than 1 card
+          if (player.hand.length > 1) {
+            player.calledOne = false;
+          }
           io.to(player.socketId).emit('deal', player.hand);
           io.to(gameId).emit('playerDrew', { playerId: player.id, count: 1 });
           emitPlayerList(io, game);
@@ -599,6 +1050,7 @@ function setupSocketHandlers(io) {
 
           const nextPlayerId = game.players[game.turnIndex].id;
           io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+          startTurnTimer(io, game, 15);
         } else if (action === 'play') {
           //play the card
           const isWild = card.color === 'wild';
@@ -615,7 +1067,40 @@ function setupSocketHandlers(io) {
           }
 
           game.discardPile.push(card);
-          io.to(gameId).emit('cardPlayed', { playerId: player.id, playerName: player.name, card });
+          io.to(gameId).emit('cardPlayed', { 
+            playerId: player.id, 
+            playerName: player.name, 
+            card,
+            selectedTitleColor: player.selectedTitleColor || 'white'
+          });
+
+          // Clear any existing jump-in window
+          if (game.jumpInWindow && game.jumpInWindow.timeoutId) {
+            clearTimeout(game.jumpInWindow.timeoutId);
+            game.jumpInWindow = null;
+          }
+
+          // Start jump-in window if rule is enabled
+          if (game.rules && game.rules.jumpIn) {
+            const jumpInDelayMs = 5000; // 5 seconds
+            const timeoutId = setTimeout(() => {
+              if (game.jumpInWindow) {
+                game.jumpInWindow = null;
+                io.to(gameId).emit('jumpInWindowClosed');
+              }
+            }, jumpInDelayMs);
+
+            game.jumpInWindow = {
+              card: card,
+              expiresAt: Date.now() + jumpInDelayMs,
+              timeoutId
+            };
+
+            io.to(gameId).emit('jumpInWindowOpened', { 
+              card: card, 
+              expiresAt: game.jumpInWindow.expiresAt 
+            });
+          }
 
           const playerCount = game.players.length;
           const step = game.direction;
@@ -664,6 +1149,7 @@ function setupSocketHandlers(io) {
 
           const nextPlayerId = game.players[game.turnIndex].id;
           io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+          startTurnTimer(io, game, 15);
           io.to(gameId).emit('drawPileCount', { count: game.deck.length });
           emitPlayerList(io, game);
         }
@@ -695,8 +1181,227 @@ function setupSocketHandlers(io) {
 
       io.to(gameId).emit('cardPlacedOnTable', top);
       io.to(gameId).emit('turnChanged', { currentPlayerId: currentPlayer.id });
+      startTurnTimer(io, game, 15);
 
       console.log(`Start color chosen for game ${gameId}: ${color}`);
+    });
+
+    // Handle player choosing who to swap hands with (7 card rule)
+    socket.on('chooseSwapTarget', ({ gameId = 'default', targetPlayerId } = {}) => {
+      const game = games[gameId];
+      if (!game || !game.started) {
+        socket.emit('invalidMove', { reason: 'Game not started' });
+        return;
+      }
+
+      if (!game.awaitingSevenSwap || game.awaitingSevenSwap.playerId !== socket.id) {
+        socket.emit('invalidMove', { reason: 'Not awaiting swap choice' });
+        return;
+      }
+
+      const player = game.players.find(p => p.socketId === socket.id);
+      const targetPlayer = game.players.find(p => p.id === targetPlayerId);
+
+      if (!player || !targetPlayer) {
+        socket.emit('invalidMove', { reason: 'Player not found' });
+        return;
+      }
+
+      if (player.id === targetPlayer.id) {
+        socket.emit('invalidMove', { reason: 'Cannot swap with yourself' });
+        return;
+      }
+
+      console.log(`Swapping hands between ${player.name} and ${targetPlayer.name}`);
+
+      // Swap the hands
+      const tempHand = player.hand;
+      player.hand = targetPlayer.hand;
+      targetPlayer.hand = tempHand;
+
+      // Send updated hands to both players
+      io.to(player.socketId).emit('deal', player.hand);
+      io.to(targetPlayer.socketId).emit('deal', targetPlayer.hand);
+
+      // Notify all players about the swap
+      io.to(gameId).emit('handsSwapped', {
+        player1: { id: player.id, name: player.name },
+        player2: { id: targetPlayer.id, name: targetPlayer.name }
+      });
+
+      // Update player list for everyone
+      emitPlayerList(io, game);
+
+      // Clear the awaiting swap state
+      delete game.awaitingSevenSwap;
+
+      // Now advance the turn
+      const playerIndex = game.players.findIndex(p => p.id === player.id);
+      const playerCount = game.players.length;
+      const step = game.direction;
+      const nextIndex = ((playerIndex + step) % playerCount + playerCount) % playerCount;
+      game.turnIndex = nextIndex;
+
+      const nextPlayerId = game.players[game.turnIndex].id;
+      io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      startTurnTimer(io, game, 15);
+      io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+
+      console.log(`Hands swapped. Turn advances to ${game.players[game.turnIndex].name}`);
+    });
+
+    // Handle jump-in attempts
+    socket.on('jumpIn', ({ gameId = 'default', cardId } = {}) => {
+      const game = games[gameId];
+      if (!game || !game.started) {
+        socket.emit('invalidMove', { reason: 'Game not started' });
+        return;
+      }
+
+      // Check if jump-in rule is enabled
+      if (!game.rules || !game.rules.jumpIn) {
+        socket.emit('invalidMove', { reason: 'Jump-in rule is not enabled' });
+        return;
+      }
+
+      // Check if there's an active jump-in window
+      if (!game.jumpInWindow) {
+        socket.emit('invalidMove', { reason: 'No active jump-in window' });
+        return;
+      }
+
+      const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
+      if (playerIndex === -1) {
+        socket.emit('invalidMove', { reason: 'Not in game' });
+        return;
+      }
+
+      // Can't jump in if it's already your turn
+      if (playerIndex === game.turnIndex) {
+        socket.emit('invalidMove', { reason: "It's already your turn" });
+        return;
+      }
+
+      const player = game.players[playerIndex];
+      const cardIndex = player.hand.findIndex(c => c.id === cardId);
+      if (cardIndex === -1) {
+        socket.emit('invalidMove', { reason: 'Card not in hand' });
+        return;
+      }
+
+      const card = player.hand[cardIndex];
+      const topCard = game.discardPile[game.discardPile.length - 1];
+
+      // Validate that it's the EXACT same card (color and value)
+      if (!topCard || card.color !== topCard.color || card.value !== topCard.value) {
+        socket.emit('invalidMove', { reason: 'Can only jump in with the exact same card (color and value)' });
+        return;
+      }
+
+      console.log(`Player ${player.name} jumping in with ${card.name}`);
+
+      // Clear the jump-in window
+      if (game.jumpInWindow.timeoutId) {
+        clearTimeout(game.jumpInWindow.timeoutId);
+      }
+      game.jumpInWindow = null;
+
+      // Remove card from player's hand
+      player.hand.splice(cardIndex, 1);
+
+      // Reset calledOne after playing a card
+      player.calledOne = false;
+
+      // Set active color for wild cards
+      if (card.color === 'wild') {
+        card.activeColor = topCard.activeColor || 'red';
+      } else {
+        card.activeColor = card.color;
+      }
+
+      // Add card to discard pile
+      game.discardPile.push(card);
+      io.to(gameId).emit('cardPlayed', { 
+        playerId: player.id, 
+        playerName: player.name, 
+        card,
+        selectedTitleColor: player.selectedTitleColor || 'white'
+      });
+      io.to(gameId).emit('jumpedIn', { playerId: player.id, playerName: player.name });
+
+      // Set turn to the player who jumped in
+      game.turnIndex = playerIndex;
+
+      // Immediately advance to the next player
+      const playerCount = game.players.length;
+      const step = game.direction;
+      const nextIndex = ((playerIndex + step) % playerCount + playerCount) % playerCount;
+      game.turnIndex = nextIndex;
+
+      const nextPlayerId = game.players[game.turnIndex].id;
+      io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      startTurnTimer(io, game, 15);
+      io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+      emitPlayerList(io, game);
+
+      // Handle ONE timer if player has 1 card left
+      if (player.hand.length === 1) {
+        if (game.onePending && game.onePending.playerId === player.id) {
+          clearOnePending(game);
+        }
+        
+        const penaltyDelayMs = 5000;
+        const timeoutId = setTimeout(() => {
+          if (!game.onePending || game.onePending.playerId !== player.id) return;
+          // Only penalize if player still has exactly 1 card
+          if (player.hand.length !== 1) {
+            clearOnePending(game);
+            return;
+          }
+          const drawn = drawFromDeck(game, 2);
+          player.hand.push(...drawn);
+          // Reset calledOne if player now has more than 1 card
+          if (player.hand.length > 1) {
+            player.calledOne = false;
+          }
+          io.to(player.socketId).emit('deal', player.hand);
+          io.to(gameId).emit('playerPenalized', { 
+            playerId: player.id, 
+            playerName: player.name, 
+            count: drawn.length,
+            reason: 'timeout'
+          });
+          io.to(gameId).emit('drawPileCount', { count: game.deck.length });
+          emitPlayerList(io, game);
+          clearOnePending(game);
+        }, penaltyDelayMs);
+
+        game.onePending = {
+          playerId: player.id,
+          timeoutId,
+          expiresAt: Date.now() + penaltyDelayMs
+        };
+
+        io.to(player.socketId).emit('youHaveOne', { expiresAt: game.onePending.expiresAt });
+      }
+
+      // Check for win condition
+      if (player.hand.length === 0) {
+        if (game.onePending && game.onePending.playerId === player.id) clearOnePending(game);
+        game.started = false;
+        game.winner = { id: player.id, name: player.name, timestamp: Date.now() };
+
+        io.to(gameId).emit('playerWon', { 
+          playerId: player.id, 
+          playerName: player.name,
+          selectedTitle: player.selectedTitle || 'Newbie',
+          selectedTitleColor: player.selectedTitleColor || 'white'
+        });
+        
+        console.log(`Player ${player.name} won by jumping in!`);
+      }
+
+      console.log(`Jump-in successful. Turn advances to ${game.players[game.turnIndex].name}`);
     });
 
     socket.on('playCard', ({ gameId = 'default', cardId, chosenColor } = {}) => {
@@ -722,6 +1427,13 @@ function setupSocketHandlers(io) {
         return;
       }
       const player = game.players[playerIndex];
+      
+      // Clear turn timer when player takes action
+      clearTurnTimer(game);
+      
+      // Reset timeout count when player takes action
+      player.turnTimeoutCount = 0;
+      
       const cardIndex = player.hand.findIndex(c => c.id === cardId);
       if (cardIndex === -1) {
         socket.emit('invalidMove', { reason: 'Card not in hand' });
@@ -738,6 +1450,10 @@ function setupSocketHandlers(io) {
         // Penalize: give them 2 cards and reject the play
         const penaltyCards = drawFromDeck(game, 2);
         player.hand.push(...penaltyCards);
+        // Reset calledOne if player now has more than 1 card
+        if (player.hand.length > 1) {
+          player.calledOne = false;
+        }
         io.to(player.socketId).emit('deal', player.hand);
         socket.emit('invalidMove', { reason: 'You must call ONE before playing your last card!' });
         io.to(gameId).emit('playerPenalized', { 
@@ -756,6 +1472,32 @@ function setupSocketHandlers(io) {
       
       // Reset calledOne after playing a card
       player.calledOne = false;
+      
+      // STACKING RULE: If there's a draw stack active, only draw cards can be played
+      if (game.rules && game.rules.stacking && game.drawStack > 0) {
+        const special = String(card.value).toLowerCase();
+        const isDrawTwo = special === 'draw two' || special === 'draw_two' || special.includes('draw two') || special.includes('draw_two');
+        const isDrawFour = special === 'wild draw four' || special === 'wild_draw_four' || special.includes('draw four') || special.includes('draw_four') || special.includes('wild draw');
+        
+        if (!isDrawTwo && !isDrawFour) {
+          // Not a draw card - can't play it, must draw the stack
+          player.hand.push(card); // Put card back
+          socket.emit('invalidMove', { reason: `You must draw ${game.drawStack} cards or play a +2/+4 card to stack!` });
+          io.to(player.socketId).emit('deal', player.hand);
+          return;
+        }
+        
+        // Check if trying to stack a lower value (+2) on a higher value (+4)
+        const currentDrawAmount = isDrawFour ? 4 : 2;
+        if (game.lastDrawAmount && currentDrawAmount < game.lastDrawAmount) {
+          // Can't stack a +2 on a +4
+          player.hand.push(card); // Put card back
+          socket.emit('invalidMove', { reason: `You can't stack a +${currentDrawAmount} on a +${game.lastDrawAmount}! Only equal or higher.` });
+          io.to(player.socketId).emit('deal', player.hand);
+          return;
+        }
+        // If it IS a draw card with valid amount, allow it to continue (will be added to stack below)
+      }
       
       const topCard = game.discardPile.length > 0 ? game.discardPile[game.discardPile.length - 1] : null;
       const topActiveColor = topCard ? (topCard.activeColor || topCard.color) : null;
@@ -785,48 +1527,79 @@ function setupSocketHandlers(io) {
       }
 
       game.discardPile.push(card);
-      io.to(gameId).emit('cardPlayed', { playerId: player.id, playerName: player.name, card });
+      io.to(gameId).emit('cardPlayed', { 
+        playerId: player.id, 
+        playerName: player.name, 
+        card,
+        selectedTitleColor: player.selectedTitleColor || 'white'
+      });
+
+      // Clear any existing jump-in window
+      if (game.jumpInWindow && game.jumpInWindow.timeoutId) {
+        clearTimeout(game.jumpInWindow.timeoutId);
+        game.jumpInWindow = null;
+      }
+
+      // Start jump-in window if rule is enabled
+      if (game.rules && game.rules.jumpIn) {
+        const jumpInDelayMs = 5000; // 5 seconds
+        const timeoutId = setTimeout(() => {
+          if (game.jumpInWindow) {
+            game.jumpInWindow = null;
+            io.to(gameId).emit('jumpInWindowClosed');
+          }
+        }, jumpInDelayMs);
+
+        game.jumpInWindow = {
+          card: card,
+          expiresAt: Date.now() + jumpInDelayMs,
+          timeoutId
+        };
+
+        io.to(gameId).emit('jumpInWindowOpened', { 
+          card: card, 
+          expiresAt: game.jumpInWindow.expiresAt 
+        });
+      }
 
       const playerCount = game.players.length;
       const step = game.direction;
       let nextIndex = ((playerIndex + step) % playerCount + playerCount) % playerCount;
 
       const special = String(card.value).toLowerCase();
+      const isDrawCard = special.includes('draw');
+      const isDrawTwo = special === 'draw two' || special === 'draw_two' || special.includes('draw two') || special.includes('draw_two');
+      const isDrawFour = special === 'wild draw four' || special === 'wild_draw_four' || special.includes('draw four') || special.includes('draw_four') || special.includes('wild draw');
+
+      // Initialize draw stack if not present
+      if (typeof game.drawStack !== 'number') game.drawStack = 0;
 
       // SKIP
       if (special === 'skip' || special === 'skip_2') {
         nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
 
-        // WILD DRAW FOUR
-      } else if (
-        special === 'wild draw four' ||
-        special === 'wild_draw_four' ||
-        special.includes('draw four') ||
-        special.includes('draw_four') ||
-        special.includes('wild draw')
-      ) {
-        const victim = game.players[nextIndex];
-        const drawn = drawFromDeck(game, 4);
-        victim.hand.push(...drawn);
-        io.to(victim.socketId).emit('deal', victim.hand);
-        io.to(gameId).emit('playerDrew', { playerId: victim.id, count: drawn.length });
-        nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
+      // DRAW CARDS - with stacking support
+      } else if (isDrawTwo || isDrawFour) {
+        const drawAmount = isDrawFour ? 4 : 2;
+        
+        if (game.rules && game.rules.stacking) {
+          // Stacking enabled - add to stack
+          game.drawStack += drawAmount;
+          game.lastDrawAmount = drawAmount; // Track the last draw amount for validation
+          console.log(`Stacking enabled: Added ${drawAmount} to draw stack. Total: ${game.drawStack}`);
+          io.to(gameId).emit('drawStackUpdated', { drawStack: game.drawStack });
+          // Don't skip turn - next player can stack or draw
+        } else {
+          // No stacking - victim draws immediately
+          const victim = game.players[nextIndex];
+          const drawn = drawFromDeck(game, drawAmount);
+          victim.hand.push(...drawn);
+          io.to(victim.socketId).emit('deal', victim.hand);
+          io.to(gameId).emit('playerDrewCards', { playerId: victim.id, count: drawn.length });
+          nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
+        }
 
-        // DRAW TWO
-      } else if (
-        special === 'draw two' ||
-        special === 'draw_two' ||
-        special.includes('draw two') ||
-        special.includes('draw_two')
-      ) {
-        const victim = game.players[nextIndex];
-        const drawn = drawFromDeck(game, 2);
-        victim.hand.push(...drawn);
-        io.to(victim.socketId).emit('deal', victim.hand);
-        io.to(gameId).emit('playerDrewCards', { playerId: victim.id, count: drawn.length });
-        nextIndex = ((nextIndex + step) % playerCount + playerCount) % playerCount;
-
-        // REVERSE
+      // REVERSE
       } else if (special === 'reverse') {
         game.direction = -game.direction;
         if (playerCount === 2) {
@@ -834,12 +1607,89 @@ function setupSocketHandlers(io) {
         } else {
           nextIndex = ((playerIndex + game.direction) % playerCount + playerCount) % playerCount;
         }
+      
+      // 7-0 RULE: Handle 7 (swap hands) and 0 (rotate hands)
+      } else if (game.rules && game.rules.sevenZero && (card.value === 7 || card.value === '7' || card.value === 0 || card.value === '0')) {
+        if (card.value === 7 || card.value === '7') {
+          // SEVEN: Player chooses someone to swap hands with
+          console.log(`Player ${player.name} played a 7 - initiating hand swap choice`);
+          
+          // Get list of other players with their card counts
+          const otherPlayers = game.players
+            .filter(p => p.id !== player.id)
+            .map(p => ({
+              id: p.id,
+              name: p.name,
+              cardCount: p.hand.length
+            }));
+          
+          // Store the game state to process the swap later
+          game.awaitingSevenSwap = {
+            playerId: player.id,
+            playerName: player.name
+          };
+          
+          // Ask the player who played the 7 to choose someone
+          io.to(player.socketId).emit('choosePlayerForSwap', {
+            players: otherPlayers
+          });
+          
+          // Don't advance turn yet - will advance after swap is chosen
+          return; // Exit early, turn will be advanced in swapHands handler
+          
+        } else if (card.value === 0 || card.value === '0') {
+          // ZERO: Rotate hands in the direction of play
+          console.log(`Player ${player.name} played a 0 - rotating all hands`);
+          
+          if (playerCount > 1) {
+            // Store all hands temporarily
+            const hands = game.players.map(p => p.hand);
+            
+            // Rotate hands in the direction of play
+            if (game.direction === 1) {
+              // Clockwise: each player gets the previous player's hand
+              for (let i = 0; i < playerCount; i++) {
+                const prevIndex = (i - 1 + playerCount) % playerCount;
+                game.players[i].hand = hands[prevIndex];
+              }
+            } else {
+              // Counter-clockwise: each player gets the next player's hand
+              for (let i = 0; i < playerCount; i++) {
+                const nextIdx = (i + 1) % playerCount;
+                game.players[i].hand = hands[nextIdx];
+              }
+            }
+            
+            // Send updated hands to all players
+            game.players.forEach(p => {
+              io.to(p.socketId).emit('deal', p.hand);
+            });
+            
+            // Notify all players about the rotation
+            io.to(gameId).emit('handsRotated', {
+              playerId: player.id,
+              playerName: player.name,
+              direction: game.direction === 1 ? 'clockwise' : 'counter-clockwise'
+            });
+            
+            console.log(`Hands rotated ${game.direction === 1 ? 'clockwise' : 'counter-clockwise'}`);
+          }
+        }
+      } else {
+        // Regular card played - reset draw stack if stacking was active
+        if (game.drawStack > 0) {
+          console.log(`Regular card played, resetting draw stack from ${game.drawStack} to 0`);
+          game.drawStack = 0;
+          game.lastDrawAmount = 0; // Reset last draw amount
+          io.to(gameId).emit('drawStackUpdated', { drawStack: 0 });
+        }
       }
 
       game.turnIndex = nextIndex;
 
       const nextPlayerId = game.players[game.turnIndex].id;
       io.to(gameId).emit('turnChanged', { currentPlayerId: nextPlayerId });
+      startTurnTimer(io, game, 15);
       io.to(gameId).emit('drawPileCount', { count: game.deck.length });
       emitPlayerList(io, game);
 
@@ -853,9 +1703,18 @@ function setupSocketHandlers(io) {
         const penaltyDelayMs = 5000;
         const timeoutId = setTimeout(() => {
           if (!game.onePending || game.onePending.playerId !== player.id) return;
+          // Only penalize if player still has exactly 1 card
+          if (player.hand.length !== 1) {
+            clearOnePending(game);
+            return;
+          }
           // Player didn't call ONE in time - penalize
           const drawn = drawFromDeck(game, 2);
           player.hand.push(...drawn);
+          // Reset calledOne if player now has more than 1 card
+          if (player.hand.length > 1) {
+            player.calledOne = false;
+          }
           io.to(player.socketId).emit('deal', player.hand);
           io.to(gameId).emit('playerPenalized', { 
             playerId: player.id, 
@@ -883,12 +1742,25 @@ function setupSocketHandlers(io) {
       if (player.hand.length === 0) {
         if (game.onePending && game.onePending.playerId === player.id) clearOnePending(game);
 
+        // Clear turn timer when game ends
+        clearTurnTimer(game);
+
         game.started = false;
         game.winner = { id: player.id, name: player.name, timestamp: Date.now() };
 
-        io.to(gameId).emit('playerWon', { playerId: player.id, playerName: player.name });
+        io.to(gameId).emit('playerWon', { 
+          playerId: player.id, 
+          playerName: player.name,
+          selectedTitle: player.selectedTitle || 'Newbie',
+          selectedTitleColor: player.selectedTitleColor || 'white'
+        });
         io.to(gameId).emit('gameEnded', {
-          winner: { id: player.id, name: player.name },
+          winner: { 
+            id: player.id, 
+            name: player.name,
+            selectedTitle: player.selectedTitle || 'Newbie',
+            selectedTitleColor: player.selectedTitleColor || 'white'
+          },
           players: game.players.map(p => ({ id: p.id, name: p.name, handCount: p.hand.length })),
           discardTop: game.discardPile[game.discardPile.length - 1] || null
         });
@@ -909,8 +1781,8 @@ function setupSocketHandlers(io) {
                 if (err) console.error('Database error updating winner stats:', err);
               });
               
-              // Award XP to winner - matches client-side formula: 100 + (playerCount * 25)
-              const totalXP = 100 + (playerCount * 25);
+              // Award XP to winner - matches client-side formula: 150 + (playerCount * 25)
+              const totalXP = 150 + (playerCount * 25);
               
               db.addXP(p.userId, totalXP, (xpErr, xpResult) => {
                 if (xpErr) {
@@ -992,10 +1864,12 @@ function setupSocketHandlers(io) {
         // Process winner payout with dynamic amount calculation
         const winnerId = player.userId;
         
+        console.log(`GAME OVER - Winner: ${player.name}, userId: ${winnerId || 'NONE'}, playerCount: ${playerCount}`);
+        
         if (winnerId) {
           console.log(`Initiating payout: winner userId=${winnerId}, players=${playerCount}`);
           
-          processWinnerPayout(winnerId, playerCount, gameId)
+          processWinnerPayout(winnerId, playerCount, gameId, game.lobbyName)
             .then(result => {
               if (result.ok) {
                 console.log(`Payout success: ${result.amount} Digipogs to user ${winnerId}`);
@@ -1005,7 +1879,10 @@ function setupSocketHandlers(io) {
                   winnerName: player.name,
                   winnerId: player.id,
                   digipogs: result.amount,
-                  playerCount: playerCount
+                  playerCount: playerCount,
+                  selectedTitle: player.selectedTitle || 'Newbie',
+                  selectedTitleColor: player.selectedTitleColor || 'white',
+                  selectedEffect: player.selectedEffect || 'confetti'
                 });
                 
                 io.to(player.socketId).emit('payoutSuccess', {
@@ -1023,7 +1900,10 @@ function setupSocketHandlers(io) {
                   digipogs: 0,
                   playerCount: playerCount,
                   payoutError: true,
-                  payoutErrorMessage: result.error || 'Failed to process winner payout'
+                  payoutErrorMessage: result.error || 'Failed to process winner payout',
+                  selectedTitle: player.selectedTitle || 'Newbie',
+                  selectedTitleColor: player.selectedTitleColor || 'white',
+                  selectedEffect: player.selectedEffect || 'confetti'
                 });
                 
                 io.to(player.socketId).emit('payoutFailed', {
@@ -1042,7 +1922,10 @@ function setupSocketHandlers(io) {
                 digipogs: 0,
                 playerCount: playerCount,
                 payoutError: true,
-                payoutErrorMessage: err?.message || 'Unexpected error processing payout'
+                payoutErrorMessage: err?.message || 'Unexpected error processing payout',
+                selectedTitle: player.selectedTitle || 'Newbie',
+                selectedTitleColor: player.selectedTitleColor || 'white',
+                selectedEffect: player.selectedEffect || 'confetti'
               });
               
               io.to(player.socketId).emit('payoutFailed', {
@@ -1051,7 +1934,8 @@ function setupSocketHandlers(io) {
               });
             });
         } else {
-          console.warn(`Winner ${player.name} has no userId, cannot process payout`);
+          console.warn(`WARNING: Winner "${player.name}" has no userId (winnerId=${winnerId}), cannot process payout`);
+          console.log(`Player object:`, { name: player.name, userId: player.userId, socketId: player.socketId });
           
           // Show winner screen without payout info
           io.to(gameId).emit('showWinnerScreen', {
@@ -1060,7 +1944,10 @@ function setupSocketHandlers(io) {
             digipogs: 0,
             playerCount: playerCount,
             payoutError: true,
-            payoutErrorMessage: 'Winner has no user account linked'
+            payoutErrorMessage: 'Winner has no user account linked',
+            selectedTitle: player.selectedTitle || 'Newbie',
+            selectedTitleColor: player.selectedTitleColor || 'white',
+            selectedEffect: player.selectedEffect || 'confetti'
           });
           
           io.to(player.socketId).emit('payoutFailed', {
@@ -1196,10 +2083,12 @@ function setupSocketHandlers(io) {
               if (game.players.length > 0) {
                 game.ownerId = game.players[0].socketId;
                 game.ownerName = game.players[0].name;
+                game.players[0].ready = true;  // New owner is always ready
                 io.to(gameId).emit('ownerChanged', { ownerId: game.ownerId, ownerName: game.ownerName });
                 if (game.ownerId) {
                   io.to(game.ownerId).emit('privateSet', { joinCode: game.joinCode || null });
                 }
+                emitPlayerList(io, game);  // Update player list to show new owner as ready
               } else {
                 // No players left, delete the game/room
                 console.log(`Room ${gameId} is now empty, deleting...`);
@@ -1217,6 +2106,7 @@ function setupSocketHandlers(io) {
             } else if (game.started && game.players.length > 0) {
               game.turnIndex = game.turnIndex % game.players.length;
               io.to(gameId).emit('turnChanged', { currentPlayerId: game.players[game.turnIndex].id });
+              startTurnTimer(io, game, 15);
             } else if (!game.started) {
               game.status = 'waiting';
             }
@@ -1225,6 +2115,113 @@ function setupSocketHandlers(io) {
           }, 5000);
         }
       }
+    });
+    
+    // Handle emoji reactions
+    socket.on('emojiReaction', ({ gameId, playerName, emojiId, emojiIcon, emojiImage }) => {
+      console.log(`Emoji reaction from ${playerName} in game ${gameId}: ${emojiId}`);
+      
+      // Broadcast to all players in the game
+      io.to(gameId).emit('emojiReaction', {
+        playerName,
+        emojiIcon,
+        emojiImage
+      });
+    });
+    
+    // Handle distraction usage
+    socket.on('useDistraction', ({ gameId, playerName, distractionType, distractionIcon, distractionName }) => {
+      console.log(`Distraction used by ${playerName} in game ${gameId}: ${distractionType}`);
+      
+      // Broadcast to all players in the game INCLUDING the sender (do this first so effect shows immediately)
+      io.to(gameId).emit('distractionReceived', {
+        playerName,
+        distractionType,
+        distractionIcon,
+        distractionName
+      });
+      
+      // Extend turn timer to 30 seconds when a distraction is played
+      const game = games[gameId];
+      if (game && game.started) {
+        extendTurnTimer(io, game, 30);
+        console.log(`Turn timer extended to 30 seconds due to distraction`);
+      }
+      
+      // Update the user's inventory in the database (async, don't block the effect)
+      const db = require('../util/database');
+      
+      // Get userId from the game's player object
+      if (!game) {
+        console.warn(`No game found with ID ${gameId} when using distraction`);
+        return;
+      }
+      
+      const player = game.players.find(p => p.socketId === socket.id);
+      const userId = player?.userId;
+      
+      if (!userId) {
+        console.warn(`No userId found for ${playerName} when using distraction - effect shown but inventory not updated`);
+        return;
+      }
+      
+      console.log(`Fetching inventory for userId: ${userId}`);
+      
+      db.get('SELECT distractionsInventory FROM users WHERE id = ?', [userId], (err, userData) => {
+        if (err) {
+          console.error('Error fetching distractions:', err);
+          return;
+        }
+        
+        if (!userData) {
+          console.error(`No user data found for userId: ${userId}`);
+          return;
+        }
+        
+        let inventory = {};
+        try {
+          inventory = JSON.parse(userData?.distractionsInventory || '{}');
+        } catch (e) {
+          console.error('Error parsing distractionsInventory:', e);
+          inventory = {};
+        }
+        
+        console.log(`Current inventory for ${playerName}:`, inventory);
+        
+        // Reduce count
+        if (inventory[distractionType] && inventory[distractionType] > 0) {
+          inventory[distractionType]--;
+          if (inventory[distractionType] <= 0) {
+            delete inventory[distractionType];
+          }
+          
+          console.log(`Updating inventory for ${playerName}. New inventory:`, inventory);
+          
+          // Update database
+          db.run('UPDATE users SET distractionsInventory = ? WHERE id = ?', [JSON.stringify(inventory), userId], (updateErr) => {
+            if (updateErr) {
+              console.error('Error updating distractions inventory:', updateErr);
+              return;
+            }
+            
+            console.log(`✓ Successfully updated ${playerName}'s inventory in database`);
+            
+            // Verify the update by reading it back
+            db.get('SELECT distractionsInventory FROM users WHERE id = ?', [userId], (verifyErr, verifyData) => {
+              if (!verifyErr && verifyData) {
+                console.log(`Verified inventory in DB:`, verifyData.distractionsInventory);
+              }
+            });
+            
+            // Send updated inventory back to the user who used it
+            socket.emit('distractionInventoryUpdated', {
+              inventory: inventory
+            });
+          });
+        } else {
+          console.warn(`${playerName} tried to use ${distractionType} but inventory count is ${inventory[distractionType] || 0}`);
+        }
+      });
     });
   });
 }

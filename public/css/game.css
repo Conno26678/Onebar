@@ -29,6 +29,7 @@ html, body {
     margin: 0 0 5px 0;
     letter-spacing: 2px;
     flex-shrink: 0;
+    transition: all 0.4s ease;
 }
 
 /* Player List Panel */
@@ -54,31 +55,7 @@ html, body {
     border-radius: 15px;
     font-weight: 600;
     font-size: 0.85rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: 2px solid transparent;
-    position: relative;
-    overflow: hidden;
-}
-
-#playerList span::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.5s;
-}
-
-#playerList span:hover::before {
-    left: 100%;
-}
-
-#playerList span:hover {
-    transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 6px 20px var(--shadow);
-    border-color: var(--primary-color);
 }
 
 .current {
@@ -87,18 +64,27 @@ html, body {
     box-shadow: 0 0 20px rgba(40, 167, 69, 0.4) !important;
 }
 
-/* Status Panel */
+/* Player Badge in Game Info Bar */
+.player-badge {
+    display: inline-block;
+    font-size: 1rem;
+    margin-right: 4px;
+    line-height: 1;
+}
+
+/* Status Panel - Larger for better readability */
 #status {
     background: linear-gradient(135deg, var(--primary-color), #ff6b6b);
     color: white;
-    padding: 6px 15px;
-    border-radius: 8px;
+    padding: 10px 20px;
+    border-radius: 10px;
     text-align: center;
-    font-weight: 600;
-    font-size: 0.85rem;
+    font-weight: 700;
+    font-size: 1.1rem;
     margin-bottom: 5px;
-    box-shadow: 0 2px 10px rgba(255, 0, 0, 0.3);
+    box-shadow: 0 3px 15px rgba(255, 0, 0, 0.4);
     flex-shrink: 0;
+    transition: all 0.3s ease;
 }
 
 /* Table Area - Compact */
@@ -175,7 +161,7 @@ html, body {
 
 /* Card Images on Table */
 #table img {
-    width: 60px;
+    width: 100px;
     border-radius: 6px;
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -187,7 +173,7 @@ html, body {
 }
 
 #drawPile img {
-    width: 85px;
+    width: 100px;
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -215,20 +201,22 @@ html, body {
     overflow-y: auto;
     position: relative;
     flex: 1;
-    margin-top: 8px;
+    margin-top: 16px;
 }
 
 #hand::before {
     content: 'Your Hand';
     position: absolute;
-    top: -10px;
+    top: 4px;
     left: 20px;
     background: var(--bg-color);
-    padding: 2px 10px;
+    padding: 4px 12px;
     font-weight: 600;
     font-size: 0.75rem;
     color: var(--secondary-color);
     border-radius: 6px;
+    line-height: 1;
+    z-index: 10;
 }
 
 #hand [data-card-id] {
@@ -245,8 +233,30 @@ html, body {
     z-index: 100;
 }
 
+/* Player aura effect on hover for cards in hand */
+#hand [data-card-id].has-player-aura:hover {
+    box-shadow: 0 0 12px 2px var(--player-aura-color), 
+                0 0 20px 3px var(--player-aura-color, transparent),
+                0 15px 30px rgba(0, 0, 0, 0.5);
+}
+
 #hand [data-card-id]:active {
     transform: translateY(-10px) scale(1.1);
+}
+
+/* Not your turn - gray out cards */
+#hand.not-turn [data-card-id],
+#hand.not-turn img {
+    opacity: 0.4;
+    filter: grayscale(40%);
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
+#hand.not-turn [data-card-id]:hover,
+#hand.not-turn img:hover {
+    transform: none !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* Legacy support for img cards */
@@ -518,8 +528,23 @@ html, body {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .game-container {
+        padding: 4px 10px;
+    }
+
+    .game-title {
+        font-size: 1.2rem;
+        margin-bottom: 4px;
+    }
+
+    #status {
+        padding: 8px 16px;
+        font-size: 0.95rem;
+    }
+
     #hand img {
-        width: 50px;
+        width: 65px;
+        height: 97px;
     }
 
     #hand img:hover {
@@ -528,18 +553,24 @@ html, body {
 
     #table img {
         width: 55px;
+        height: 82px;
     }
 
     #tableArea {
-        gap: 8px;
-        padding: 5px;
+        gap: 6px;
+        padding: 6px;
+    }
+
+    #drawPile, #table {
+        min-width: 70px;
+        padding: 6px;
     }
 
     #oneBtn {
         width: 70px !important;
         height: 70px !important;
         right: 10px !important;
-        bottom: 10px !important;
+        bottom: 120px !important;
     }
 
     #oneBtn img {
@@ -549,35 +580,165 @@ html, body {
 
     #playerList {
         padding: 4px 8px;
+        gap: 8px;
     }
 
     #playerList span {
-        padding: 5px 10px;
-        font-size: 0.8rem;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+
+    #status {
+        padding: 7px 14px;
+        font-size: 0.9rem;
+    }
+
+    #hand {
+        padding: 8px;
+        min-height: 85px;
+    }
+
+    .win-modal {
+        padding: 30px 25px;
+        width: 85%;
+    }
+
+    .win-modal-trophy {
+        font-size: 60px;
+    }
+
+    .win-modal-title {
+        font-size: 22px;
+    }
+
+    .win-modal-winner {
+        font-size: 28px;
+    }
+
+    .win-modal-subtitle {
+        font-size: 14px;
+    }
+
+    .win-modal-btn {
+        padding: 12px 24px;
+        font-size: 14px;
     }
 }
 
 @media (max-width: 480px) {
     .game-container {
-        padding: 3px 8px;
+        padding: 3px 6px;
+    }
+
+    .game-title {
+        font-size: 1rem;
+        margin-bottom: 3px;
+        letter-spacing: 1px;
     }
 
     #hand img {
-        width: 45px;
+        width: 55px;
+        height: 82px;
+    }
+
+    #hand img:hover {
+        transform: translateY(-6px) scale(1.08);
     }
 
     #table img {
-        width: 55px;
+        width: 48px;
+        height: 72px;
     }
 
     #drawPile img {
-        width: 50px !important;
+        width: 48px !important;
+        height: 72px !important;
     }
 
     #hand {
         padding: 6px;
-        min-height: 50px;
+        min-height: 90px;
     }
+
+    #tableArea {
+        gap: 5px;
+        padding: 5px;
+    }
+
+    #drawPile, #table {
+        min-width: 60px;
+        padding: 5px;
+    }
+
+    #oneBtn {
+        width: 60px !important;
+        height: 60px !important;
+        right: 8px !important;
+        bottom: 100px !important;
+    }
+
+    #oneBtn img {
+        width: 42px !important;
+        height: 42px !important;
+    }
+
+    #playerList {
+        padding: 3px 6px;
+        gap: 6px;
+    }
+
+    #playerList span {
+        padding: 3px 6px;
+        font-size: 0.7rem;
+    }
+
+    #status {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+
+    .win-modal {
+        padding: 25px 20px;
+        width: 90%;
+        border-radius: 15px;
+    }
+
+    .win-modal-trophy {
+        font-size: 50px;
+        margin-bottom: 8px;
+    }
+
+    .win-modal-title {
+        font-size: 18px;
+        margin-bottom: 8px;
+    }
+
+    .win-modal-winner {
+        font-size: 24px;
+        margin-bottom: 20px;
+    }
+
+    .win-modal-subtitle {
+        font-size: 13px;
+        margin-bottom: 20px;
+    }
+
+    .win-modal-buttons {
+        gap: 10px;
+        flex-direction: column;
+    }
+
+    .win-modal-btn {
+        padding: 10px 20px;
+        font-size: 13px;
+        width: 100%;
+    }
+
+    .payment-modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+}
     /* Win Popup Modal */
     .win-modal-overlay {
     position: fixed;
@@ -735,4 +896,438 @@ html, body {
 .payment-modal-close:focus {
     color: #f0c030;
     transform: scale(1.2);
+}
+/* Emoji Reaction Styles */
+.emoji-reaction-button {
+    position: fixed;
+    top: 60px;
+    left: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    border: 3px solid var(--border-color);
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.emoji-reaction-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(248, 81, 73, 0.5);
+}
+
+.emoji-menu {
+    position: fixed;
+    top: 120px;
+    left: 20px;
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 15px;
+    padding: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.emoji-menu-item {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--hover-color);
+    border-radius: 10px;
+    font-size: 1.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.emoji-menu-item:hover {
+    transform: scale(1.1);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 15px rgba(40, 167, 69, 0.4);
+}
+
+.emoji-reactions-area {
+    position: fixed;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 999;
+    pointer-events: none;
+    max-width: 150px;
+}
+
+.emoji-reaction {
+    background: linear-gradient(135deg, var(--card-bg), var(--hover-color));
+    border: 2px solid var(--accent-color);
+    border-radius: 15px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    animation: emojiSlideIn 0.4s ease-out, emojiFadeOut 0.5s ease-in 2.5s forwards;
+    pointer-events: none;
+}
+
+@keyframes emojiSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes emojiFadeOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+}
+
+.emoji-reaction-icon {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.emoji-reaction-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+}
+
+/* Distraction Button Styles */
+.distraction-button {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    border: 3px solid var(--border-color);
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.distraction-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+}
+
+.distraction-menu {
+    position: fixed;
+    top: 120px;
+    right: 20px;
+    background: var(--card-bg);
+    border: 2px solid rgba(167, 139, 250, 0.5);
+    border-radius: 15px;
+    padding: 10px;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    animation: slideInRight 0.3s ease-out;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.distraction-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 15px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(79, 70, 229, 0.1) 100%);
+    border: 2px solid rgba(167, 139, 250, 0.3);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 180px;
+}
+
+.distraction-menu-item:hover {
+    transform: translateX(-5px);
+    border-color: #a78bfa;
+    box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
+}
+
+.distraction-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.distraction-name {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.distraction-count {
+    font-weight: 700;
+    color: #a78bfa;
+    font-size: 0.95rem;
+    padding: 2px 8px;
+    background: rgba(167, 139, 250, 0.2);
+    border-radius: 6px;
+}
+
+.distraction-menu-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* Distraction Effects Animations */
+.distraction-notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.95), rgba(167, 139, 250, 0.95));
+    color: white;
+    padding: 20px 30px;
+    border-radius: 15px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    box-shadow: 0 8px 30px rgba(124, 58, 237, 0.6);
+    z-index: 9997;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    animation: distractionPulse 3s ease-out forwards;
+}
+
+.distraction-notif-icon {
+    font-size: 2rem;
+}
+
+.distraction-notif-text {
+    font-size: 1.2rem;
+}
+
+@keyframes distractionPulse {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+    10% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.1);
+    }
+    20% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+    80% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+}
+
+@keyframes flashbang {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translate(0, 0);
+    }
+    10% {
+        transform: translate(-10px, -10px);
+    }
+    20% {
+        transform: translate(10px, 10px);
+    }
+    30% {
+        transform: translate(-10px, 10px);
+    }
+    40% {
+        transform: translate(10px, -10px);
+    }
+    50% {
+        transform: translate(-10px, -10px);
+    }
+    60% {
+        transform: translate(10px, 10px);
+    }
+    70% {
+        transform: translate(-10px, 10px);
+    }
+    80% {
+        transform: translate(10px, -10px);
+    }
+    90% {
+        transform: translate(-10px, -10px);
+    }
+}
+
+@keyframes jumpscare {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+    }
+    60% {
+        transform: translate(-50%, -50%) scale(2.8);
+        opacity: 1;
+    }
+    85% {
+        transform: translate(-50%, -50%) scale(2.5);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(2.6);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInBottom {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    50% {
+        transform: translateX(-50%) translateY(-20px);
+    }
+}
+
+@keyframes trollRotate {
+    from {
+        transform: translate(-50%, -50%) rotate(0deg);
+    }
+    to {
+        transform: translate(-50%, -50%) rotate(720deg);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.1);
+        opacity: 0.9;
+    }
+}
+
+@keyframes pulseAndBounce {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+    25% {
+        transform: translate(-50%, -60%) scale(1.05);
+        opacity: 0.95;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.1);
+        opacity: 0.9;
+    }
+    75% {
+        transform: translate(-50%, -40%) scale(1.05);
+        opacity: 0.95;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes peterSlideUp {
+    from {
+        bottom: -600px;
+    }
+    to {
+        bottom: 20%;
+    }
+}
+
+@keyframes peterFlip {
+    0% {
+        transform: translateX(-50%) rotateY(0deg);
+    }
+    50% {
+        transform: translateX(-50%) rotateY(180deg);
+    }
+    100% {
+        transform: translateX(-50%) rotateY(360deg);
+    }
 }

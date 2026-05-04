@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#f85149">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
+    <title>Onebar - Shop</title>
+    <link rel="icon" type="image/x-icon" href="/img/pfp.png">
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/shop.css">
+    <link rel="stylesheet" href="/css/mobile.css">
+</head>
+<body>
+    <div class="background-animation"></div>
+    
+    <a href="/" class="btn home-button">Home</a>
+    <a href="/logout" class="btn logout-button">Logout</a>
+    
+    <div class="shop-container">
+        <div class="market-banner">
+            <h1 class="shop-title">
+                <span class="title-icon">💰</span>
+                Onebar Market
+                <span class="title-icon">💵</span>
+            </h1>
+            <p class="market-subtitle">Finest Goods & Collectibles</p>
+            
+            <!-- Currency Display -->
+            <div class="currency-display">
+                <div class="currency-item">
+                    <span class="currency-icon">🪙</span>
+                    <span class="currency-label">Onecells:</span>
+                    <span class="currency-value" id="onecellsDisplay"><%= onecells || 0 %></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Oncells Top-Up Section -->
+        <div class="currency-section">
+            <h2 class="currency-title">💰 Top Up Onecells</h2>
+            <p class="currency-description">Purchase Onecells using your Digipogs</p>
+            <div class="currency-grid">
+                <div class="currency-option" data-amount="10">
+                    <div class="currency-amount">10 Onecells</div>
+                    <div class="currency-price">50 Digipogs</div>
+                    <button class="currency-button" onclick="buyOnecells(10, 50)">Buy Now</button>
+                </div>
+                <div class="currency-option" data-amount="25">
+                    <div class="currency-amount">25 Onecells</div>
+                    <div class="currency-price">100 Digipogs</div>
+                    <button class="currency-button" onclick="buyOnecells(25, 100)">Buy Now</button>
+                </div>
+                <div class="currency-option popular-option" data-amount="50">
+                    <div class="currency-badge">BEST VALUE</div>
+                    <div class="currency-amount">50 Onecells</div>
+                    <div class="currency-price">180 Digipogs</div>
+                    <div class="currency-savings">Save 20 Digipogs!</div>
+                    <button class="currency-button" onclick="buyOnecells(50, 180)">Buy Now</button>
+                </div>
+                <div class="currency-option" data-amount="100">
+                    <div class="currency-amount">100 Onecells</div>
+                    <div class="currency-price">350 Digipogs</div>
+                    <div class="currency-savings">Save 50 Digipogs!</div>
+                    <button class="currency-button" onclick="buyOnecells(100, 350)">Buy Now</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Shop Items with Pagination -->
+        <div class="shop-pagination-container">
+            <button class="shop-nav-arrow shop-nav-left" id="shopNavLeft" disabled>
+                ◀
+            </button>
+            <div class="shop-grid" id="shopGrid">
+                <!-- Page 1: Free Games, Distraction, Isaiah Theme -->
+                <div class="shop-page" data-page="1" style="display: grid;">
+                    <!-- Free Games Item -->
+                    <div class="shop-item" data-item="free-games">
+                        <div class="item-badge">One per/bulk</div>
+                        <div class="item-icon">🎮</div>
+                        <h2 class="item-title">Free Games</h2>
+                        <p class="item-description">
+                            Buy free game tokens in bulk and get a discount!
+                        </p>
+                        <div class="item-features">
+                            <div class="feature"> Cheaper than paying for individual games</div>
+                            <div class="feature"> Though the name is free, technically yes you are paying for them. Ignore that</div>
+                            <div class="feature"> Never run out, the tokens last forever until you use them.</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">Options</span>
+                            <span class="price-period">/per</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseItem('free-games')">
+                            <span class="button-text">Choose How Many</span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Distraction Item -->
+                    <div class="shop-item" data-item="distraction">
+                        <div class="item-badge popular">One per use</div>
+                        <div class="item-icon">💥</div>
+                        <h2 class="item-title">Distractions</h2>
+                        <p class="item-description">
+                            Ultimate distraction tools to confuse your opponents. Includes special effects and animations to distract your opponents.
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">Different options to choose from</div>
+                            <div class="feature">Custom animations</div>
+                            <div class="feature">Once you use a distraction it will be consumed</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">5 Onecells</span>
+                            <span class="price-period">/per</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseItem('distraction')">
+                            <span class="button-text">Choose Distraction</span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Isaiah Theme Item -->
+                    <div class="shop-item" data-item="isaiah-theme">
+                        <% if (purchasedThemes.includes('isaiah')) { %>
+                            <div class="item-badge owned">✓ OWNED</div>
+                        <% } else { %>
+                            <div class="item-badge new">New look</div>
+                        <% } %>
+                        <div class="item-icon">
+                            <img src="/img/Isaiah.png" alt="Isaiah" class="item-image">
+                        </div>
+                        <h2 class="item-title">Isaiah Theme</h2>
+                        <p class="item-description">
+                            Experience the Isaiah theme with Isaiahs face plastered all over the game. This theme includes custom colors, fonts, and pics.
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">✓ Unique color scheme</div>
+                            <div class="feature">✓ Custom fonts & Isaiah avatar</div>
+                            <div class="feature">✓ Isaiah background</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">75 Onecells</span>
+                            <span class="price-period">/one-time</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseTheme('isaiah', 75)" <% if (purchasedThemes.includes('isaiah')) { %>disabled style="opacity: 0.5; cursor: not-allowed;"<% } %>>
+                            <span class="button-text"><% if (purchasedThemes.includes('isaiah')) { %>Already Owned<% } else { %>Purchase Now<% } %></span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Page 2: John Theme, Robert Theme, Chickens Memory Theme -->
+                <div class="shop-page" data-page="2" style="display: none;">
+                    <!-- John Theme Item -->
+                    <div class="shop-item" data-item="john-theme">
+                        <% if (purchasedThemes.includes('john')) { %>
+                            <div class="item-badge owned">✓ OWNED</div>
+                        <% } else { %>
+                            <div class="item-badge new">New look</div>
+                        <% } %>
+                        <div class="item-icon">
+                            <img src="/img/John.png" alt="John" class="item-image">
+                        </div>
+                        <h2 class="item-title">John Showman Theme</h2>
+                        <p class="item-description">
+                            Experience the wacky fella known as John Showman with his red-themed design, custom colors, fonts, and Johns face throughout the game.
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">✓ Unique color scheme</div>
+                            <div class="feature">✓ Custom fonts & John avatar</div>
+                            <div class="feature">✓ John background</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">50 Onecells</span>
+                            <span class="price-period">/one-time</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseTheme('john', 50)" <% if (purchasedThemes.includes('john')) { %>disabled style="opacity: 0.5; cursor: not-allowed;"<% } %>>
+                            <span class="button-text"><% if (purchasedThemes.includes('john')) { %>Already Owned<% } else { %>Purchase Now<% } %></span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Robert Theme Item -->
+                    <div class="shop-item" data-item="robert-theme">
+                        <% if (purchasedThemes.includes('robert')) { %>
+                            <div class="item-badge owned">✓ OWNED</div>
+                        <% } else { %>
+                            <div class="item-badge new">New look</div>
+                        <% } %>
+                        <div class="item-icon">
+                            <img src="/img/Robert.png" alt="Robert" class="item-image">
+                        </div>
+                        <h2 class="item-title">Robert Theme</h2>
+                        <p class="item-description">
+                            Experience the world through Roberts eyes with the Robert theme. Become schizophrenic with Roberts face.
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">✓ Unique schizo features</div>
+                            <div class="feature">✓ Custom animations & Robert avatar</div>
+                            <div class="feature">✓ Robert background</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">125 Onecells</span>
+                            <span class="price-period">/one-time</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseTheme('robert', 125)" <% if (purchasedThemes.includes('robert')) { %>disabled style="opacity: 0.5; cursor: not-allowed;"<% } %>>
+                            <span class="button-text"><% if (purchasedThemes.includes('robert')) { %>Already Owned<% } else { %>Purchase Now<% } %></span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+
+                    <!-- Chickens Memory Item -->
+                    <div class="shop-item" data-item="chickens-memory-theme">
+                        <% if (purchasedThemes.includes('peak')) { %>
+                            <div class="item-badge owned">✓ OWNED</div>
+                        <% } else { %>
+                            <div class="item-badge new">New look</div>
+                        <% } %>
+                        <div class="item-icon">
+                            <img src="/img/Peak.png" alt="Chickens Memory" class="item-image">
+                        </div>
+                        <h2 class="item-title">Chickens Memory Theme</h2>
+                        <p class="item-description">
+                            Remember the fallen with the Chickens Memory theme. Featuring a peak throwback and chicken sandwhiches.
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">✓ Unique Chicken sandwiches effect</div>
+                            <div class="feature">✓ Custom chicken & Peak avatar</div>
+                            <div class="feature">✓ Peak ball knowledge background</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">100 Onecells</span>
+                            <span class="price-period">/one-time</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseTheme('peak', 100)" <% if (purchasedThemes.includes('peak')) { %>disabled style="opacity: 0.5; cursor: not-allowed;"<% } %>>
+                            <span class="button-text"><% if (purchasedThemes.includes('peak')) { %>Already Owned<% } else { %>Purchase Now<% } %></span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Page 3: Mystery Boxes -->
+                <div class="shop-page" data-page="3" style="display: none;">
+                    <!-- Mystery Box -->
+                    <div class="shop-item" data-item="mystery-box">
+                        <div class="item-badge">Mystery</div>
+                        <div class="item-icon">📦</div>
+                        <h2 class="item-title">Mystery Box</h2>
+                        <p class="item-description">
+                            Unbox to receive random rewards! Contains custom sounds, themes, free games, and distractions.
+                        </p>
+                        <div class="item-features">
+                            <div class="feature">✓ Custom sound effects (common)</div>
+                            <div class="feature">✓ Themes, free games & distractions (rare)</div>
+                            <div class="feature">✓ Duplicates convert to Onecells</div>
+                        </div>
+                        <div class="item-price">
+                            <span class="price-amount">15 Onecells</span>
+                            <span class="price-period">/box</span>
+                        </div>
+                        <button class="buy-button" onclick="purchaseMysteryBox('standard', 15)">
+                            <span class="button-text">Purchase Box</span>
+                            <span class="button-icon">→</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button class="shop-nav-arrow shop-nav-right" id="shopNavRight">
+                ▶
+            </button>
+        </div>
+        <div class="shop-pagination-info">
+            <span id="shopPageInfo">Page 1 of 3</span>
+        </div>
+        
+        <div class="shop-footer">
+            <p>All purchases are secure, please give me your money.</p>
+            <p class="footer-note">Need help? <a href="/about">Contact Me</a></p>
+        </div>
+    </div>
+
+    <script>
+        let currentShopPage = 1;
+        const totalShopPages = 3;
+        
+        function purchaseTheme(themeId, price) {
+            const currentOnecells = parseInt(document.getElementById('onecellsDisplay').textContent) || 0;
+            
+            if (currentOnecells < price) {
+                alert(`Not Enough Onecells!\n\nYou need ${price} Onecells but only have ${currentOnecells}.\nPurchase more Onecells above!`);
+                return;
+            }
+            
+            if (!confirm(`Purchase this theme for ${price} Onecells?\n\nYour current balance: ${currentOnecells} Onecells`)) {
+                return;
+            }
+            
+            // Send purchase request
+            fetch('/api/purchase-theme', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ themeId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update onecells display
+                    document.getElementById('onecellsDisplay').textContent = data.newOnecells;
+                    
+                    // Show success message
+                    alert(`${data.message}\n\nRemaining Onecells: ${data.newOnecells}\n\nThe page will reload to apply your new theme!`);
+                    
+                    // Reload page to apply theme
+                    location.reload();
+                } else {
+                    alert(`${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while processing your purchase. Please try again.');
+            });
+        }
+        
+        function purchaseItem(itemId) {
+            if (itemId === 'free-games') {
+                document.getElementById('freeGamesModal').style.display = 'block';
+            } else if (itemId === 'distraction') {
+                document.getElementById('distractionsModal').style.display = 'block';
+            } else {
+                // Legacy behavior for other items
+                const itemNames = {
+                    'isaiah-theme': 'Isaiah Theme',
+                    'john-theme': 'John Theme',
+                    'robert-theme': 'Robert Theme',
+                    'chickens-memory-theme': 'Chickens Memory Theme'
+                };
+                
+                const itemElement = document.querySelector(`[data-item="${itemId}"]`);
+                if (itemElement) {
+                    itemElement.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        itemElement.style.transform = 'scale(1)';
+                    }, 200);
+                }
+                
+                alert(`🛒 Purchase initiated for: ${itemNames[itemId]}\n\nThis is a placeholder. Payment integration coming soon!`);
+            }
+        }
+        
+        function hideFreeGamesModal() {
+            document.getElementById('freeGamesModal').style.display = 'none';
+        }
+        
+        function hideDistractionsModal() {
+            document.getElementById('distractionsModal').style.display = 'none';
+        }
+        
+        function buyFreeGames(quantity, price) {
+            const currentOnecells = parseInt(document.getElementById('onecellsDisplay').textContent) || 0;
+            
+            if (currentOnecells < price) {
+                alert(`Not Enough Onecells!\n\nYou need ${price} Onecells but only have ${currentOnecells}.\nPurchase more Onecells above!`);
+                return;
+            }
+            
+            if (!confirm(`Purchase ${quantity} Free Game Tokens for ${price} Onecells?\n\nYour current balance: ${currentOnecells} Onecells`)) {
+                return;
+            }
+            
+            fetch('/api/purchase-free-games', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quantity, price })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('onecellsDisplay').textContent = data.newOnecells;
+                    alert(`${data.message}\n\nRemaining Onecells: ${data.newOnecells}`);
+                    hideFreeGamesModal();
+                } else {
+                    alert(`${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(' An error occurred. Please try again.');
+            });
+        }
+        
+        function buyDistraction() {
+            const distractionType = document.getElementById('distractionType').value;
+            const quantity = parseInt(document.getElementById('distractionQuantity').value) || 1;
+            const pricePerDistraction = 5;
+            const totalPrice = quantity * pricePerDistraction;
+            const currentOnecells = parseInt(document.getElementById('onecellsDisplay').textContent) || 0;
+            
+            if (currentOnecells < totalPrice) {
+                alert(`Not Enough Onecells!\n\nYou need ${totalPrice} Onecells but only have ${currentOnecells}.\nPurchase more Onecells above!`);
+                return;
+            }
+            
+            if (!confirm(`Purchase ${quantity} ${distractionType} Distraction(s) for ${totalPrice} Onecells?\n\nYour current balance: ${currentOnecells} Onecells`)) {
+                return;
+            }
+            
+            fetch('/api/purchase-distraction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: distractionType, quantity, totalPrice })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('onecellsDisplay').textContent = data.newOnecells;
+                    alert(`${data.message}\n\nRemaining Onecells: ${data.newOnecells}`);
+                    hideDistractionsModal();
+                } else {
+                    alert(`${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+        
+        function purchaseMysteryBox(boxType, price) {
+            const currentOnecells = parseInt(document.getElementById('onecellsDisplay').textContent) || 0;
+            
+            if (currentOnecells < price) {
+                alert(`Not Enough Onecells!\n\nYou need ${price} Onecells but only have ${currentOnecells}.\nPurchase more Onecells above!`);
+                return;
+            }
+            
+            const boxNames = {
+                'standard': 'Mystery Box'
+            };
+            
+            if (!confirm(`Purchase ${boxNames[boxType]} for ${price} Onecells?\n\nYour current balance: ${currentOnecells} Onecells\n\nThe box will be added to your inventory.`)) {
+                return;
+            }
+            
+            fetch('/api/purchase-mystery-box', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ boxType, price })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('onecellsDisplay').textContent = data.newOnecells;
+                    alert(`${data.message}\n\nRemaining Onecells: ${data.newOnecells}\n\nCheck your profile to see your mystery boxes!`);
+                } else {
+                    alert(`${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+        
+        function buyOnecells(amount, cost) {
+            // Store purchase details in modal
+            const modal = document.getElementById('onecellsPaymentModal');
+            const priceElement = document.getElementById('onecellsPurchasePrice');
+            const amountElement = document.getElementById('onecellsPurchaseAmount');
+            const pinInput = document.getElementById('onecellsPin');
+            const statusMessage = document.getElementById('onecellsStatusMessage');
+            
+            // Set purchase details
+            priceElement.textContent = `${cost} Digipogs`;
+            amountElement.textContent = `${amount} Onecells`;
+            pinInput.value = '';
+            statusMessage.style.display = 'none';
+            
+            // Store amount and cost for later
+            modal.dataset.amount = amount;
+            modal.dataset.cost = cost;
+            
+            // Show modal
+            modal.style.display = 'block';
+            setTimeout(() => pinInput.focus(), 100);
+        }
+        
+        function hideOnecellsPaymentModal() {
+            document.getElementById('onecellsPaymentModal').style.display = 'none';
+        }
+        
+        async function confirmOnecellsPurchase() {
+            const modal = document.getElementById('onecellsPaymentModal');
+            const amount = parseInt(modal.dataset.amount);
+            const cost = parseInt(modal.dataset.cost);
+            const pin = document.getElementById('onecellsPin').value;
+            const transferBtn = document.getElementById('onecellsTransferBtn');
+            const statusMessage = document.getElementById('onecellsStatusMessage');
+            
+            if (!pin) {
+                statusMessage.textContent = 'Please enter your PIN';
+                statusMessage.className = 'status-message error';
+                statusMessage.style.display = 'block';
+                return;
+            }
+            
+            // Disable button during transaction
+            transferBtn.disabled = true;
+            transferBtn.textContent = 'Processing...';
+            statusMessage.textContent = '⏳ Processing your purchase...';
+            statusMessage.className = 'status-message info';
+            statusMessage.style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/buy-onecells', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ amount, cost, pin })
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
+                let data;
+                try {
+                    const text = await response.text();
+                    console.log('Response text:', text);
+                    data = JSON.parse(text);
+                    console.log('Parsed data:', data);
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    throw new Error('Invalid response from server');
+                }
+                
+                if (data.success) {
+                    // Update the displayed values (with null checks)
+                    const onecellsDisplay = document.getElementById('onecellsDisplay');
+                    if (onecellsDisplay) {
+                        onecellsDisplay.textContent = data.newOnecells;
+                    }
+                    
+                    // Show success message
+                    statusMessage.textContent = `${data.message}`;
+                    statusMessage.className = 'status-message success';
+                    statusMessage.style.display = 'block';
+                    
+                    // Re-enable button for next purchase
+                    transferBtn.disabled = false;
+                    transferBtn.textContent = 'Complete Purchase';
+                    
+                    // Close modal after a delay
+                    setTimeout(() => {
+                        hideOnecellsPaymentModal();
+                    }, 2000);
+                } else {
+                    statusMessage.textContent = `${data.message}`;
+                    statusMessage.className = 'status-message error';
+                    statusMessage.style.display = 'block';
+                    transferBtn.disabled = false;
+                    transferBtn.textContent = 'Complete Purchase';
+                }
+            } catch (error) {
+                console.error('Purchase error caught:', error);
+                console.error('Error name:', error.name);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+                statusMessage.textContent = `${error.message || 'Network error'}`;
+                statusMessage.className = 'status-message error';
+                statusMessage.style.display = 'block';
+                transferBtn.disabled = false;
+                transferBtn.textContent = 'Complete Purchase';
+            }
+        }
+        
+        function updateShopPage(direction = null) {
+            const shopGrid = document.getElementById('shopGrid');
+            
+            // If direction specified, animate out first
+            if (direction) {
+                const outClass = direction === 'right' ? 'slide-out-left' : 'slide-out-right';
+                const inClass = direction === 'right' ? 'slide-in-right' : 'slide-in-left';
+                
+                shopGrid.classList.add(outClass);
+                
+                setTimeout(() => {
+                    shopGrid.classList.remove(outClass);
+                    renderShopPage();
+                    shopGrid.classList.add(inClass);
+                    
+                    setTimeout(() => {
+                        shopGrid.classList.remove(inClass);
+                    }, 400);
+                }, 400);
+            } else {
+                renderShopPage();
+            }
+        }
+        
+        function renderShopPage() {
+            // Hide all pages
+            document.querySelectorAll('.shop-page').forEach(page => {
+                page.style.display = 'none';
+            });
+            
+            // Show current page
+            const currentPage = document.querySelector(`.shop-page[data-page="${currentShopPage}"]`);
+            if (currentPage) {
+                currentPage.style.display = 'grid';
+            }
+            
+            // Update navigation buttons
+            document.getElementById('shopNavLeft').disabled = currentShopPage === 1;
+            document.getElementById('shopNavRight').disabled = currentShopPage === totalShopPages;
+            
+            // Update page info
+            document.getElementById('shopPageInfo').textContent = `Page ${currentShopPage} of ${totalShopPages}`;
+        }
+        
+        // Navigation button handlers
+        document.getElementById('shopNavLeft').addEventListener('click', function() {
+            if (currentShopPage > 1) {
+                currentShopPage--;
+                updateShopPage('left');
+            }
+        });
+        
+        document.getElementById('shopNavRight').addEventListener('click', function() {
+            if (currentShopPage < totalShopPages) {
+                currentShopPage++;
+                updateShopPage('right');
+            }
+        });
+        
+        // Initialize on page load
+        updateShopPage();
+    </script>
+    
+    <!-- Free Games Purchase Modal -->
+    <div id="freeGamesModal" class="payment-modal" style="display: none;">
+        <div class="payment-modal-content">
+            <span class="payment-modal-close" onclick="hideFreeGamesModal()">&times;</span>
+            <div class="card">
+                <h3>Purchase Free Game Tokens</h3>
+                <p style="text-align: center; color: var(--shop-parchment); margin-bottom: 20px;">Select how many game tokens you want to buy. Bulk purchases saves you digipogs!</p>
+                <div class="bulk-options-grid">
+                    <div class="bulk-option" onclick="buyFreeGames(5, 200)">
+                        <div class="bulk-quantity">5 Games</div>
+                        <div class="bulk-price">200 Onecells</div>
+                        <div class="bulk-savings">Save 50 digipogs!</div>
+                    </div>
+                    <div class="bulk-option" onclick="buyFreeGames(10, 400)">
+                        <div class="bulk-quantity">10 Games</div>
+                        <div class="bulk-price">400 Onecells</div>
+                        <div class="bulk-savings">Save 100 digipogs!</div>
+                    </div>
+                    <div class="bulk-option popular-bulk" onclick="buyFreeGames(15, 550)">
+                        <div class="bulk-badge">BEST VALUE</div>
+                        <div class="bulk-quantity">15 Games</div>
+                        <div class="bulk-price">550 Onecells</div>
+                        <div class="bulk-savings">Save 320 digipogs!</div>
+                    </div>
+                    <div class="bulk-option" onclick="buyFreeGames(20, 700)">
+                        <div class="bulk-quantity">20 Games</div>
+                        <div class="bulk-price">700 Onecells</div>
+                        <div class="bulk-savings">Save 550 digipogs!</div>
+                    </div>
+                </div>
+                <button class="secondary" onclick="hideFreeGamesModal()" style="margin-top: 15px; width: 100%; padding: 12px;">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Distractions Purchase Modal -->
+    <div id="distractionsModal" class="payment-modal" style="display: none;">
+        <div class="payment-modal-content">
+            <span class="payment-modal-close" onclick="hideDistractionsModal()">&times;</span>
+            <div class="card">
+                <h3>Purchase Distractions</h3>
+                <p style="text-align: center; color: var(--shop-parchment); margin-bottom: 15px;">Select a distraction type and quantity</p>
+                <div class="row">
+                    <label class="small">Distraction Type</label>
+                    <select id="distractionType" style="width: 100%; padding: 10px; font-size: 16px; border: 2px solid var(--shop-border); border-radius: 8px; background: var(--shop-card-bg); color: var(--shop-parchment);">
+                        <option value="Flashbang" style="background: var(--shop-card-bg); color: var(--shop-parchment);">💥 Flashbang - Bright flash</option>
+                        <option value="Jumpscare" style="background: var(--shop-card-bg); color: var(--shop-parchment);">😱 Jumpscare - Animatronic attack</option>
+                        <option value="SubwaySurfers" style="background: var(--shop-card-bg); color: var(--shop-parchment);">🚇 Subway Surfers - Gameplay for hours</option>
+                        <option value="PeterGriffin" style="background: var(--shop-card-bg); color: var(--shop-parchment);">👨 Peter Griffin - Just a family guy</option>
+                        <option value="Shake" style="background: var(--shop-card-bg); color: var(--shop-parchment);">📳 Shake - Screen shake</option>
+                        <option value="SixSeven" style="background: var(--shop-card-bg); color: var(--shop-parchment);">🎵 Six Seven - Shake with the meme</option>
+                        <option value="Trollface" style="background: var(--shop-card-bg); color: var(--shop-parchment);">😈 Trollface - A classic</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <label class="small">Quantity (5 Onecells each)</label>
+                    <input id="distractionQuantity" type="number" min="1" max="50" value="1" style="width: 100%; padding: 10px; font-size: 18px; border: 2px solid var(--shop-border); border-radius: 8px; background: rgba(254, 243, 199, 0.1); color: var(--shop-parchment);" />
+                </div>
+                <div class="actions">
+                    <button class="primary" onclick="buyDistraction()">Complete Purchase</button>
+                    <button class="secondary" onclick="hideDistractionsModal()" style="margin-top: 8px;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Onecells Payment Modal -->
+    <div id="onecellsPaymentModal" class="payment-modal" style="display: none;">
+        <div class="payment-modal-content">
+            <span class="payment-modal-close" onclick="hideOnecellsPaymentModal()">&times;</span>
+            <div class="card">
+                <h3>Purchase Onecells</h3>
+                <div class="row price-display">
+                    <div class="price-content">
+                        <span class="price-label">You are buying:</span>
+                        <span class="price-amount" id="onecellsPurchaseAmount">10 Onecells</span>
+                    </div>
+                    <div class="price-content" style="margin-top: 8px;">
+                        <span class="price-label">Cost:</span>
+                        <span class="price-amount" id="onecellsPurchasePrice">50 Digipogs</span>
+                    </div>
+                </div>
+                <div class="row">
+                    <label class="small">PIN</label>
+                    <div><input id="onecellsPin" type="password" pattern="\d*" inputmode="numeric" maxlength="6"
+                            placeholder="Enter your PIN" oninput="this.value = this.value.replace(/[^0-9]/g,'');" /></div>
+                </div>
+                <div id="onecellsStatusMessage" class="status-message" style="display: none;"></div>
+                <div class="actions">
+                    <button class="primary" id="onecellsTransferBtn" onclick="confirmOnecellsPurchase()">Complete Purchase</button>
+                    <button class="secondary" onclick="hideOnecellsPaymentModal()" style="margin-top: 8px;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add Enter key listener for Onecells PIN input (must be after modal HTML)
+        const onecellsPinInput = document.getElementById('onecellsPin');
+        if (onecellsPinInput) {
+            onecellsPinInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    confirmOnecellsPurchase();
+                }
+            });
+        }
+    </script>
+</body>
+</html>

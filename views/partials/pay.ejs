@@ -19,7 +19,10 @@
         <label class="small checkbox-note">Note: Changing your PIN will require re-entry for future
             transactions.</label>
     </div>
-    <div class="actions"><button class="primary" id="transferBtn">Send Transfer</button></div>
+    <div class="actions">
+        <button class="primary" id="transferBtn">Send Transfer</button>
+        <button class="secondary" id="freeGameBtn" style="margin-top: 10px;">Use Free Game Token (<span id="freeGameCount">0</span>)</button>
+    </div>
 </div>
 <script>
     (function () {
@@ -28,6 +31,8 @@
         const pinInput = document.getElementById('pin');
         const savePIN = document.getElementById('savePIN');
         const transferBtn = document.getElementById('transferBtn');
+        const freeGameBtn = document.getElementById('freeGameBtn');
+        const freeGameCount = document.getElementById('freeGameCount');
 
         // Load saved PIN on page load
         async function loadSavedPin() {
@@ -59,6 +64,35 @@
 
         // Load saved PIN when the page loads
         loadSavedPin();
+        
+        // Load free game token count
+        async function loadFreeGameTokens() {
+            try {
+                const res = await fetch('/getFreeGameTokens', { method: 'POST' });
+                const data = await res.json();
+                if (data.ok) {
+                    freeGameCount.textContent = data.tokens;
+                    // Disable button if no tokens
+                    if (data.tokens <= 0) {
+                        freeGameBtn.disabled = true;
+                        freeGameBtn.style.opacity = '0.5';
+                        freeGameBtn.style.cursor = 'not-allowed';
+                    } else {
+                        freeGameBtn.disabled = false;
+                        freeGameBtn.style.opacity = '1';
+                        freeGameBtn.style.cursor = 'pointer';
+                    }
+                } else {
+                    console.error('Failed to retrieve free game tokens', data.error);
+                }
+            } catch (error) {
+                console.error('Error fetching free game tokens:', error);
+            }
+        }
+
+        // Load free game tokens on page load
+        loadFreeGameTokens();
+
         async function post(path, body) {
             const res = await fetch(path, {
                 method: 'POST',
@@ -130,8 +164,30 @@
             }
         }
 
+        async function useFreeGame() {
+            try {
+                const result = await post('/useFreeGame', {});
+                const isSuccess = result.ok === true;
+                
+                if (isSuccess) {
+                    alert('Free game token used successfully!');
+                    window.dispatchEvent(new CustomEvent('paymentSuccess'));
+                    window.dispatchEvent(new CustomEvent('hidePaymentModal'));
+                    return;
+                } else {
+                    let errorMessage = result.error || result.message || 'Unable to use free game token';
+                    alert('Failed: ' + errorMessage);
+                    console.error('Free game failed:', result);
+                }
+            } catch (error) {
+                console.error('Free game error:', error);
+                alert('Failed: Network error');
+            }
+        }
+
         // Wire up event listeners
         transferBtn?.addEventListener('click', doTransfer);
+        freeGameBtn?.addEventListener('click', useFreeGame);
 
         // Listen for price update requests from player.ejs
         window.addEventListener('updatePrice', (e) => {

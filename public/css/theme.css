@@ -1,8 +1,9 @@
 /* Add Google Font import via CSS */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* Dark Mode Theme Variables */
-:root {
+/* Dark Mode Theme Variables (Default) */
+:root,
+:root[data-theme="default"] {
   --bg-color: #0d1117;
   --text-color: #e6edf3;
   --primary-color: #f85149;
@@ -21,6 +22,375 @@
   --glow-accent: 0 0 40px rgba(63, 185, 80, 0.4);
 }
 
+/* Pink Paradise Theme */
+:root[data-theme="pink"] {
+  --bg-color: #1a0a14;
+  --text-color: #fde8f7;
+  --primary-color: #ec4899;
+  --secondary-color: #f472b6;
+  --accent-color: #fbbf24;
+  --card-bg: #2d1525;
+  --border-color: #4a2039;
+  --hover-color: #3d1f30;
+  --shadow: rgba(236, 72, 153, 0.3);
+  
+  /* Gradient and glow variables */
+  --gradient-primary: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+  --gradient-accent: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
+  --gradient-bg: linear-gradient(135deg, #1a0a14 0%, #2d1525 100%);
+  --glow-primary: 0 0 40px rgba(236, 72, 153, 0.5);
+  --glow-accent: 0 0 40px rgba(251, 191, 36, 0.5);
+}
+
+/* Deep Forest theme */
+:root[data-theme="forest"] {
+  --bg-color: #0b1a0b;
+  --text-color: #d4edda;
+  --primary-color: #34d399;
+  --secondary-color: #6ee7b7;
+  --accent-color: #8b6f47;
+  --card-bg: #1a2617;
+  --border-color: #3d4a3a;
+  --hover-color: #3d4a3a;
+  --shadow: rgba(52, 211, 153, 0.3);
+  
+  /* Gradient and glow variables */
+  --gradient-primary: linear-gradient(135deg, #34d399 0%, #6ee7b7 100%);
+  --gradient-accent: linear-gradient(135deg, #8b6f47 0%, #a08560 100%);
+  --gradient-bg: linear-gradient(135deg, #0b1a0b 0%, #1a2617 100%);
+  --glow-primary: 0 0 40px rgba(52, 211, 153, 0.5);
+  --glow-accent: 0 0 40px rgba(139, 111, 71, 0.4);
+}
+
+/* Ocean Breeze theme */
+:root[data-theme="ocean"] {
+  --bg-color: #0a1a26;
+  --text-color: #ffffff;
+  --primary-color: #3b82f6;
+  --secondary-color: #60a5fa;
+  --accent-color: #d4b896;
+  --card-bg: #142c3e;
+  --border-color: #25475a;
+  --hover-color: #25475a;
+  --shadow: rgba(59, 130, 246, 0.3);
+  
+  /* Gradient and glow variables */
+  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+  --gradient-accent: linear-gradient(135deg, #d4b896 0%, #e5c9a7 100%);
+  --gradient-bg: linear-gradient(135deg, #0a1a26 0%, #142c3e 100%);
+  --glow-primary: 0 0 40px rgba(59, 130, 246, 0.5);
+  --glow-accent: 0 0 40px rgba(212, 184, 150, 0.4);
+}
+
+/* Winter is Coming theme */
+:root[data-theme="winter"] {
+  --bg-color: #0a0f1e;
+  --text-color: #d6eeff;
+  --primary-color: #7cc8ff;
+  --secondary-color: #a8d8ff;
+  --accent-color: #b8e8ff;
+  --card-bg: #0d1a2e;
+  --border-color: rgba(124, 200, 255, 0.25);
+  --hover-color: #142234;
+  --shadow: rgba(0, 120, 200, 0.35);
+
+  /* Gradient and glow variables */
+  --gradient-primary: linear-gradient(135deg, #4fa8e8 0%, #7cc8ff 50%, #aad8ff 100%);
+  --gradient-accent: linear-gradient(135deg, #b8e8ff 0%, #e0f4ff 100%);
+  --gradient-bg: linear-gradient(160deg, #050d1a 0%, #0a1828 40%, #0d203a 100%);
+  --glow-primary: 0 0 50px rgba(124, 200, 255, 0.5);
+  --glow-accent: 0 0 40px rgba(184, 232, 255, 0.4);
+}
+
+:root[data-theme="winter"] body {
+  background: var(--gradient-bg);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Animated snowflakes */
+:root[data-theme="winter"] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(circle 1.5px at 10% 15%, rgba(255,255,255,0.85) 0%, transparent 60%),
+    radial-gradient(circle 1px at 25% 40%, rgba(200,235,255,0.7) 0%, transparent 60%),
+    radial-gradient(circle 2px at 40% 8%, rgba(255,255,255,0.9) 0%, transparent 60%),
+    radial-gradient(circle 1.5px at 60% 30%, rgba(180,220,255,0.75) 0%, transparent 60%),
+    radial-gradient(circle 1px at 75% 60%, rgba(255,255,255,0.8) 0%, transparent 60%),
+    radial-gradient(circle 2px at 88% 20%, rgba(200,240,255,0.85) 0%, transparent 60%),
+    radial-gradient(circle 1.5px at 5% 70%, rgba(255,255,255,0.7) 0%, transparent 60%),
+    radial-gradient(circle 1px at 50% 85%, rgba(180,225,255,0.8) 0%, transparent 60%),
+    radial-gradient(circle 2px at 93% 75%, rgba(255,255,255,0.9) 0%, transparent 60%),
+    radial-gradient(circle 1px at 30% 92%, rgba(200,235,255,0.65) 0%, transparent 60%),
+    radial-gradient(circle 1.5px at 70% 5%, rgba(255,255,255,0.75) 0%, transparent 60%),
+    radial-gradient(circle 1px at 15% 50%, rgba(180,220,255,0.7) 0%, transparent 60%);
+  animation: winterSnowDrift 25s linear infinite;
+}
+
+:root[data-theme="winter"] body::after {
+  content: '';
+  position: fixed;
+  top: -10%;
+  left: 0;
+  width: 100%;
+  height: 120%;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(circle 1px at 18% 25%, rgba(255,255,255,0.9) 0%, transparent 60%),
+    radial-gradient(circle 1.5px at 45% 55%, rgba(200,235,255,0.75) 0%, transparent 60%),
+    radial-gradient(circle 1px at 67% 12%, rgba(255,255,255,0.85) 0%, transparent 60%),
+    radial-gradient(circle 2px at 82% 45%, rgba(180,225,255,0.8) 0%, transparent 60%),
+    radial-gradient(circle 1px at 35% 78%, rgba(255,255,255,0.7) 0%, transparent 60%),
+    radial-gradient(circle 1.5px at 55% 95%, rgba(200,240,255,0.85) 0%, transparent 60%),
+    radial-gradient(circle 1px at 92% 35%, rgba(255,255,255,0.75) 0%, transparent 60%),
+    radial-gradient(circle 2px at 8% 88%, rgba(180,220,255,0.8) 0%, transparent 60%);
+  animation: winterSnowDrift 18s linear infinite reverse;
+}
+
+@keyframes winterSnowDrift {
+  0%   { transform: translateY(0px) translateX(0px); }
+  25%  { transform: translateY(8px) translateX(4px); }
+  50%  { transform: translateY(15px) translateX(-3px); }
+  75%  { transform: translateY(8px) translateX(5px); }
+  100% { transform: translateY(0px) translateX(0px); }
+}
+
+/* Ice/frost card borders */
+:root[data-theme="winter"] .card,
+:root[data-theme="winter"] .game-area {
+  background: linear-gradient(135deg, rgba(13,26,46,0.95) 0%, rgba(10,20,38,0.9) 100%);
+  border: 1px solid rgba(124,200,255,0.3);
+  box-shadow: 0 4px 30px rgba(0,100,180,0.2), inset 0 1px 0 rgba(180,230,255,0.1);
+  backdrop-filter: blur(4px);
+}
+
+/* Frosted button style */
+:root[data-theme="winter"] .btn {
+  background: linear-gradient(135deg, #1a5fa8 0%, #2a7fc8 50%, #4fa8e8 100%);
+  box-shadow: 0 4px 20px rgba(0,100,200,0.4), 0 0 30px rgba(124,200,255,0.2);
+  border: 1px solid rgba(124,200,255,0.3);
+  text-shadow: 0 0 10px rgba(180,230,255,0.6);
+}
+
+:root[data-theme="winter"] .btn:hover {
+  background: linear-gradient(135deg, #2a7fc8 0%, #4fa8e8 50%, #7cc8ff 100%);
+  box-shadow: 0 6px 30px rgba(0,120,220,0.55), 0 0 50px rgba(124,200,255,0.4);
+  border-color: rgba(180,230,255,0.5);
+}
+
+/* Icy lobby items */
+:root[data-theme="winter"] .lobby-item {
+  border-color: rgba(124,200,255,0.2);
+  background: linear-gradient(135deg, rgba(13,26,46,0.9) 0%, rgba(10,18,34,0.85) 100%);
+}
+
+:root[data-theme="winter"] .lobby-item:hover {
+  background: linear-gradient(135deg, rgba(20,40,70,0.95) 0%, rgba(15,30,55,0.9) 100%);
+  box-shadow: 0 4px 20px rgba(0,100,200,0.3), inset 0 0 20px rgba(124,200,255,0.07);
+}
+
+:root[data-theme="winter"] .lobby-item::before {
+  background: linear-gradient(180deg, #4fa8e8 0%, #7cc8ff 100%);
+}
+
+/* Winter-tinted scrollbar */
+:root[data-theme="winter"] ::-webkit-scrollbar-thumb {
+  background: rgba(124,200,255,0.35);
+}
+
+:root[data-theme="winter"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(124,200,255,0.6);
+}
+
+:root[data-theme="winter"] ::-webkit-scrollbar-track {
+  background: #050d1a;
+}
+
+/* Isaiah theme */
+:root[data-theme="isaiah"] {
+  --bg-color: #1a1108;
+  --text-color: #fef3d4;
+  --primary-color: #92400e;
+  --secondary-color: #b45309;
+  --accent-color: #d97706;
+  --card-bg: #2d1e0a;
+  --border-color: #78350f;
+  --hover-color: #451a03;
+  --shadow: rgba(146, 64, 14, 0.4);
+  
+  --gradient-primary: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+  --gradient-accent: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  --gradient-bg: linear-gradient(135deg, #1a1108 0%, #2d1e0a 100%);
+  --glow-primary: 0 0 40px rgba(146, 64, 14, 0.6);
+  --glow-accent: 0 0 40px rgba(217, 119, 6, 0.5);
+}
+
+:root[data-theme="isaiah"] body {
+  background-color: #1a1108;
+  background-image: url('../img/Isaiah.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+:root[data-theme="isaiah"] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(26, 17, 8, 0.7);
+  z-index: -1;
+}
+
+/* John Showman theme */
+:root[data-theme="john"] {
+  --bg-color: #1a0505;
+  --text-color: #ffe6e6;
+  --primary-color: #dc2626;
+  --secondary-color: #ef4444;
+  --accent-color: #fca5a5;
+  --card-bg: #2d0a0a;
+  --border-color: #7f1d1d;
+  --hover-color: #450a0a;
+  --shadow: rgba(220, 38, 38, 0.4);
+  
+  --gradient-primary: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  --gradient-accent: linear-gradient(135deg, #fca5a5 0%, #fecaca 100%);
+  --gradient-bg: linear-gradient(135deg, #1a0505 0%, #2d0a0a 100%);
+  --glow-primary: 0 0 40px rgba(220, 38, 38, 0.6);
+  --glow-accent: 0 0 40px rgba(252, 165, 165, 0.5);
+}
+
+:root[data-theme="john"] body {
+  background-color: #1a0505;
+  background-image: url('../img/John.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+:root[data-theme="john"] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(26, 5, 5, 0.7);
+  z-index: -1;
+}
+
+/* Robert theme */
+:root[data-theme="robert"] {
+  --bg-color: #1a0a14;
+  --text-color: #fde8f7;
+  --primary-color: #ec4899;
+  --secondary-color: #f472b6;
+  --accent-color: #fbbf24;
+  --card-bg: #2d1525;
+  --border-color: #ec4899;
+  --hover-color: #3d1f30;
+  --shadow: rgba(236, 72, 153, 0.4);
+  
+  --gradient-primary: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+  --gradient-accent: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
+  --gradient-bg: linear-gradient(135deg, #1a0a14 0%, #2d1525 100%);
+  --glow-primary: 0 0 40px rgba(236, 72, 153, 0.6);
+  --glow-accent: 0 0 40px rgba(251, 191, 36, 0.5);
+}
+
+:root[data-theme="robert"] body {
+  background-color: #1a0a14;
+  background-image: url('../img/Robert.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+:root[data-theme="robert"] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(26, 10, 20, 0.3);
+  z-index: -1;
+}
+
+/* Chickens Memory (Peak) theme */
+:root[data-theme="peak"] {
+  --bg-color: #1a1410;
+  --text-color: #fef3c7;
+  --primary-color: #f59e0b;
+  --secondary-color: #fbbf24;
+  --accent-color: #fde68a;
+  --card-bg: #2d2415;
+  --border-color: #92400e;
+  --hover-color: #451a03;
+  --shadow: rgba(245, 158, 11, 0.4);
+  
+  --gradient-primary: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  --gradient-accent: linear-gradient(135deg, #fde68a 0%, #fef3c7 100%);
+  --gradient-bg: linear-gradient(135deg, #1a1410 0%, #2d2415 100%);
+  --glow-primary: 0 0 40px rgba(245, 158, 11, 0.6);
+  --glow-accent: 0 0 40px rgba(253, 230, 138, 0.5);
+}
+
+:root[data-theme="peak"] body {
+  background-color: #1a1410;
+  background-image: url('../img/peak.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+:root[data-theme="peak"] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(26, 20, 16, 0.65);
+  z-index: -1;
+}
+
+/* Smith theme */
+:root[data-theme="smith"] {
+  --text-color: #e9d5ff;
+  --primary-color: #a855f7;
+  --secondary-color: #c084fc;
+  --accent-color: #d8b4fe;
+  --card-bg: transparent;
+  --border-color: rgba(168, 85, 247, 0.5);
+  --hover-color: rgba(168, 85, 247, 0.2);
+  --shadow: rgba(0, 0, 0, 0.5);
+  
+  --gradient-primary: linear-gradient(135deg, #a855f7 0%, #c084fc 100%);
+  --gradient-accent: linear-gradient(135deg, #d8b4fe 0%, #e9d5ff 100%);
+  --glow-primary: 0 0 40px rgba(168, 85, 247, 0.6);
+  --glow-accent: 0 0 40px rgba(216, 180, 254, 0.6);
+}
+
 /* Base styles */
 * {
   margin: 0;
@@ -37,6 +407,32 @@ body {
   padding: 20px;
   min-height: 100vh;
 }
+
+/* Smith theme specific background */
+:root[data-theme="smith"] body {
+  background-color: #1a0d2e;
+  background-image: 
+    url('../img/glassesSmith.jpeg'),
+    url('../img/partySmith.png'),
+    url('../img/closeUpSmith.png'),
+    url('../img/smithHidingSpot.png'),
+    url('../img/disasmithed.png');
+  background-size: 200px 200px, 180px 180px, 190px 190px, 210px 210px, 195px 195px;
+  background-position: 
+    5% 10%, 85% 15%, 10% 60%, 90% 70%, 50% 85%;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  opacity: 0.95;
+}
+
+/* Smith theme card backgrounds
+[data-theme="smith"] .card {
+  background-image: url('../img/glassesSmith.jpeg');
+  background-size: cover;
+  background-position: center;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(168, 85, 247, 0.5);
+} */
 
 /* Theme toggle button - hidden (dark mode only) */
 .theme-toggle {
@@ -272,10 +668,69 @@ a:hover {
     font-size: 18px;
   }
 
-  .btn {
+  .btn:not(.home-button):not(.logout-button) {
     display: block;
     width: 100%;
     margin: 10px 0;
+  }
+
+  .home-button,
+  .logout-button {
+    position: fixed !important;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+  }
+
+  .home-button {
+    top: 10px !important;
+    left: 10px !important;
+    bottom: auto !important;
+  }
+
+  .logout-button {
+    top: auto !important;
+    bottom: 10px !important;
+    right: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.6rem;
+  }
+
+  .theme-toggle {
+    top: 8px;
+    right: 8px;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .btn:not(.home-button):not(.logout-button) {
+    padding: 10px 15px;
+    font-size: 0.9rem;
+  }
+
+  .home-button,
+  .logout-button {
+    position: fixed !important;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+  }
+
+  .home-button {
+    top: 8px !important;
+    left: 8px !important;
+    bottom: auto !important;
+  }
+
+  .logout-button {
+    top: auto !important;
+    bottom: 8px !important;
+    right: 8px !important;
   }
 }
 
@@ -408,4 +863,25 @@ a:hover {
 :focus-visible {
   outline: 3px solid var(--primary-color);
   outline-offset: 2px;
+}
+
+/* Peak theme floating chicken sandwich animations */
+.peak-floating-sandwich {
+  animation: float-gentle 6s ease-in-out infinite;
+  filter: drop-shadow(0 4px 15px rgba(245, 158, 11, 0.5));
+}
+
+@keyframes float-gentle {
+  0%, 100% {
+    transform: translate(-50%, -50%) translateY(0px) rotate(0deg);
+  }
+  25% {
+    transform: translate(-50%, -50%) translateY(-10px) rotate(2deg);
+  }
+  50% {
+    transform: translate(-50%, -50%) translateY(0px) rotate(-2deg);
+  }
+  75% {
+    transform: translate(-50%, -50%) translateY(-10px) rotate(1deg);
+  }
 }

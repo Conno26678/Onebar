@@ -70,14 +70,62 @@
 @media (max-width: 768px) {
     .home-container {
         padding: 15px;
+        margin-top: 60px;
+    }
+
+    .home-logo {
+        max-width: 80%;
+        margin-top: 10px;
     }
 
     .home-title {
         font-size: 2rem;
+        letter-spacing: 1px;
+    }
+
+    .home-subtitle {
+        font-size: 1rem;
+    }
+
+    .home-nav {
+        gap: 12px;
     }
 
     .home-nav a {
         width: 100%;
         min-width: unset;
+        padding: 12px 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .home-container {
+        padding: 10px;
+        margin-top: 50px;
+    }
+
+    .home-logo {
+        max-width: 90%;
+        margin: 5px auto 15px;
+    }
+
+    .home-title {
+        font-size: 1.6rem;
+        letter-spacing: 0.5px;
+        margin-bottom: 15px;
+    }
+
+    .home-subtitle {
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+
+    .home-nav {
+        gap: 10px;
+    }
+
+    .home-nav a {
+        padding: 10px 16px;
+        font-size: 0.9rem;
     }
 }

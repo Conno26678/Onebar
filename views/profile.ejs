@@ -1,11 +1,185 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#f85149">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
     <title>Onebar - Profile</title>
+    <link rel="icon" type="image/x-icon" href="/img/pfp.png">
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/profile.css">
+    <link rel="stylesheet" href="/css/mobile.css">
+    <style>
+        /* ── Effect Preview Particle Styles ── */
+        .preview-confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            top: -10px;
+            opacity: 1;
+            pointer-events: none;
+            z-index: 99999;
+            animation: previewConfettiFall linear forwards;
+        }
+        @keyframes previewConfettiFall {
+            0%   { transform: translateY(0) rotateZ(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotateZ(720deg); opacity: 0; }
+        }
+
+        .preview-sparkle {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(circle, #fff 0%, #ffd700 50%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 99999;
+            animation: previewSparkleFloat linear forwards;
+        }
+        @keyframes previewSparkleFloat {
+            0%   { opacity: 1; transform: translate(0,0) scale(1); }
+            100% { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(0.2); }
+        }
+
+        .preview-fire {
+            position: fixed;
+            border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%;
+            background: radial-gradient(ellipse at bottom, rgba(255,100,0,1) 0%, rgba(255,200,0,.9) 30%, rgba(255,100,0,.5) 60%, transparent 100%);
+            pointer-events: none;
+            z-index: 99999;
+            animation: previewFireRise linear forwards;
+        }
+        @keyframes previewFireRise {
+            0%   { opacity: 1; transform: translate(0,0) scale(1); }
+            50%  { opacity: .8; transform: translate(var(--fx), calc(var(--fy)*.5)) scale(1.2); }
+            100% { opacity: 0; transform: translate(var(--fx), var(--fy)) scale(.4); }
+        }
+
+        .preview-skip {
+            position: fixed;
+            width: 180px;
+            height: 180px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%) scale(0);
+            pointer-events: none;
+            z-index: 99999;
+            animation: previewSkipPop 1.2s ease-out forwards;
+        }
+        .preview-skip::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 18px solid #ff0000;
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255,0,0,.8), 0 0 60px rgba(255,0,0,.4), inset 0 0 20px rgba(255,0,0,.3);
+        }
+        .preview-skip::after {
+            content: '';
+            position: absolute;
+            width: calc(100% - 36px);
+            height: 18px;
+            background: #ff0000;
+            top: calc(50% - 9px);
+            left: 18px;
+            border-radius: 9px;
+            box-shadow: 0 0 20px rgba(255,0,0,.8);
+        }
+        @keyframes previewSkipPop {
+            0%   { transform: translate(-50%,-50%) scale(0); opacity: 1; }
+            30%  { transform: translate(-50%,-50%) scale(1.15); opacity: 1; }
+            50%  { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+            80%  { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%,-50%) scale(1.2); opacity: 0; }
+        }
+
+        .preview-lightning-bolt {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 99999;
+        }
+        .preview-lightning-bolt svg {
+            filter: drop-shadow(0 0 15px rgba(150,200,255,1)) drop-shadow(0 0 30px rgba(100,150,255,.8));
+            animation: previewLightningPulse .6s ease-out forwards;
+        }
+        @keyframes previewLightningPulse {
+            0%   { opacity: 0; }
+            15%  { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        .preview-lightning-flash {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(255,255,255,.45);
+            pointer-events: none;
+            z-index: 99998;
+            animation: previewFlash .5s ease-out forwards;
+        }
+        @keyframes previewFlash {
+            0%   { opacity: 0; }
+            10%  { opacity: .8; }
+            100% { opacity: 0; }
+        }
+
+        .preview-arrow {
+            position: fixed;
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(to right, #8B4513 0%, #D2691E 60%, #FFD700 100%);
+            box-shadow: 0 0 10px rgba(255,215,0,.6);
+            pointer-events: none;
+            z-index: 99999;
+            transform-origin: left center;
+            animation: previewArrowFall .9s ease-in forwards;
+        }
+        .preview-arrow::before {
+            content: '';
+            position: absolute;
+            right: -10px; top: -6px;
+            border-left: 15px solid #FFD700;
+            border-top: 7px solid transparent;
+            border-bottom: 7px solid transparent;
+        }
+        .preview-arrow::after {
+            content: '';
+            position: absolute;
+            left: 0; top: -3px;
+            width: 15px; height: 10px;
+            background: #8B4513;
+            border-radius: 0 5px 5px 0;
+        }
+        @keyframes previewArrowFall {
+            0%   { transform: rotate(90deg) translateY(0); opacity: 1; }
+            100% { transform: rotate(90deg) translateY(115vh); opacity: .1; }
+        }
+
+        /* Preview button style */
+        .effect-preview-btn {
+            padding: 6px 14px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+            color: #fff;
+            transition: all .2s ease;
+            box-shadow: 0 2px 8px rgba(99,102,241,.4);
+            margin-top: 4px;
+        }
+        .effect-preview-btn:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(99,102,241,.6);
+        }
+    </style>
 </head>
 <body>
     <a href="/" class="btn home-button">Home</a>
@@ -13,7 +187,23 @@
 
     <div class="profile-container">
         <div class="profile-header">
-            <h1>User Profile</h1>
+            <h1>
+                <%= user.displayName %>
+                <% if (selectedBadge && selectedBadge !== 'none') { %>
+                    <% 
+                        const badgeEmojis = {
+                            'bronze': '🥉',
+                            'silver': '🥈',
+                            'gold': '🥇',
+                            'trophy': '🏆',
+                            'diamond': '💎'
+                        };
+                        const badgeEmoji = badgeEmojis[selectedBadge] || '';
+                    %>
+                    <span class="profile-user-badge"><%= badgeEmoji %></span>
+                <% } %>
+                 Profile
+            </h1>
             <p class="profile-subtitle">Your stats and customization options</p>
         </div>
 
@@ -30,7 +220,19 @@
                         <% } %>
                     </div>
                 </div>
-                <!-- <button class="change-photo-btn">Change Photo (in progress)</button> -->
+                <button class="change-photo-btn" onclick="showPhotoChange()">Change Photo</button>
+                <!--PFP Popup Modal -->
+                <div id="customizePhoto" class="customize-photo-popup" style="display: none;">
+                    <div class="customize-photo-popup-content">
+                        <span class="customize-popup-close" onclick="hidePhotoChange()">&times;</span>
+                        <h2>Select Profile Picture</h2>
+                        <p class="photo-subtitle">Unlock new avatars through Battle Pass and achievements</p>
+                        <div class="photo-options-grid" id="photoOptionsGrid">
+                            <!-- Photos will be dynamically loaded here -->
+                        </div>
+                    </div>
+                </div>
+
                 <% if (isFirstPlace) { %>
                     <p class="image-caption" style="color: #ffd700; font-weight: bold;"> Leaderboard Champion!</p>
                 <% } else { %>
@@ -52,35 +254,152 @@
                         <h2>Options - earn more by leveling up</h2>
                         <div class="customize-options-grid">
                             <div class="customize-option">
-                                <h3>Card Backs</h3>
-                                <p>Unlock new card backs through Battle Pass</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <h3>Titles</h3>
+                                <p>Unlock new titles and title colors through Battle Pass</p>
+                                <button class="customize-option-btn" onclick="showTitlePopup()">Customize</button>
                             </div>
                             <div class="customize-option">
                                 <h3>Themes</h3>
-                                <p>Customize your game appearance</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <p>Customize your game / website appearance</p>
+                                <button class="customize-option-btn" onclick="showThemePopup()">Customize</button>
                             </div>
                             <div class="customize-option">
                                 <h3>Sound Packs</h3>
                                 <p>Unlock exclusive sound effects</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <button class="customize-option-btn" onclick="showSoundPackPopup()">Customize</button>
                             </div>
                             <div class="customize-option">
                                 <h3>Profile Badges</h3>
                                 <p>Show off your achievements</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <button class="customize-option-btn" onclick="showBadgePopup()">Customize</button>
                             </div>
                             <div class="customize-option">
-                                <h3>Card Effects</h3>
-                                <p>Unlock in future Battle Passes</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <h3>Effects</h3>
+                                <p>Liven up your gameplay with special effects</p>
+                                <button class="customize-option-btn" onclick="showEffectsPopup()">Customize</button>
                             </div>
                             <div class="customize-option">
                                 <h3>Emotes</h3>
                                 <p>Express yourself in-game</p>
-                                <button class="customize-option-btn" disabled>Coming Soon</button>
+                                <button class="customize-option-btn" onclick="showEmotePopup()">Customize</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Title Customization Popup -->
+                <div id="titlePopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideTitlePopup()">&times;</span>
+                        <h2>Select Your Title</h2>
+                        <p class="photo-subtitle">Unlock new titles through Battle Pass</p>
+                        <div class="customization-grid" id="titleGrid">
+                            <!-- Titles will be dynamically loaded here -->
+                        </div>
+                        
+                        <h2 style="margin-top: 30px;">Select Your Title Color</h2>
+                        <p class="photo-subtitle">Unlock new title colors through Battle Pass</p>
+                        <div class="customization-grid" id="titleColorGrid">
+                            <!-- Title colors will be dynamically loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Theme Customization Popup -->
+                <div id="themePopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideThemePopup()">&times;</span>
+                        <h2>Select Your Theme</h2>
+                        <p class="photo-subtitle">Unlock new themes through Battle Pass</p>
+                        <div class="customization-grid" id="themeGrid">
+                            <!-- Themes will be dynamically loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sound Pack Customization Popup -->
+                <div id="soundPackPopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideSoundPackPopup()">&times;</span>
+                        <h2 id="soundPackPopupTitle">Select Your Sound Pack</h2>
+                        <p class="photo-subtitle" id="soundPackPopupSubtitle">Unlock new sound packs through Battle Pass</p>
+                        <div class="customization-grid" id="soundPackGrid">
+                            <!-- Sound packs will be dynamically loaded here -->
+                        </div>
+                        <!-- Custom sounds configuration (shown when Custom pack is selected) -->
+                        <div id="customSoundsConfig" style="display: none;">
+                            <div class="custom-sounds-grid" id="customSoundsGrid">
+                                <!-- Custom sound options will be dynamically loaded here -->
+                            </div>
+                            <button class="save-custom-sounds-btn" onclick="saveCustomSounds()">Save Custom Sound Pack</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Badge Customization Popup -->
+                <div id="badgePopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideBadgePopup()">&times;</span>
+                        <h2>Select Your Profile Badge</h2>
+                        <p class="photo-subtitle">Unlock badges through achievements</p>
+                        <div class="customization-grid" id="badgeGrid">
+                            <!-- Badges will be dynamically loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emote Customization Popup -->
+                <div id="emotePopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideEmotePopup()">&times;</span>
+                        <h2>Select Your Emojis (Choose 4)</h2>
+                        <p class="photo-subtitle">Unlock emojis through Battle Pass - Selected emojis will be available in-game</p>
+                        <div class="selected-emojis-preview" id="selectedEmojisPreview">
+                            <!-- Shows currently selected emojis -->
+                        </div>
+                        <div class="customization-grid" id="emoteGrid">
+                            <!-- Emotes will be dynamically loaded here -->
+                        </div>
+                        <button class="save-emojis-btn" onclick="saveSelectedEmojis()">Save Emoji Selection</button>
+                    </div>
+                </div>
+
+                <!-- Effects Customization Popup -->
+                <div id="effectsPopup" class="customize-popup" style="display: none;">
+                    <div class="customize-popup-content">
+                        <span class="customize-popup-close" onclick="hideEffectsPopup()">&times;</span>
+                        <h2>Select Your Effects</h2>
+                        <p class="photo-subtitle">Unlock special effects through Battle Pass - Select multiple effects to use simultaneously</p>
+                        <div class="selected-emojis-preview" id="selectedEffectsPreview">
+                            <!-- Shows currently selected effects -->
+                        </div>
+                        <div class="customization-grid" id="effectsGrid">
+                            <!-- Effects will be dynamically loaded here -->
+                        </div>
+                        <button class="save-emojis-btn" onclick="saveSelectedEffects()">Save Effect Selection</button>
+                    </div>
+                </div>
+
+                <!-- Mystery Box Opening Modal -->
+                <div id="mysteryBoxModal" class="mystery-box-modal" style="display: none;">
+                    <div class="mystery-box-modal-content">
+                        <div class="mystery-box-animation">
+                            <div class="mystery-box-icon">📦</div>
+                            <div class="mystery-box-sparkles">
+                                <span class="sparkle">✨</span>
+                                <span class="sparkle">✨</span>
+                                <span class="sparkle">✨</span>
+                                <span class="sparkle">✨</span>
+                                <span class="sparkle">✨</span>
+                                <span class="sparkle">✨</span>
+                            </div>
+                        </div>
+                        <div class="mystery-box-result" id="mysteryBoxResult" style="display: none;">
+                            <div class="reward-icon" id="rewardIcon">🎁</div>
+                            <h2 class="reward-title" id="rewardTitle">You received:</h2>
+                            <p class="reward-name" id="rewardName"></p>
+                            <p class="reward-details" id="rewardDetails"></p>
+                            <button class="reward-close-btn" onclick="closeMysteryBoxModal()">Awesome!</button>
                         </div>
                     </div>
                 </div>
@@ -105,7 +424,7 @@
                 <div class="stat-card">
                     <h2>Level</h2>
                     <div class="stat-value"><%= level || 1 %></div>
-                    <!-- <a href="/battlepass" class="stat-label">Buy the pass to here, click me to visit!</a> -->
+                    <a href="/battlepass" class="stat-label">Buy the pass to here, click me to visit!</a>
                 </div>
 
                 <!-- XP Card -->
@@ -132,12 +451,257 @@
                         <span><%= Math.min(100, Math.floor(((xp || 0) / (xpForNextLevel || 100)) * 100)) %>% to next level</span>
                     </div>
                 </div>
+
+                <!-- Onecells Card -->
+                <div class="stat-card currency-card">
+                    <h2>🪙 Onecells</h2>
+                    <div class="stat-value currency-value"><%= onecells || 0 %></div>
+                    <a href="/shop" class="stat-label currency-link">Visit Shop to buy more!</a>
+                    <p class="currency-description">Use Onecells to purchase items in the shop</p>
+                </div>
+
+                <!-- Distractions Inventory Card -->
+                <div class="stat-card inventory-card">
+                    <h2>Inventory</h2>
+                    <p class="stat-label">Your collection of game distractions, lootboxes, and other items</p>
+                    <div class="inventory-grid">
+                        <% 
+                            let inventory = {};
+                            let mysteryBoxes = {};
+                            try {
+                                inventory = JSON.parse(distractionsInventory || '{}');
+                            } catch (e) {
+                                inventory = {};
+                            }
+                            try {
+                                mysteryBoxes = JSON.parse(mysteryBoxInventory || '{}');
+                            } catch (e) {
+                                mysteryBoxes = {};
+                            }
+                            const distractionEmojis = {
+                                'Flashbang': '💥',
+                                'Jumpscare': '😱',
+                                'SubwaySurfers': '🚇',
+                                'PeterGriffin': '👨',
+                                'Shake': '📳',
+                                'SixSeven': '🎵',
+                                'Trollface': '😈'
+                            };
+                            const distractionNames = {
+                                'Flashbang': 'Flashbang',
+                                'Jumpscare': 'Jumpscare',
+                                'SubwaySurfers': 'Subway Surfers',
+                                'PeterGriffin': 'Peter Griffin',
+                                'Shake': 'Shake',
+                                'SixSeven': 'Six Seven',
+                                'Trollface': 'Trollface'
+                            };
+                            const mysteryBoxEmojis = {
+                                'standard': '📦'
+                            };
+                            const mysteryBoxNames = {
+                                'standard': 'Mystery Box'
+                            };
+                            const hasDistractions = Object.keys(inventory).length > 0;
+                            const hasMysteryBoxes = Object.keys(mysteryBoxes).length > 0;
+                            const hasAnyItems = hasDistractions || hasMysteryBoxes;
+                        %>
+                        <% if (hasAnyItems) { %>
+                            <% Object.entries(mysteryBoxes).forEach(([type, count]) => { %>
+                                <% if (count > 0) { %>
+                                    <div class="inventory-item">
+                                        <span class="inventory-icon"><%= mysteryBoxEmojis[type] || '📦' %></span>
+                                        <span class="inventory-name"><%= mysteryBoxNames[type] || type %></span>
+                                        <span class="inventory-count">x<%= count %></span>
+                                        <button class="inventory-action-btn" onclick="openMysteryBox('<%= type %>')">Open</button>
+                                    </div>
+                                <% } %>
+                            <% }); %>
+                            <% Object.entries(inventory).forEach(([type, count]) => { %>
+                                <% if (count > 0) { %>
+                                    <div class="inventory-item">
+                                        <span class="inventory-icon"><%= distractionEmojis[type] || '🎮' %></span>
+                                        <span class="inventory-name"><%= distractionNames[type] || type %></span>
+                                        <span class="inventory-count">x<%= count %></span>
+                                    </div>
+                                <% } %>
+                            <% }); %>
+                        <% } else { %>
+                            <div class="inventory-empty">
+                                <p>No items yet!</p>
+                                <a href="/shop" style="color: var(--primary-color); text-decoration: underline;">Visit the shop to purchase some</a>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="/js/theme.js"></script>
     <script>
+        // Load sound pack and custom sounds from server data to localStorage
+        const selectedSoundPack = '<%= selectedSoundPack %>';
+        if (selectedSoundPack) {
+            localStorage.setItem('selectedSoundPack', selectedSoundPack);
+        }
+        
+        const customSounds = '<%= customSounds %>';
+        if (customSounds && customSounds !== '{}') {
+            localStorage.setItem('customSounds', customSounds);
+        } else {
+            localStorage.removeItem('customSounds');
+        }
+
+        // Define popup functions first so they're available to onclick handlers
+        function showCustomizePopup() {
+            document.getElementById('customizePopup').style.display = 'flex';
+        }
+
+        function showPhotoChange() {
+            document.getElementById('customizePhoto').style.display = 'flex';
+            loadPhotoOptions();
+        }
+
+        function hidePhotoChange() {
+            document.getElementById('customizePhoto').style.display = 'none';
+        }
+        
+        function hideCustomizePopup() {
+            document.getElementById('customizePopup').style.display = 'none';
+        }
+
+        function showTitlePopup() {
+            document.getElementById('titlePopup').style.display = 'flex';
+            loadTitleOptions();
+            loadTitleColorOptions();
+        }
+
+        function hideTitlePopup() {
+            document.getElementById('titlePopup').style.display = 'none';
+        }
+
+        function showThemePopup() {
+            document.getElementById('themePopup').style.display = 'flex';
+            loadThemeOptions();
+        }
+
+        function hideThemePopup() {
+            document.getElementById('themePopup').style.display = 'none';
+        }
+
+        function showSoundPackPopup() {
+            document.getElementById('soundPackPopup').style.display = 'flex';
+            document.getElementById('soundPackGrid').style.display = 'grid';
+            document.getElementById('customSoundsConfig').style.display = 'none';
+            document.getElementById('soundPackPopupTitle').textContent = 'Select Your Sound Pack';
+            document.getElementById('soundPackPopupSubtitle').textContent = 'Unlock new sound packs through Battle Pass';
+            loadSoundPackOptions();
+        }
+
+        function hideSoundPackPopup() {
+            document.getElementById('soundPackPopup').style.display = 'none';
+        }
+
+        // Mystery Box opening function
+        function openMysteryBox(boxType) {
+            if (!confirm('Open Mystery Box? You will receive a random reward!')) {
+                return;
+            }
+
+            // Show the modal with animation
+            showMysteryBoxModal();
+
+            fetch('/api/open-mystery-box', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ boxType })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    setTimeout(() => {
+                        showMysteryBoxReward(data.reward);
+                    }, 2500); // Show reward after animation
+                } else {
+                    closeMysteryBoxModal();
+                    alert(data.message || 'Failed to open mystery box');
+                }
+            })
+            .catch(err => {
+                console.error('Error opening mystery box:', err);
+                closeMysteryBoxModal();
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        function showMysteryBoxModal() {
+            const modal = document.getElementById('mysteryBoxModal');
+            const animation = document.querySelector('.mystery-box-animation');
+            const result = document.getElementById('mysteryBoxResult');
+            
+            modal.style.display = 'flex';
+            animation.style.display = 'block';
+            result.style.display = 'none';
+            
+            // Trigger shake animation
+            setTimeout(() => {
+                document.querySelector('.mystery-box-icon').classList.add('shaking');
+            }, 100);
+        }
+
+        function showMysteryBoxReward(reward) {
+            const animation = document.querySelector('.mystery-box-animation');
+            const result = document.getElementById('mysteryBoxResult');
+            const rewardIcon = document.getElementById('rewardIcon');
+            const rewardName = document.getElementById('rewardName');
+            const rewardDetails = document.getElementById('rewardDetails');
+            
+            // Hide animation, show result
+            animation.style.display = 'none';
+            result.style.display = 'block';
+            
+            // Set reward info
+            rewardName.textContent = reward.name;
+            
+            if (reward.isDuplicate) {
+                rewardIcon.textContent = '💰';
+                rewardDetails.innerHTML = `<span style="color: #ffc107;">⚠️ Duplicate item!</span><br>Converted to <strong>${reward.onecellsEarned} Onecells</strong>`;
+            } else {
+                rewardIcon.textContent = '🎉';
+                rewardDetails.innerHTML = '<span style="color: #4CAF50;">✨ New item unlocked!</span>';
+                if (reward.type === 'customSound') {
+                    rewardDetails.innerHTML += '<br><em>Equip the Custom sound pack to use it!</em>';
+                } else if (reward.type === 'theme') {
+                    rewardDetails.innerHTML += '<br><em>Check customization to equip!</em>';
+                }
+            }
+        }
+
+        function closeMysteryBoxModal() {
+            document.getElementById('mysteryBoxModal').style.display = 'none';
+            document.querySelector('.mystery-box-icon').classList.remove('shaking');
+            location.reload();
+        }
+
+        function showBadgePopup() {
+            document.getElementById('badgePopup').style.display = 'flex';
+            loadBadgeOptions();
+        }
+
+        function hideBadgePopup() {
+            document.getElementById('badgePopup').style.display = 'none';
+        }
+
+        function showEmotePopup() {
+            document.getElementById('emotePopup').style.display = 'flex';
+            loadEmoteOptions();
+        }
+
+        function hideEmotePopup() {
+            document.getElementById('emotePopup').style.display = 'none';
+        }
+
         // Sound effects toggle functionality
         const soundToggle = document.getElementById('soundToggle');
         const soundStatus = document.getElementById('soundStatus');
@@ -161,22 +725,972 @@
             }));
         });
         
-        // Customize popup functions
-        function showCustomizePopup() {
-            document.getElementById('customizePopup').style.display = 'flex';
+        // Available profile pictures with unlock requirements
+        const availablePhotos = [
+            { image: '/img/pfp.png', name: 'Default', unlocked: true },
+            { image: '/img/king.png', name: 'King', requirement: 'Reach #1 on Leaderboard', unlocked: <%= isFirstPlace ? 'true' : 'false' %> },
+            { image: '/img/Smiffers1984.png', name: 'Smiffers1984', requirement: 'Battle Pass Level 10', unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %> },
+            { image: '/img/Hayden.png', name: 'Hayden', requirement: 'Battle Pass Level 25', unlocked: <%= (level || 1) >= 25 ? 'true' : 'false' %> },
+            { image: '/img/partySmith.png', name: 'Party Smith', requirement: 'Battle Pass Level 30', unlocked: <%= (level || 1) >= 30 ? 'true' : 'false' %> },
+            { image: '/img/glassesSmith.jpeg', name: 'Glasses Smith', requirement: 'Battle Pass Level 45', unlocked: <%= (level || 1) >= 45 ? 'true' : 'false' %> },
+            { image: '/img/closeUpSmith.png', name: 'Close Up Smith', requirement: 'Battle Pass Level 48', unlocked: <%= (level || 1) >= 48 ? 'true' : 'false' %> },
+            { image: '/img/smithHidingSpot.png', name: 'Smith Hiding Spot', requirement: 'Battle Pass Level 50', unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %> },
+            { image: '/img/disasmithed.png', name: 'Disasmithed', requirement: 'Win 100 Games', unlocked: <%= (wins || 0) >= 100 ? 'true' : 'false' %> },
+            { image: '/img/cornConnor.jpg', name: 'Corn Connor', requirement: 'Win 100 Games', unlocked: <%= (wins || 0) >= 100 ? 'true' : 'false' %> }
+        ];
+        
+        function loadPhotoOptions() {
+            const grid = document.getElementById('photoOptionsGrid');
+            grid.innerHTML = '';
+            
+            availablePhotos.forEach(photo => {
+                const photoDiv = document.createElement('div');
+                photoDiv.className = `photo-option ${photo.unlocked ? 'unlocked' : 'locked'}`;
+                
+                const currentPfp = '<%= profilePicture %>';
+                if (photo.unlocked && photo.image === currentPfp) {
+                    photoDiv.classList.add('selected');
+                }
+                
+                photoDiv.innerHTML = `
+                    <div class="photo-option-image-wrapper">
+                        <img src="${photo.image}" alt="${photo.name}" class="photo-option-image" 
+                             onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\'photo-option-placeholder\'>📷</div>';">
+                        ${!photo.unlocked ? '<div class="photo-lock-overlay">🔒</div>' : ''}
+                    </div>
+                    <div class="photo-option-name">${photo.name}</div>
+                    ${!photo.unlocked ? `<div class="photo-option-requirement">${photo.requirement}</div>` : ''}
+                    ${photo.unlocked ? '<button class="photo-select-btn" onclick="selectPhoto(\'' + photo.image + '\')">Select</button>' : ''}
+                `;
+                
+                grid.appendChild(photoDiv);
+            });
         }
         
-        function hideCustomizePopup() {
-            document.getElementById('customizePopup').style.display = 'none';
+        function selectPhoto(imagePath) {
+            fetch('/api/update-profile-picture', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ profilePicture: imagePath })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update profile picture');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating profile picture:', err);
+                alert('An error occurred. Please try again.');
+            });
         }
         
-        // Close popup when clicking outside
+        // Close popups when clicking outside
         window.onclick = function(event) {
-            const popup = document.getElementById('customizePopup');
-            if (event.target === popup) {
+            const customizePopup = document.getElementById('customizePopup');
+            const photoPopup = document.getElementById('customizePhoto');
+            const titlePopup = document.getElementById('titlePopup');
+            const themePopup = document.getElementById('themePopup');
+            const soundPackPopup = document.getElementById('soundPackPopup');
+            const badgePopup = document.getElementById('badgePopup');
+            const emotePopup = document.getElementById('emotePopup');
+            const effectsPopup = document.getElementById('effectsPopup');
+            
+            if (event.target === customizePopup) {
                 hideCustomizePopup();
             }
+            if (event.target === photoPopup) {
+                hidePhotoChange();
+            }
+            if (event.target === titlePopup) {
+                hideTitlePopup();
+            }
+            if (event.target === themePopup) {
+                hideThemePopup();
+            }
+            if (event.target === soundPackPopup) {
+                hideSoundPackPopup();
+            }
+            if (event.target === badgePopup) {
+                hideBadgePopup();
+            }
+            if (event.target === emotePopup) {
+                hideEmotePopup();
+            }
+            if (event.target === effectsPopup) {
+                hideEffectsPopup();
+            }
         };
+
+        // Title customization functions
+        const availableTitles = [
+            { name: 'Newbie', requirement: 'Starting Title', requiredLevel: 1, unlocked: true },
+            { name: 'Competitor', requirement: 'Reach Level 10', requiredLevel: 10, unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %> },
+            { name: 'Champion', requirement: 'Reach Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %> },
+            { name: 'Legend', requirement: 'Reach Level 35', requiredLevel: 35, unlocked: <%= (level || 1) >= 35 ? 'true' : 'false' %> },
+            { name: 'Max Gamer', requirement: 'Reach Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %> }
+        ];
+
+        function loadTitleOptions() {
+            const grid = document.getElementById('titleGrid');
+            grid.innerHTML = '';
+            const currentTitle = '<%= selectedTitle %>';
+
+            availableTitles.forEach(title => {
+                const titleDiv = document.createElement('div');
+                titleDiv.className = `customization-item ${title.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (title.unlocked && title.name === currentTitle) {
+                    titleDiv.classList.add('selected');
+                }
+                
+                const iconOrImage = title.image 
+                    ? `<img src="/img/${title.image}" alt="${title.name}" class="customization-item-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'customization-item-icon\\'>🏆</div>';">`
+                    : `<div class="customization-item-icon">${title.icon || '🏆'}</div>`;
+                
+                titleDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        ${iconOrImage}
+                        <div class="customization-item-name">${title.name}</div>
+                        ${!title.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!title.unlocked ? `<div class="customization-item-requirement">${title.requirement}</div>` : ''}
+                        ${title.unlocked ? '<button class="customization-select-btn" onclick="selectTitle(\'' + title.name + '\')">Select</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(titleDiv);
+            });
+        }
+
+        function selectTitle(title) {
+            fetch('/api/update-title', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update title');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating title:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Title Color customization functions
+        const availableTitleColors = [
+            { name: 'White', id: 'white', color: '#ffffff', requirement: 'Default', requiredLevel: 1, unlocked: true },
+            { name: 'Purple', id: 'purple', color: '#a855f7', requirement: 'Battle Pass Level 5', requiredLevel: 5, unlocked: <%= (level || 1) >= 5 ? 'true' : 'false' %> },
+            { name: 'Blue', id: 'blue', color: '#3b82f6', requirement: 'Battle Pass Level 10', requiredLevel: 10, unlocked: <%= (level || 1) >= 10 ? 'true' : 'false' %> }
+        ];
+
+        function loadTitleColorOptions() {
+            const grid = document.getElementById('titleColorGrid');
+            grid.innerHTML = '';
+            const currentTitleColor = '<%= selectedTitleColor %>';
+
+            availableTitleColors.forEach(color => {
+                const colorDiv = document.createElement('div');
+                colorDiv.className = `customization-item ${color.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (color.unlocked && color.id === currentTitleColor) {
+                    colorDiv.classList.add('selected');
+                }
+                
+                const colorPreviewStyle = color.id === 'rainbow' 
+                    ? `background: ${color.color}; border-radius: 50%; width: 50px; height: 50px;`
+                    : `background-color: ${color.color}; border-radius: 50%; width: 50px; height: 50px; border: 2px solid rgba(255,255,255,0.3);`;
+                
+                colorDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        <div style="${colorPreviewStyle}"></div>
+                        <div class="customization-item-name">${color.name}</div>
+                        ${!color.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!color.unlocked ? `<div class="customization-item-requirement">${color.requirement}</div>` : ''}
+                        ${color.unlocked ? '<button class="customization-select-btn" onclick="selectTitleColor(\'' + color.id + '\')">Select</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(colorDiv);
+            });
+        }
+
+        function selectTitleColor(titleColor) {
+            fetch('/api/update-title-color', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ titleColor })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update title color');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating title color:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Theme customization functions
+        const purchasedThemesData = JSON.parse('<%- purchasedThemes %>');
+        
+        const availableThemes = [
+            { name: 'Default', id: 'default', requirement: 'Starting Theme', requiredLevel: 1, unlocked: true, colors: ['#0d1117', '#161b22'] },
+            { name: 'Ocean Breeze', id: 'ocean', requirement: 'Battle Pass Level 18', requiredLevel: 18, unlocked: <%= (level || 1) >= 18 ? 'true' : 'false' %>, colors: ['#3b82f6', '#60a5fa'] },
+            { name: 'Forest', id: 'forest', requirement: 'Battle Pass Level 21', requiredLevel: 21, unlocked: <%= (level || 1) >= 21 ? 'true' : 'false' %>, colors: ['#34d399', '#6ee7b7'] },
+            { name: 'Pink Paradise', id: 'pink', requirement: 'Battle Pass Level 40', requiredLevel: 40, unlocked: <%= (level || 1) >= 40 ? 'true' : 'false' %>, colors: ['#ec4899', '#f472b6'] },
+            { name: 'Winter is Coming', id: 'winter', requirement: 'Battle Pass Level 46', requiredLevel: 46, unlocked: <%= (level || 1) >= 46 ? 'true' : 'false' %>, colors: ['#60a5fa', '#93c5fd'] },
+            { name: 'Smith', id: 'smith', requirement: 'Battle Pass Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %>, colors: ['#8b949e', '#30363d'] },
+            { name: 'Isaiah', id: 'isaiah', requirement: 'Purchase in Shop (75 Onecells)', isPurchasable: true, unlocked: purchasedThemesData.includes('isaiah'), colors: ['#92400e', '#d97706'] },
+            { name: 'John Showman', id: 'john', requirement: 'Purchase in Shop (50 Onecells)', isPurchasable: true, unlocked: purchasedThemesData.includes('john'), colors: ['#dc2626', '#ef4444'] },
+            { name: 'Robert', id: 'robert', requirement: 'Purchase in Shop (125 Onecells)', isPurchasable: true, unlocked: purchasedThemesData.includes('robert'), colors: ['#a855f7', '#c084fc'] },
+            { name: 'Chickens Memory', id: 'peak', requirement: 'Purchase in Shop (100 Onecells)', isPurchasable: true, unlocked: purchasedThemesData.includes('peak'), colors: ['#f59e0b', '#fbbf24'] }
+        ];
+
+        function loadThemeOptions() {
+            const grid = document.getElementById('themeGrid');
+            grid.innerHTML = '';
+            const currentTheme = '<%= selectedTheme %>';
+
+            availableThemes.forEach(theme => {
+                const themeDiv = document.createElement('div');
+                themeDiv.className = `customization-item ${theme.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (theme.unlocked && theme.id === currentTheme) {
+                    themeDiv.classList.add('selected');
+                }
+                
+                const gradientStyle = `background: linear-gradient(135deg, ${theme.colors[0]} 0%, ${theme.colors[1]} 100%);`;
+                
+                themeDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        <div class="theme-preview" style="${gradientStyle}"></div>
+                        <div class="customization-item-name">${theme.name}</div>
+                        ${!theme.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!theme.unlocked ? `<div class="customization-item-requirement">${theme.requirement}</div>` : ''}
+                        ${theme.unlocked ? '<button class="customization-select-btn" onclick="selectTheme(\'' + theme.id + '\')">Select</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(themeDiv);
+            });
+        }
+
+        function selectTheme(theme) {
+            fetch('/api/update-theme', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ theme })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update theme');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating theme:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Sound Pack customization functions
+        const availableSoundPacks = [
+            { name: 'Default', id: 'default', requirement: 'Starting Pack', requiredLevel: 1, unlocked: true, icon: '🔊' },
+            { name: 'Hayden Pack', id: 'hayden', requirement: 'Battle Pass Level 25', requiredLevel: 25, unlocked: <%= (level || 1) >= 25 ? 'true' : 'false' %>, image: 'Hayden.png' },
+            { name: 'Custom', id: 'custom', requirement: 'Always Available', requiredLevel: 1, unlocked: true, icon: '🎵' }
+        ];
+
+        function loadSoundPackOptions() {
+            const grid = document.getElementById('soundPackGrid');
+            grid.innerHTML = '';
+            const currentSoundPack = '<%= selectedSoundPack %>';
+
+            availableSoundPacks.forEach(pack => {
+                const packDiv = document.createElement('div');
+                packDiv.className = `customization-item ${pack.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (pack.unlocked && pack.id === currentSoundPack) {
+                    packDiv.classList.add('selected');
+                }
+                
+                const iconOrImage = pack.image 
+                    ? `<img src="/img/${pack.image}" alt="${pack.name}" class="customization-item-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'customization-item-icon\\'>${pack.icon || '🔊'}</div>';">`
+                    : `<div class="customization-item-icon">${pack.icon}</div>`;
+                
+                packDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        ${iconOrImage}
+                        <div class="customization-item-name">${pack.name}</div>
+                        ${!pack.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!pack.unlocked ? `<div class="customization-item-requirement">${pack.requirement}</div>` : ''}
+                        ${pack.unlocked ? '<button class="customization-select-btn" onclick="selectSoundPack(\'' + pack.id + '\')\">' + (pack.id === 'custom' ? 'Customize' : 'Select') + '</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(packDiv);
+            });
+        }
+
+        function selectSoundPack(soundPack) {
+            if (soundPack === 'custom') {
+                // Show custom sounds configuration instead of saving
+                document.getElementById('soundPackGrid').style.display = 'none';
+                document.getElementById('customSoundsConfig').style.display = 'block';
+                document.getElementById('soundPackPopupTitle').textContent = 'Customize Your Sound Pack';
+                document.getElementById('soundPackPopupSubtitle').textContent = 'Choose individual sounds for each action';
+                loadCustomSoundsOptions();
+                return;
+            }
+            
+            fetch('/api/update-soundpack', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ soundPack })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Save to localStorage for immediate use
+                    localStorage.setItem('selectedSoundPack', soundPack);
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update sound pack');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating sound pack:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Custom Sounds customization functions
+        const soundTypes = [
+            { id: 'loading', name: 'Loading/Alert Sound', description: 'Played when alerts appear' },
+            { id: 'win', name: 'Victory Sound', description: 'Played when you win' },
+            { id: 'lose', name: 'Defeat Sound', description: 'Played when you lose' },
+            { id: 'plus2', name: 'Draw Two Sound', description: 'Played when +2 card is played' },
+            { id: 'plus4', name: 'Draw Four Sound', description: 'Played when +4 card is played' },
+            { id: 'reverse', name: 'Reverse Sound', description: 'Played when reverse card is played' },
+            { id: 'skip', name: 'Skip Sound', description: 'Played when skip card is played' },
+            { id: 'wild', name: 'Wild Sound', description: 'Played when wild card is played' },
+            { id: 'startgame', name: 'Game Start Sound', description: 'Played when game starts' }
+        ];
+
+        const availableSoundOptions = {
+            loading: [
+                { path: '/sfx/loading.mp3', name: 'Default (Vine Boom)' },
+                { path: '/sfx/thinkfastchucklenuts.mp3', name: 'Think Fast' },
+                { path: '/sfx/yeahoo.mp3', name: 'Yeahoo' }
+            ],
+            win: [
+                { path: '/sfx/yippie.mp3', name: 'Default (Yippee)' },
+                { path: '/sfx/haydenwinner.mp3', name: 'Hayden Winner' },
+                { path: '/sfx/allidoiswin.mp3', name: 'All I Do Is Win' },
+                { path: '/sfx/thefinalcountdown.mp3', name: 'The Final Countdown' },
+                { path: '/sfx/wearethechampions.mp3', name: 'We Are The Champions' },
+                { path: '/sfx/yourethebest.mp3', name: 'You\'re The Best' }
+            ],
+            lose: [
+                { path: '/sfx/spongebobfail.mp3', name: 'Default (Spongebob Fail)' },
+                { path: '/sfx/haydenlose.mp3', name: 'Hayden Lose' }
+            ],
+            plus2: [
+                { path: '/sfx/slap.mp3', name: 'Default (Slap)' },
+                { path: '/sfx/hayden+2.mp3', name: 'Hayden +2' },
+                { path: '/sfx/peterlaugh.mp3', name: 'Peter Laugh' }
+            ],
+            plus4: [
+                { path: '/sfx/slap.mp3', name: 'Default (Slap)' },
+                { path: '/sfx/hayden+4.mp3', name: 'Hayden +4' },
+                { path: '/sfx/blowmeaway.mp3', name: 'Blow Me Away' }
+            ],
+            reverse: [
+                { path: '/sfx/reverse.mp3', name: 'Default (Reverse)' },
+                { path: '/sfx/haydenreverse.mp3', name: 'Hayden Reverse' },
+                { path: '/sfx/avengedsevenfold.mp3', name: 'Avenged Sevenfold' }
+            ],
+            skip: [
+                { path: '/sfx/pluh.mp3', name: 'Default (Pluh)' },
+                { path: '/sfx/haydenskip.mp3', name: 'Hayden Skip' },
+                { path: '/sfx/fnafjumpscare.mp3', name: 'FNAF Jumpscare' }
+            ],
+            wild: [
+                { path: '/sfx/omaewa.mp3', name: 'Default (Omae Wa)' },
+                { path: '/sfx/haydenwild.mp3', name: 'Hayden Wild' },
+                { path: '/sfx/imspongebob.mp3', name: 'I\'m Spongebob' }
+            ],
+            startgame: [
+                { path: '/sfx/afewmoments.mp3', name: 'Default (Few Moments Later)' },
+                { path: '/sfx/haydenstartgame.mp3', name: 'Hayden Start Game' }
+            ]
+        };
+
+        let currentCustomSounds = {};
+
+        function loadCustomSoundsOptions() {
+            const grid = document.getElementById('customSoundsGrid');
+            grid.innerHTML = '';
+            
+            // Load current custom sounds from localStorage
+            const savedCustomSounds = localStorage.getItem('customSounds');
+            if (savedCustomSounds) {
+                try {
+                    currentCustomSounds = JSON.parse(savedCustomSounds);
+                } catch (e) {
+                    currentCustomSounds = {};
+                }
+            }
+
+            soundTypes.forEach(soundType => {
+                const soundDiv = document.createElement('div');
+                soundDiv.className = 'custom-sound-option';
+                
+                const currentSelection = currentCustomSounds[soundType.id] || 'default';
+                
+                let optionsHTML = '<option value="default">Use Sound Pack Default</option>';
+                availableSoundOptions[soundType.id].forEach(option => {
+                    const selected = currentSelection === option.path ? 'selected' : '';
+                    optionsHTML += `<option value="${option.path}" ${selected}>${option.name}</option>`;
+                });
+                
+                soundDiv.innerHTML = `
+                    <div class="custom-sound-header">
+                        <h4>${soundType.name}</h4>
+                        <p class="custom-sound-description">${soundType.description}</p>
+                    </div>
+                    <select class="custom-sound-select" data-sound-type="${soundType.id}">
+                        ${optionsHTML}
+                    </select>
+                    <button class="preview-sound-btn" onclick="previewSound('${soundType.id}')">▶️ Preview</button>
+                `;
+                
+                grid.appendChild(soundDiv);
+            });
+        }
+
+        function previewSound(soundType) {
+            const selectElement = document.querySelector(`[data-sound-type="${soundType}"]`);
+            const soundPath = selectElement.value;
+            
+            if (soundPath === 'default') {
+                alert('This will use the default sound from your selected sound pack.');
+                return;
+            }
+            
+            const audio = new Audio(soundPath);
+            audio.volume = 0.5;
+            audio.play().catch(err => console.log('Audio preview failed:', err));
+        }
+
+        function saveCustomSounds() {
+            const customSounds = {};
+            
+            document.querySelectorAll('.custom-sound-select').forEach(select => {
+                const soundType = select.getAttribute('data-sound-type');
+                const soundPath = select.value;
+                if (soundPath !== 'default') {
+                    customSounds[soundType] = soundPath;
+                }
+            });
+            
+            // Save to localStorage
+            localStorage.setItem('customSounds', JSON.stringify(customSounds));
+            
+            // Save custom sounds and set sound pack to 'custom'
+            fetch('/api/update-custom-sounds', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customSounds: JSON.stringify(customSounds) })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Also update the sound pack to 'custom'
+                    return fetch('/api/update-soundpack', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ soundPack: 'custom' })
+                    });
+                } else {
+                    throw new Error(data.message || 'Failed to save custom sounds');
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    localStorage.setItem('selectedSoundPack', 'custom');
+                    alert('Custom sound pack saved successfully!');
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to save custom sounds');
+                }
+            })
+            .catch(err => {
+                console.error('Error saving custom sounds:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Badge customization functions
+        const availableBadges = [
+            { name: 'None', id: 'none', requirement: 'No badge', requiredLevel: 1, requiredWins: 0, unlocked: true, icon: '⚪' },
+            { name: 'Bronze', id: 'bronze', requirement: 'Level 5 + 10 Wins', requiredLevel: 5, requiredWins: 10, unlocked: <%= (level || 1) >= 5 && (wins || 0) >= 10 ? 'true' : 'false' %>, icon: '🥉' },
+            { name: 'Silver', id: 'silver', requirement: 'Level 15 + 25 Wins', requiredLevel: 15, requiredWins: 25, unlocked: <%= (level || 1) >= 15 && (wins || 0) >= 25 ? 'true' : 'false' %>, icon: '🥈' },
+            { name: 'Gold', id: 'gold', requirement: 'Level 30 + 50 Wins', requiredLevel: 30, requiredWins: 50, unlocked: <%= (level || 1) >= 30 && (wins || 0) >= 50 ? 'true' : 'false' %>, icon: '🥇' },
+            { name: 'Trophy', id: 'trophy', requirement: 'Level 45 + 100 Wins', requiredLevel: 45, requiredWins: 100, unlocked: <%= (level || 1) >= 45 && (wins || 0) >= 100 ? 'true' : 'false' %>, icon: '🏆' },
+            { name: 'Premium Diamond', id: 'diamond', requirement: 'Purchase Battle Pass Premium', requiredLevel: 1, requiredWins: 0, unlocked: <%= hasBattlePassPremium ? 'true' : 'false' %>, icon: '💎' }
+        ];
+
+        function loadBadgeOptions() {
+            const grid = document.getElementById('badgeGrid');
+            grid.innerHTML = '';
+            const currentBadge = '<%= selectedBadge %>';
+
+            availableBadges.forEach(badge => {
+                const badgeDiv = document.createElement('div');
+                badgeDiv.className = `customization-item ${badge.unlocked ? 'unlocked' : 'locked'}`;
+                
+                if (badge.unlocked && badge.id === currentBadge) {
+                    badgeDiv.classList.add('selected');
+                }
+                
+                const iconOrImage = badge.image 
+                    ? `<img src="/img/${badge.image}" alt="${badge.name}" class="customization-item-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'customization-item-icon\\'>${badge.icon}</div>';">`
+                    : `<div class="customization-item-icon">${badge.icon}</div>`;
+                
+                badgeDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        ${iconOrImage}
+                        <div class="customization-item-name">${badge.name}</div>
+                        ${!badge.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!badge.unlocked ? `<div class="customization-item-requirement">${badge.requirement}</div>` : ''}
+                        ${badge.unlocked ? '<button class="customization-select-btn" onclick="selectBadge(\'' + badge.id + '\')">Select</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(badgeDiv);
+            });
+        }
+
+        function selectBadge(badge) {
+            fetch('/api/update-badge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ badge })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update badge');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating badge:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        // Emote customization functions
+        const availableEmotes = [
+            { name: 'Wave', id: 'wave', requirement: 'Starting Emote', requiredLevel: 1, unlocked: true, icon: '👋' },
+            { name: 'Thumbs Up', id: 'thumbsup', requirement: 'Battle Pass Level 5', requiredLevel: 5, unlocked: <%= (level || 1) >= 5 ? 'true' : 'false' %>, icon: '👍' },
+            { name: 'Party', id: 'party', requirement: 'Battle Pass Level 15', requiredLevel: 15, unlocked: <%= (level || 1) >= 15 ? 'true' : 'false' %>, icon: '🎉' },
+            { name: 'Fire', id: 'fire', requirement: 'Battle Pass Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %>, icon: '🔥' },
+            { name: 'Heart Eyes', id: 'hearteyes', requirement: 'Battle Pass Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %>, icon: '😍' },
+            { name: 'Crown', id: 'crown', requirement: 'Battle Pass Level 30', requiredLevel: 30, unlocked: <%= (level || 1) >= 30 ? 'true' : 'false' %>, icon: '👑' },
+            { name: 'Cool', id: 'cool', requirement: 'Battle Pass Level 30', requiredLevel: 30, unlocked: <%= (level || 1) >= 30 ? 'true' : 'false' %>, icon: '😎' },
+            { name: 'Party Smith', id: 'partysmith', requirement: 'Battle Pass Level 35', requiredLevel: 35, unlocked: <%= (level || 1) >= 35 ? 'true' : 'false' %>, image: 'partySmith.png' },
+            { name: 'Cowboy', id: 'cowboy', requirement: 'Battle Pass Level 35', requiredLevel: 35, unlocked: <%= (level || 1) >= 35 ? 'true' : 'false' %>, icon: '🤠' },
+            { name: 'Rocket', id: 'rocket', requirement: 'Battle Pass Level 40', requiredLevel: 40, unlocked: <%= (level || 1) >= 40 ? 'true' : 'false' %>, icon: '🚀' },
+            { name: 'Star', id: 'star', requirement: 'Battle Pass Level 50', requiredLevel: 50, unlocked: <%= (level || 1) >= 50 ? 'true' : 'false' %>, icon: '⭐' },
+            { name: 'Disasmithed', id: 'disasmithed', requirement: 'Win 75 Games', requiredLevel: 1, unlocked: <%= (wins || 0) >= 75 ? 'true' : 'false' %>, image: 'disasmithed.png' }
+        ];
+
+        // Track selected emojis (max 4)
+        let selectedEmojis = [];
+        try {
+            const emotesData = '<%- typeof selectedEmotes !== "undefined" ? selectedEmotes : "[]" %>';
+            selectedEmojis = JSON.parse(emotesData);
+            if (!Array.isArray(selectedEmojis) || selectedEmojis.length === 0) {
+                selectedEmojis = ['wave', 'thumbsup', 'party', 'fire'];
+            }
+        } catch (e) {
+            console.error('Error parsing selected emotes:', e);
+            selectedEmojis = ['wave', 'thumbsup', 'party', 'fire'];
+        }
+
+        function updateSelectedEmojisPreview() {
+            const preview = document.getElementById('selectedEmojisPreview');
+            if (!preview) return;
+            
+            preview.innerHTML = '<div style="font-weight: 600; margin-bottom: 10px;">Selected Emojis (' + selectedEmojis.length + '/4):</div>';
+            const container = document.createElement('div');
+            container.style.display = 'flex';
+            container.style.gap = '10px';
+            container.style.flexWrap = 'wrap';
+            container.style.justifyContent = 'center';
+            
+            selectedEmojis.forEach(emojiId => {
+                const emote = availableEmotes.find(e => e.id === emojiId);
+                if (emote) {
+                    const emojiDiv = document.createElement('div');
+                    emojiDiv.style.cssText = 'background: var(--card-bg); padding: 10px 15px; border-radius: 10px; border: 2px solid var(--accent-color); font-size: 1.2rem;';
+                    
+                    if (emote.image) {
+                        emojiDiv.innerHTML = `<img src="/img/${emote.image}" alt="${emote.name}" style="width: 40px; height: 40px; border-radius: 5px;">`;
+                    } else {
+                        emojiDiv.textContent = emote.icon;
+                    }
+                    container.appendChild(emojiDiv);
+                }
+            });
+            
+            preview.appendChild(container);
+        }
+
+        function loadEmoteOptions() {
+            const grid = document.getElementById('emoteGrid');
+            grid.innerHTML = '';
+
+            availableEmotes.forEach(emote => {
+                const emoteDiv = document.createElement('div');
+                const isSelected = selectedEmojis.includes(emote.id);
+                emoteDiv.className = `customization-item ${emote.unlocked ? 'unlocked' : 'locked'} ${isSelected ? 'selected' : ''}`;
+                
+                const iconOrImage = emote.image 
+                    ? `<img src="/img/${emote.image}" alt="${emote.name}" class="customization-item-image" onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'customization-item-icon\\'>${emote.icon}</div>';">`
+                    : `<div class="customization-item-icon">${emote.icon}</div>`;
+                
+                emoteDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        ${iconOrImage}
+                        <div class="customization-item-name">${emote.name}</div>
+                        ${!emote.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!emote.unlocked ? `<div class="customization-item-requirement">${emote.requirement}</div>` : ''}
+                        ${emote.unlocked ? '<button class="customization-select-btn" onclick="toggleEmoteSelection(\'' + emote.id + '\')">' + (isSelected ? 'Selected ✓' : 'Select') + '</button>' : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(emoteDiv);
+            });
+            
+            updateSelectedEmojisPreview();
+        }
+
+        function toggleEmoteSelection(emojiId) {
+            const index = selectedEmojis.indexOf(emojiId);
+            
+            if (index > -1) {
+                // Remove from selection
+                selectedEmojis.splice(index, 1);
+            } else {
+                // Add to selection if less than 4
+                if (selectedEmojis.length < 4) {
+                    selectedEmojis.push(emojiId);
+                } else {
+                    alert('You can only select up to 4 emojis. Deselect one first.');
+                    return;
+                }
+            }
+            
+            loadEmoteOptions(); // Reload to update button states
+        }
+
+        function saveSelectedEmojis() {
+            if (selectedEmojis.length !== 4) {
+                alert('Please select exactly 4 emojis before saving.');
+                return;
+            }
+            
+            fetch('/api/update-emojis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emojis: selectedEmojis })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Emojis updated successfully!');
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update emojis');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating emojis:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        function selectEmote(emote) {
+            // Legacy function for backward compatibility
+            toggleEmoteSelection(emote);
+        }
+
+        // Effects customization functions
+        function showEffectsPopup() {
+            document.getElementById('effectsPopup').style.display = 'flex';
+            loadEffectsOptions();
+        }
+
+        function hideEffectsPopup() {
+            document.getElementById('effectsPopup').style.display = 'none';
+        }
+
+        const availableEffects = [
+            { name: 'Confetti', id: 'confetti', requirement: 'Starting Effect', requiredLevel: 1, unlocked: true, icon: '🎊' },
+            { name: 'Sparkles', id: 'sparkles', requirement: 'Battle Pass Level 20', requiredLevel: 20, unlocked: <%= (level || 1) >= 20 ? 'true' : 'false' %>, icon: '✨' },
+            { name: 'Lightning', id: 'lightning', requirement: 'Battle Pass Level 26', requiredLevel: 26, unlocked: <%= (level || 1) >= 26 ? 'true' : 'false' %>, icon: '⚡' },
+            { name: 'Skip', id: 'skip', requirement: 'Battle Pass Level 31', requiredLevel: 31, unlocked: <%= (level || 1) >= 31 ? 'true' : 'false' %>, icon: '⛔' },
+            { name: 'Flames', id: 'flames', requirement: 'Battle Pass Level 40', requiredLevel: 40, unlocked: <%= (level || 1) >= 40 ? 'true' : 'false' %>, icon: '🔥' },
+            { name: 'Bow N Arrow', id: 'bow', requirement: 'Battle Pass Level 41', requiredLevel: 41, unlocked: <%= (level || 1) >= 41 ? 'true' : 'false' %>, icon: '🏹' }
+        ];
+
+        let selectedEffects = [];
+        try {
+            const effectData = '<%- typeof selectedEffect !== "undefined" ? selectedEffect : "" %>';
+            if (effectData) {
+                selectedEffects = effectData.startsWith('[') ? JSON.parse(effectData) : [effectData];
+            }
+            if (!Array.isArray(selectedEffects) || selectedEffects.length === 0) {
+                selectedEffects = ['confetti'];
+            }
+        } catch(e) {
+            console.error('Error parsing selected effects:', e);
+            selectedEffects = ['confetti'];
+        }
+
+        function updateSelectedEffectsPreview() {
+            const preview = document.getElementById('selectedEffectsPreview');
+            if (!preview) return;
+            
+            preview.innerHTML = '<div style="font-weight: 600; margin-bottom: 10px;">Selected Effects (' + selectedEffects.length + '):</div>';
+            const container = document.createElement('div');
+            container.style.display = 'flex';
+            container.style.gap = '10px';
+            container.style.flexWrap = 'wrap';
+            container.style.justifyContent = 'center';
+            
+            selectedEffects.forEach(effectId => {
+                const effect = availableEffects.find(e => e.id === effectId);
+                if (effect) {
+                    const effectDiv = document.createElement('div');
+                    effectDiv.style.cssText = 'background: var(--card-bg); padding: 10px 15px; border-radius: 10px; border: 2px solid var(--accent-color); font-size: 1.2rem;';
+                    effectDiv.textContent = effect.icon;
+                    container.appendChild(effectDiv);
+                }
+            });
+            
+            preview.appendChild(container);
+        }
+
+        function loadEffectsOptions() {
+            const grid = document.getElementById('effectsGrid');
+            grid.innerHTML = '';
+
+            availableEffects.forEach(effect => {
+                const effectDiv = document.createElement('div');
+                const isSelected = selectedEffects.includes(effect.id);
+                effectDiv.className = `customization-item ${effect.unlocked ? 'unlocked' : 'locked'} ${isSelected ? 'selected' : ''}`;
+                
+                effectDiv.innerHTML = `
+                    <div class="customization-item-content">
+                        <div class="customization-item-icon">${effect.icon}</div>
+                        <div class="customization-item-name">${effect.name}</div>
+                        ${!effect.unlocked ? `<div class="customization-item-lock">🔒</div>` : ''}
+                        ${!effect.unlocked ? `<div class="customization-item-requirement">${effect.requirement}</div>` : ''}
+                        ${effect.unlocked ? `
+                          <button class="customization-select-btn" onclick="toggleEffectSelection('${effect.id}')">${isSelected ? 'Selected ✓' : 'Select'}</button>
+                          <button class="effect-preview-btn" onclick="previewEffect('${effect.id}')">▶ Preview</button>
+                        ` : ''}
+                    </div>
+                `;
+                
+                grid.appendChild(effectDiv);
+            });
+            
+            updateSelectedEffectsPreview();
+        }
+
+        function toggleEffectSelection(effectId) {
+            const index = selectedEffects.indexOf(effectId);
+            
+            if (index > -1) {
+                // Remove from selection
+                selectedEffects.splice(index, 1);
+            } else {
+                // Add to selection
+                selectedEffects.push(effectId);
+            }
+            
+            loadEffectsOptions(); // Reload to update button states
+        }
+
+        function previewEffect(effectId) {
+            // Clean up any lingering preview elements
+            document.querySelectorAll(
+                '.preview-confetti,.preview-sparkle,.preview-fire,.preview-skip,' +
+                '.preview-lightning-bolt,.preview-lightning-flash,.preview-arrow'
+            ).forEach(el => el.remove());
+
+            if (effectId === 'confetti') {
+                const colors = ['#ff0000','#00ff00','#0000ff','#ffff00','#ff00ff','#00ffff','#ff8800','#ff0088','#88ff00','#0088ff'];
+                for (let i = 0; i < 120; i++) {
+                    setTimeout(() => {
+                        const c = document.createElement('div');
+                        c.className = 'preview-confetti';
+                        c.style.left = Math.random() * 100 + '%';
+                        c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                        c.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                        c.style.width = c.style.height = (Math.random() * 12 + 8) + 'px';
+                        document.body.appendChild(c);
+                        setTimeout(() => c.remove(), 4500);
+                    }, Math.random() * 1500);
+                }
+
+            } else if (effectId === 'sparkles') {
+                const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+                for (let i = 0; i < 50; i++) {
+                    setTimeout(() => {
+                        const s = document.createElement('div');
+                        s.className = 'preview-sparkle';
+                        const angle = Math.random() * Math.PI * 2;
+                        const r = 20 + Math.random() * 60;
+                        s.style.left = (cx + Math.cos(angle) * r) + 'px';
+                        s.style.top  = (cy + Math.sin(angle) * r) + 'px';
+                        const ma = Math.random() * Math.PI * 2;
+                        const md = 60 + Math.random() * 100;
+                        s.style.setProperty('--sx', (Math.cos(ma) * md) + 'px');
+                        s.style.setProperty('--sy', (Math.sin(ma) * md - 40) + 'px');
+                        s.style.animationDuration = (.7 + Math.random() * .8) + 's';
+                        document.body.appendChild(s);
+                        setTimeout(() => s.remove(), 1600);
+                    }, i * 30);
+                }
+
+            } else if (effectId === 'lightning') {
+                const flash = document.createElement('div');
+                flash.className = 'preview-lightning-flash';
+                document.body.appendChild(flash);
+                setTimeout(() => flash.remove(), 600);
+
+                const tx = window.innerWidth / 2, ty = window.innerHeight / 2;
+                for (let b = 0; b < 3; b++) {
+                    setTimeout(() => {
+                        const bolt = document.createElement('div');
+                        bolt.className = 'preview-lightning-bolt';
+                        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                        svg.setAttribute('width', window.innerWidth);
+                        svg.setAttribute('height', window.innerHeight);
+                        svg.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;';
+                        let startX = tx + (Math.random() - 0.5) * 200;
+                        let pd = `M ${startX} 0`;
+                        const segs = 8;
+                        for (let j = 1; j <= segs; j++) {
+                            const prog = j / segs;
+                            startX = startX + (tx - startX) * 0.3 + (Math.random() - 0.5) * 50 * (1 - prog * 0.7);
+                            pd += ` L ${startX} ${(ty / segs) * j}`;
+                        }
+                        pd += ` L ${tx} ${ty}`;
+                        const mkPath = (stroke, width, opacity) => {
+                            const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            p.setAttribute('d', pd); p.setAttribute('stroke', stroke);
+                            p.setAttribute('stroke-width', width); p.setAttribute('fill', 'none');
+                            p.setAttribute('stroke-linecap', 'round'); p.setAttribute('opacity', opacity);
+                            return p;
+                        };
+                        svg.appendChild(mkPath('#4d94ff', '12', '0.6'));
+                        svg.appendChild(mkPath('#b3d9ff', '6', '1'));
+                        svg.appendChild(mkPath('#ffffff', '3', '1'));
+                        bolt.appendChild(svg);
+                        document.body.appendChild(bolt);
+                        setTimeout(() => bolt.remove(), 700);
+                    }, b * 90);
+                }
+
+            } else if (effectId === 'skip') {
+                const sym = document.createElement('div');
+                sym.className = 'preview-skip';
+                document.body.appendChild(sym);
+                setTimeout(() => sym.remove(), 1400);
+
+            } else if (effectId === 'flames') {
+                const W = window.innerWidth, H = window.innerHeight;
+                for (let i = 0; i < 50; i++) {
+                    setTimeout(() => {
+                        const f = document.createElement('div');
+                        f.className = 'preview-fire';
+                        const large = i < 10;
+                        const sz = large ? (35 + Math.random() * 15) : (10 + Math.random() * 18);
+                        f.style.width = sz + 'px';
+                        f.style.height = (sz * 1.4) + 'px';
+                        f.style.left = (Math.random() * W) + 'px';
+                        f.style.top  = (H - sz) + 'px';
+                        f.style.setProperty('--fx', ((Math.random() - 0.5) * 80) + 'px');
+                        f.style.setProperty('--fy', (-(large ? (250 + Math.random() * 200) : (100 + Math.random() * 150))) + 'px');
+                        f.style.animationDuration = (large ? 2 : 1.2 + Math.random() * 0.8) + 's';
+                        document.body.appendChild(f);
+                        setTimeout(() => f.remove(), 3200);
+                    }, i * 60);
+                }
+
+            } else if (effectId === 'bow') {
+                const W = window.innerWidth;
+                for (let i = 0; i < 12; i++) {
+                    setTimeout(() => {
+                        const a = document.createElement('div');
+                        a.className = 'preview-arrow';
+                        a.style.left = (Math.random() * (W - 90)) + 'px';
+                        a.style.top  = '-10px';
+                        a.style.animationDuration = (.7 + Math.random() * .5) + 's';
+                        document.body.appendChild(a);
+                        setTimeout(() => a.remove(), 1600);
+                    }, i * 80);
+                }
+            }
+        }
+
+        function saveSelectedEffects() {
+            if (selectedEffects.length === 0) {
+                alert('Please select at least one effect before saving.');
+                return;
+            }
+            
+            fetch('/api/update-effect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ effects: selectedEffects })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Effects updated successfully!');
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to update effects');
+                }
+            })
+            .catch(err => {
+                console.error('Error updating effects:', err);
+                alert('An error occurred. Please try again.');
+            });
+        }
     </script>
 </body>
 </html>

@@ -1,15 +1,38 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#f85149">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
     <title>Onebar - Lobby List</title>
+    <link rel="icon" type="image/x-icon" href="/img/pfp.png">
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/lobby.css">
+    <link rel="stylesheet" href="/css/mobile.css">
 </head>
 <body>
     <a href="/" class="btn home-button">Home</a>
     <a href="/logout" class="btn logout-button">Logout</a>
+    
+    <!-- Emoji Reaction Button (upper-left, shown when in room) -->
+    <button class="emoji-reaction-button" id="emojiReactionBtn" onclick="toggleEmojiMenu()" style="display: none;">😊</button>
+    
+    <!-- Custom Rules Button (under emoji button, shown for host in room) -->
+    <button class="rules-button-sidebar" id="rulesButtonSidebar" onclick="toggleRulesPanelSidebar()" style="display: none;">⚙️</button>
+    
+    <!-- Emoji Selection Menu -->
+    <div class="emoji-menu" id="emojiMenu" style="display: none;">
+        <div class="emoji-menu-item" data-emoji="0"></div>
+        <div class="emoji-menu-item" data-emoji="1"></div>
+        <div class="emoji-menu-item" data-emoji="2"></div>
+        <div class="emoji-menu-item" data-emoji="3"></div>
+    </div>
+    
+    <!-- Emoji Reactions Display Area -->
+    <div class="emoji-reactions-area" id="emojiReactionsArea"></div>
     
     <div class="lobby-container">
         <h1 class="lobby-title">Game Lobby</h1>
@@ -19,7 +42,7 @@
                 <h2>Available Lobbies</h2>
             </div>
             <div id="lobbyList">
-                <div class="loading-text">Loading lobbies...</div>
+                <div class="loading-text">Searching for lobbies...</div>
             </div>
         </div>
 
@@ -30,10 +53,6 @@
             <div class="lobby-form">
                 <input type="text" id="createLobbyName" placeholder="Enter lobby name..." />
                 <input type="number" id="createMaxPlayers" min="2" max="32" value="8" title="Max Players" />
-                <div class="checkbox-wrapper">
-                    <input type="checkbox" id="createPrivateLobby" />
-                    <label for="createPrivateLobby">Private</label>
-                </div>
                 <button id="createLobbyBtn">Create Lobby</button>
             </div>
         </div>
@@ -52,6 +71,8 @@
             <h2 id="currentRoomTitle">Room</h2>
             <div id="currentRoomInfo"></div>
             <div id="roomPlayerList"></div>
+            <div id="readyButtonContainerLobby"></div>
+            <div id="rulesDisplayLobby" style="margin-top: 15px;"></div>
             <div id="roomControls"></div>
             <button id="leaveLobbyBtn">Leave Lobby</button>
         </div>
@@ -66,8 +87,12 @@
     </div>
 
     <script>window.CURRENT_USER = "<%= user %>";</script>
+    <script>
+        // Pass selected emotes to JavaScript
+        document.body.setAttribute('data-selected-emotes', '<%- typeof selectedEmotes !== "undefined" ? selectedEmotes : "[]" %>');
+    </script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
-    <script src="/js/lobby.js"></script>
+    <script src="/js/lobby.js?v=20260220final"></script>
 </body>
 </html>

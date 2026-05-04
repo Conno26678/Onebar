@@ -8,7 +8,7 @@ const dotenv = require('dotenv')
 dotenv.config({ quiet: true });
 
 // Modules
-const { sessionMiddleware } = require('./modules/middleware');
+const { sessionMiddleware, addThemeToLocals } = require('./modules/middleware');
 const { setupRoutes } = require('./modules/routes');
 const { setupSocketHandlers } = require('./modules/socket-handlers');
 
@@ -23,6 +23,10 @@ app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.json());
 app.use(sessionMiddleware);
+app.use(addThemeToLocals);
+
+// Favicon handler
+app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 // Attach session middleware to socket.io
 io.use((socket, next) => {

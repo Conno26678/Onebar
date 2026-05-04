@@ -1,11 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<%= selectedTheme || 'default' %>">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#f85149">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
     <title>Onebar - Private Room</title>
     <link rel="stylesheet" href="/css/theme.css">
     <link rel="stylesheet" href="/css/room.css">
+    <link rel="stylesheet" href="/css/mobile.css">
 </head>
 <body>
     <a href="/" class="btn home-button">Home</a>
@@ -31,8 +36,8 @@
             <div id="roomPlayerList">
                 <div class="waiting-indicator">Waiting for players<span class="dots">...</span></div>
             </div>
-            
-            <div id="roomControls"></div>
+            <div id="readyButtonContainer"></div>
+            <div id="roomControls" style="min-height: 50px;"></div>
             
             <button id="leaveRoomBtn">Leave Room</button>
         </div>
@@ -65,7 +70,7 @@
             <div class="winner-name" id="winnerNameDisplay"></div>
             <div class="winner-earnings" id="winnerEarningsDisplay"></div>
             <div class="winner-buttons">
-                <!-- <button id="playAgainBtn" class="winner-btn primary">Play Again</button> -->
+                <button id="playAgainBtn" class="winner-btn primary">Play Again</button>
                 <button id="backToLobbyBtn" class="winner-btn secondary">Back to Lobby</button>
             </div>
         </div>
@@ -83,6 +88,43 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/theme.js"></script>
     <script>
+        // Sound pack mapping
+        const soundMappings = {
+            default: {
+                loading: '/sfx/loading.mp3',
+                startgame: '/sfx/afewmoments.mp3'
+            },
+            hayden: {
+                loading: '/sfx/loading.mp3',
+                startgame: '/sfx/haydenstartgame.mp3'
+            }
+        };
+
+        // Function to get current sound pack
+        function getCurrentSoundPack() {
+            return localStorage.getItem('selectedSoundPack') || 'default';
+        }
+
+        // Function to get sound path based on custom sounds and selected pack
+        function getSoundPath(soundType) {
+            // First check for custom sounds
+            const customSounds = localStorage.getItem('customSounds');
+            if (customSounds) {
+                try {
+                    const customSoundsObj = JSON.parse(customSounds);
+                    if (customSoundsObj[soundType]) {
+                        return customSoundsObj[soundType];
+                    }
+                } catch (e) {
+                    console.log('Error parsing custom sounds:', e);
+                }
+            }
+            
+            // Fall back to sound pack
+            const pack = getCurrentSoundPack();
+            return soundMappings[pack]?.[soundType] || soundMappings.default[soundType];
+        }
+
         // Sound control helper function
         function playSoundIfEnabled(soundPath, volume = 0.5) {
             const soundEnabled = localStorage.getItem('soundEffectsEnabled');
@@ -97,15 +139,15 @@
         }
 
         // Play "a few moments" sound on page load
-        playSoundIfEnabled('/sfx/afewmoments.mp3', 0.5);
+        playSoundIfEnabled(getSoundPath('startgame'), 0.5);
         
         // Override alert to play loading sound
         const originalAlert = window.alert;
         window.alert = function(message) {
-            playSoundIfEnabled('/sfx/loading.mp3', 0.5);
+            playSoundIfEnabled(getSoundPath('loading'), 0.5);
             originalAlert.call(window, message);
         };
     </script>
-    <script src="/js/room.js?v=4"></script>
+    <script src="/js/room.js?v=20260220final"></script>
 </body>
 </html>

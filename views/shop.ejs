@@ -75,7 +75,7 @@
                 ◀
             </button>
             <div class="shop-grid" id="shopGrid">
-                <!-- Page 1: Free Games, Distraction, Isaiah Theme -->
+                <!-- Page 1: Free Games, Distraction, Mystery Box -->
                 <div class="shop-page" data-page="1" style="display: grid;">
                     <!-- Free Games Item -->
                     <div class="shop-item" data-item="free-games">
@@ -123,31 +123,25 @@
                         </button>
                     </div>
 
-                    <!-- Isaiah Theme Item -->
-                    <div class="shop-item" data-item="isaiah-theme">
-                        <% if (purchasedThemes.includes('isaiah')) { %>
-                            <div class="item-badge owned">✓ OWNED</div>
-                        <% } else { %>
-                            <div class="item-badge new">New look</div>
-                        <% } %>
-                        <div class="item-icon">
-                            <img src="/img/Isaiah.png" alt="Isaiah" class="item-image">
-                        </div>
-                        <h2 class="item-title">Isaiah Theme</h2>
+                    <!-- Mystery Box Item -->
+                    <div class="shop-item" data-item="mystery-box">
+                        <div class="item-badge">Mystery</div>
+                        <div class="item-icon">📦</div>
+                        <h2 class="item-title">Mystery Box</h2>
                         <p class="item-description">
-                            Experience the Isaiah theme with Isaiahs face plastered all over the game. This theme includes custom colors, fonts, and pics.
+                            Unbox to receive random rewards! Contains custom sounds, themes, free games, and distractions.
                         </p>
                         <div class="item-features">
-                            <div class="feature">✓ Unique color scheme</div>
-                            <div class="feature">✓ Custom fonts & Isaiah avatar</div>
-                            <div class="feature">✓ Isaiah background</div>
+                            <div class="feature">✓ Custom sound effects (common)</div>
+                            <div class="feature">✓ Themes, free games & distractions (rare)</div>
+                            <div class="feature">✓ Duplicates convert to Onecells</div>
                         </div>
                         <div class="item-price">
-                            <span class="price-amount">75 Onecells</span>
-                            <span class="price-period">/one-time</span>
+                            <span class="price-amount">15 Onecells</span>
+                            <span class="price-period">/box</span>
                         </div>
-                        <button class="buy-button" onclick="purchaseTheme('isaiah', 75)" <% if (purchasedThemes.includes('isaiah')) { %>disabled style="opacity: 0.5; cursor: not-allowed;"<% } %>>
-                            <span class="button-text"><% if (purchasedThemes.includes('isaiah')) { %>Already Owned<% } else { %>Purchase Now<% } %></span>
+                        <button class="buy-button" onclick="purchaseMysteryBox('standard', 15)">
+                            <span class="button-text">Purchase Box</span>
                             <span class="button-icon">→</span>
                         </button>
                     </div>
@@ -243,38 +237,13 @@
                     </div>
                 </div>
 
-                <!-- Page 3: Mystery Boxes -->
-                <div class="shop-page" data-page="3" style="display: none;">
-                    <!-- Mystery Box -->
-                    <div class="shop-item" data-item="mystery-box">
-                        <div class="item-badge">Mystery</div>
-                        <div class="item-icon">📦</div>
-                        <h2 class="item-title">Mystery Box</h2>
-                        <p class="item-description">
-                            Unbox to receive random rewards! Contains custom sounds, themes, free games, and distractions.
-                        </p>
-                        <div class="item-features">
-                            <div class="feature">✓ Custom sound effects (common)</div>
-                            <div class="feature">✓ Themes, free games & distractions (rare)</div>
-                            <div class="feature">✓ Duplicates convert to Onecells</div>
-                        </div>
-                        <div class="item-price">
-                            <span class="price-amount">15 Onecells</span>
-                            <span class="price-period">/box</span>
-                        </div>
-                        <button class="buy-button" onclick="purchaseMysteryBox('standard', 15)">
-                            <span class="button-text">Purchase Box</span>
-                            <span class="button-icon">→</span>
-                        </button>
-                    </div>
-                </div>
             </div>
             <button class="shop-nav-arrow shop-nav-right" id="shopNavRight">
                 ▶
             </button>
         </div>
         <div class="shop-pagination-info">
-            <span id="shopPageInfo">Page 1 of 3</span>
+            <span id="shopPageInfo">Page 1 of 2</span>
         </div>
         
         <div class="shop-footer">
@@ -285,7 +254,7 @@
 
     <script>
         let currentShopPage = 1;
-        const totalShopPages = 3;
+        const totalShopPages = 2;
         
         function purchaseTheme(themeId, price) {
             const currentOnecells = parseInt(document.getElementById('onecellsDisplay').textContent) || 0;
@@ -336,7 +305,6 @@
             } else {
                 // Legacy behavior for other items
                 const itemNames = {
-                    'isaiah-theme': 'Isaiah Theme',
                     'john-theme': 'John Theme',
                     'robert-theme': 'Robert Theme',
                     'chickens-memory-theme': 'Chickens Memory Theme'

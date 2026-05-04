@@ -555,7 +555,6 @@ function setupRoutes(app) {
 
     // Define theme prices and names
     const themes = {
-      'isaiah': { name: 'Isaiah Theme', price: 75, themeValue: 'isaiah' },
       'john': { name: 'John Showman Theme', price: 50, themeValue: 'john' },
       'robert': { name: 'Robert Theme', price: 125, themeValue: 'robert' },
       'peak': { name: 'Chickens Memory Theme', price: 100, themeValue: 'peak' }
@@ -887,7 +886,6 @@ function setupRoutes(app) {
         rareItems: {
           weight: 30,
           items: [
-            { id: 'theme_isaiah', name: 'Isaiah Theme', type: 'theme', value: 75 },
             { id: 'theme_john', name: 'John Showman Theme', type: 'theme', value: 50 },
             { id: 'theme_robert', name: 'Robert Theme', type: 'theme', value: 125 },
             { id: 'freegame_1', name: '1 Free Game', type: 'freeGame', amount: 1, value: 0 },
@@ -1267,7 +1265,7 @@ function setupRoutes(app) {
       };
 
       // Define purchasable themes
-      const purchasableThemes = ['isaiah', 'john', 'robert', 'peak'];
+      const purchasableThemes = ['john', 'robert', 'peak'];
 
       // Check if it's a Battle Pass theme
       if (themeRequirements.hasOwnProperty(theme)) {

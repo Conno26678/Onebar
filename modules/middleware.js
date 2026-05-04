@@ -2,12 +2,48 @@ const session = require('express-session');
 const jwt = require('jsonwebtoken');
 const db = require('../util/database');
 
+const sessionSecret = process.env.SESSION_SECRET || 'dev-session-secret-change-me';
+const authUrl = process.env.AUTH_URL;
+const appUrl = process.env.THIS_URL;
+const hasAuthConfig = Boolean(authUrl && appUrl);
+
+if (!hasAuthConfig && process.env.NODE_ENV === 'production') {
+  throw new Error('AUTH_URL and THIS_URL are required in production');
+}
+
+if (!process.env.SESSION_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SESSION_SECRET is required in production');
+  }
+  console.warn('SESSION_SECRET is not set; using development fallback secret.');
+}
 
 const sessionMiddleware = session({
-  secret: process.env.SESSION_SECRET,
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false
 });
+
+function signInAsLocalDev(req, res, nextOrRedirect) {
+  const expiresAt = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+  req.session.token = {
+    id: 0,
+    displayName: 'Local Dev',
+    permissions: ['*'],
+    exp: expiresAt
+  };
+  req.session.user = 'Local Dev';
+  req.session.permission = ['*'];
+  req.session.hasPaid = true;
+
+  req.session.save(() => {
+    if (typeof nextOrRedirect === 'function') {
+      nextOrRedirect();
+      return;
+    }
+    res.redirect(nextOrRedirect || '/');
+  });
+}
 
 function isAuthenticated(req, res, next) {
   if (req.session.user) {
@@ -27,7 +63,11 @@ function isAuthenticated(req, res, next) {
     }
   } else {
     console.log('User not authenticated, redirecting to login');
-    console.log(`Redirect URL: ${process.env.AUTH_URL}?redirectURL=${process.env.THIS_URL}`);
+    if (!hasAuthConfig && process.env.NODE_ENV !== 'production') {
+      console.warn('AUTH_URL or THIS_URL is not set; using local dev session fallback.');
+      return signInAsLocalDev(req, res, next);
+    }
+    console.log(`Redirect URL: ${authUrl}?redirectURL=${appUrl}`);
     res.redirect('/login');
   }
 }
@@ -108,7 +148,11 @@ function handleLogin(req, res) {
       }
     });
   } else {
-    res.redirect(`${process.env.AUTH_URL}?redirectURL=${process.env.THIS_URL}`);
+    if (!hasAuthConfig && process.env.NODE_ENV !== 'production') {
+      console.warn('AUTH_URL or THIS_URL is not set; using local dev session fallback.');
+      return signInAsLocalDev(req, res, req.query.redirectURL || '/');
+    }
+    res.redirect(`${authUrl}?redirectURL=${encodeURIComponent(appUrl)}`);
   }
 }
 
